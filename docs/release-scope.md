@@ -79,9 +79,21 @@ without them leaves TH2 unsatisfiable.
 
 ## Not in v0.1.0
 
-Everything else on the board: A1-A5, A7, A8, A9, B3, DM5, DOC1-DOC4, E7, E9, G1,
-I3, I5, I6, I9, I13, P1, P2, P3, P4, P6, P7, RM3, S1, S2, S3, T1, T2, T3, TH5,
-TH6, TH7, V1-V8, W2, WK1-WK5, X1-X4.
+Everything else on the board: A1-A5, A7, A8, A9, B3, B4, DM5, DOC1-DOC4, E7, E9,
+G1, I3, I5, I6, I9, I13, I14, I15, MP1, MP2, N4-N8, P1, P2, P3, P4, P6, P7, P8,
+RM3, S1, S2, S3, T1, T2, T3, TH5, TH6, TH7, V1-V8, W2, WK1-WK6, X1-X4.
+
+Signoff does not mean in scope. Many of these are signed off and in progress on
+the board so that work can start the moment v0.1.0 ships; that is deliberate and
+it is not a scope change. The skin in v0.1.0 means TH1 to TH4. TH5, TH6 and TH7
+are separate UI work and stay out.
+
+N4 and N5 deserve a note, because they are the only cut items that would make
+the rest of the release cheaper rather than more expensive: N4 removes roughly
+fifteen approval prompts per session and N5 removes the bookkeeping that ate
+most of the context in the planning phase. They are cut anyway, because
+retooling the workshop during the build is how a deadline is missed. Do them
+first after v0.1.0.
 
 ## Parallel and serial
 

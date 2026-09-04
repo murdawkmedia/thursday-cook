@@ -1,0 +1,142 @@
+# Thursday settings template.
+#
+# The install engine copies this file to $DSH_HOME/settings.yaml, where
+# $DSH_HOME is $THURSDAY_HOME/dsh. It is a TEMPLATE. The provider accounts and
+# the model routes that make it useful belong to the person running the
+# installer, not to the distribution, so they are supplied as an overlay at
+# install time and written into the marked regions below.
+#
+# =============================================================================
+# TWO RULES FOR ANY CODE THAT WRITES THIS FILE. BOTH WERE PAID FOR ONCE.
+#
+# 1. NEVER ROUND-TRIP THIS FILE THROUGH A YAML PARSER.
+#
+#    YAML 1.1 reads the bare key `off:` as the boolean false. This file
+#    contains `off:` as a reasoningEfforts key, and the llm-pi-ai schema
+#    accepts only the string keys off/minimal/low/medium/high/xhigh/max. A
+#    reader that turns `off:` into `false:` therefore makes the whole provider
+#    fail validation, and EVERY pi-ai provider silently disappears with no
+#    error that mentions YAML. Reproduce it in one line:
+#
+#      python3 -c 'import yaml;print(yaml.safe_dump(yaml.safe_load("off:\n")))'
+#      -> false: null
+#
+#    Read this file line-wise and patch it line-wise. Do not load it and
+#    re-emit it, not to reformat it, not to sort it, not to validate it. The
+#    install engine's `no-yaml-round-trip` constraint names this file.
+#
+# 2. `profile.active` IS RUNTIME STATE INSIDE A THURSDAY-OWNED FILE.
+#
+#    The profiles tool flips it while a session runs. A re-sync must read the
+#    current value before it rewrites this file and restore it afterwards. It
+#    is the only such key. Everything else here may be overwritten freely.
+# =============================================================================
+#
+# Three regions are line-anchored so an installer can replace them without
+# parsing anything:
+#
+#   # thursday-providers:begin / :end   the llm-pi-ai provider map
+#   # sync-models:begin / :end          one provider's model list
+#   # thursday-chains:begin / :end      the named route chains
+#
+# Indentation is two spaces, and a sequence sits at the same column as the key
+# that owns it. Keep both, or a line patch written against this shape misses.
+
+agent-default-model:
+  # deepseek-official ships with the harness itself. It is the one route that
+  # works before the user has configured any third-party provider, so it is the
+  # template default. The profiles tool overwrites this key with the head of
+  # the active orchestrator chain whenever that chain changes.
+  provider: deepseek-official
+  model: deepseek-v4-flash
+
+agent-presets:
+  # Thursday's own preset (C2). `quick` (C3) is the other installed preset.
+  default: thursday
+
+log-viewer:
+  # The command the log panel runs. This is deliberately unit-agnostic: the
+  # plugin's own compiled default names a specific systemd user unit, so
+  # LEAVING THIS KEY OUT DOES NOT MAKE THE SETTING GENERIC, it just hides a
+  # machine-specific value inside the plugin. The wizard may replace it.
+  command: "journalctl --user -n 2000"
+
+llm-pi-ai:
+  # Extra OpenAI-compatible or Anthropic-compatible routes, on top of the
+  # providers pi-ai already knows. Credentials are NEVER written here: a
+  # provider names an environment variable, and the value lives in the
+  # environment or in $DSH_HOME/.credentials.yaml.
+  #
+  # The entry below is a placeholder, not a recommendation. The installer
+  # either replaces the whole marked region with the user's own providers or
+  # deletes the region, leaving `providers: {}`. An empty map is valid: the
+  # schema is `providers: dict(profile).default({})`.
+  providers:
+    # thursday-providers:begin
+    example:
+      displayName: Example provider (replace at install time)
+      apiKeyEnv: EXAMPLE_API_KEY
+      api: openai-completions
+      baseURL: https://api.example.invalid/v1
+      defaultInput:
+      - text
+      models:
+      # sync-models:begin
+      - id: example-model
+        name: Example Model
+        contextWindow: 131072
+        maxTokens: 32768
+        input:
+        - text
+        reasoningEfforts:
+          # `off:` with no value is legal and load-bearing. Only `off` may
+          # leave the wire value empty; every other level must carry the
+          # string dispatch sends. Do not quote it, do not reorder it, and do
+          # not let a YAML 1.1 writer near it. See rule 1 at the top.
+          off:
+          low: low
+          high: high
+      # sync-models:end
+    # thursday-providers:end
+
+profile:
+  # "work" and "personal" are not descriptions of one person's life. They are
+  # the two entry keys the profiles plugin accepts, and `active` must be
+  # exactly one of those two strings. Renaming them breaks the plugin.
+  #
+  # RUNTIME STATE. Preserve this value across a re-sync. See rule 2.
+  active: personal
+
+  # A chain is an ordered failover list. The first entry is the head; later
+  # entries are tried in order when a route faults. A step may be
+  # "provider/model", "chain:<name>" to splice another chain in, or a mapping
+  # with provider/model/reasoningEffort.
+  #
+  # Chain names are free EXCEPT two: the vision helper reads `see` when the
+  # active profile is personal and `see-work` when it is work. Those two names
+  # are hard-coded in the plugin.
+  chains:
+    # thursday-chains:begin
+    personal-orchestrator:
+    - deepseek-official/deepseek-v4-pro
+    - deepseek-official/deepseek-v4-flash
+    work-orchestrator:
+    - chain:personal-orchestrator
+    subagent:
+    - deepseek-official/deepseek-v4-flash
+    subagent-work:
+    - chain:subagent
+    see:
+    - deepseek-official/deepseek-v4-flash
+    see-work:
+    - chain:see
+    # thursday-chains:end
+
+  # Each profile entry names one chain per agent depth. Depth-0 agents ride
+  # `orchestrator`; every spawned child rides `subagent`.
+  work:
+    orchestrator: work-orchestrator
+    subagent: subagent-work
+  personal:
+    orchestrator: personal-orchestrator
+    subagent: subagent

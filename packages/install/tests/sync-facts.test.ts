@@ -8,7 +8,7 @@ import { constraintsNamed, loadBlockFile } from "../src/loader";
 // The five facts sync.sh recorded in comments, and where each one lives now.
 // A schema with no field for a fact deletes it in translation, so this file
 // asserts the destination of each one against a block that actually loads.
-const example = (name: string) => fileURLToPath(new URL(`../examples/${name}`, import.meta.url));
+const example = (name: string) => fileURLToPath(new URL(`../../blocks/${name}`, import.meta.url));
 
 describe("sync.sh's comments have somewhere to live", () => {
   it("1. the compaction fork installs under the basic package name", () => {

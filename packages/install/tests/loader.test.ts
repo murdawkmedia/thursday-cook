@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { BlockError } from "../src/errors";
 import { constraintsNamed, hasConstraint, loadBlockFile, parseBlock } from "../src/loader";
 
-const example = (name: string) => fileURLToPath(new URL(`../examples/${name}`, import.meta.url));
+const example = (name: string) => fileURLToPath(new URL(`../../blocks/${name}`, import.meta.url));
 
 /** A minimal block that validates, used as the base for the negative cases. */
 function block(frontmatter: string, body = "# t\n\nprose.\n"): string {
@@ -42,8 +42,9 @@ describe("a valid block loads", () => {
     expect(b.frontmatter.version).toBe(1);
     expect(b.frontmatter.dependsOn).toEqual(["dsh-runtime"]);
     expect(b.frontmatter.rationale).toContain("vendored fork");
-    // Absent list fields default to empty rather than undefined.
-    expect(b.frontmatter.modifies).toEqual([]);
+    // The block declares what it touches outside its own package, and says why.
+    expect(b.frontmatter.modifies).toHaveLength(1);
+    expect(b.frontmatter.modifies[0]?.file).toBe("profiles/web/package.json");
     // Action defaults are applied at load time, not at run time.
     expect(b.frontmatter.steps[0]).toEqual({
       action: "pnpm-add",
@@ -51,7 +52,7 @@ describe("a valid block loads", () => {
       profile: "web",
       allowBuilds: false,
     });
-    expect(b.frontmatter.detect[0]?.action).toBe("row-present");
+    expect(b.frontmatter.detect[0]?.action).toBe("package-installed");
     expect(b.frontmatter.reverse).toBeUndefined();
     expect(b.body).toContain("# llm-pi-ai");
   });

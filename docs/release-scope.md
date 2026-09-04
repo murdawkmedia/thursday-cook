@@ -21,14 +21,22 @@ passes. Each is pass or fail, with no judgement call.
    unchanged.
 9. The install command on trythursday.org is the one that was just tested.
 
+10. The demo container starts, a visitor reaches a working session, and the
+    container holds no credential and no personal file.
+11. Thursday looks like Thursday: the skin, the mark, the fonts, and the
+    thinking phrases are live, not stock dsh.
+
 ## What is allowed to be missing or ugly
 
 Stated so nobody polishes the wrong thing at 3am.
 
-- It looks like stock dsh. No Thursday skin, no custom mark, no fonts.
 - Linux only. macOS and Windows are not attempted, and the installer says so
-  rather than half-working.
-- No demo, no editor, no file tree, no git panel, no plugin registry.
+  rather than half-working. Docker is a first-class path, not a workaround, so
+  "works in Docker" is a release check and not a footnote.
+- No editor, no file tree, no git panel, no plugin registry.
+- No raw request and response inspector. TH6 stays out: it is a durable
+  plaintext credential store if the redaction is wrong, and its own body admits
+  the capture hook may not exist.
 - The website is one page plus an install page. No blog, no docs site.
 - Error messages may be terse, as long as they name the failing step.
 - The migration is unfinished. Plugins install from where they already live.
@@ -41,15 +49,33 @@ Composition: C1, C2, C3, C4, C5, C6, A6, E5.
 First run: E1, E2, E3, E4, E6.
 Plugins: P5.
 Website: W1, W3, WS1, WS2, WS4, WS5.
+Look: B1, B2, TH1, TH2, TH3, TH4.
+Demo: E8, DM1, DM2, DM3, DM4, W4, RM1, RM2.
 Process: REL1, REL2.
 
-That is 36 tickets. See the risk below.
+That is 48 tickets. See the risk below.
+
+The look and the demo were added to v0.1.0 by the user after the first cut. Two
+consequences follow and neither is optional.
+
+RM2 BECOMES RELEASE-BLOCKING. The demo runs the real composition, and the real
+composition installs `dsh-remote` from the pinned roster. So shipping the demo
+ships a remote-access plugin on a public URL, and today no ticket has examined
+its authentication or its exposure surface. DM3 bounds the container, not the
+plugin inside it. RM1 and RM2 are therefore in v0.1.0: not for tidiness, but
+because the alternative is putting an unexamined remote-access surface on the
+internet. If RM2 finds something bad and cannot fix it in time, the demo ships
+with `dsh-remote` removed from the demo composition, or it does not ship.
+
+B1 AND B2 COME WITH THE SKIN. TH2 needs a mark to install and B2 needs B1's
+inventory of which sizes the manifest and desktop entry require. Adding the skin
+without them leaves TH2 unsatisfiable.
 
 ## Not in v0.1.0
 
-Everything else on the board: A1-A5, A7, A8, A9, B1, B2, B3, DM1-DM5, DOC1-DOC4,
-E7, E8, E9, G1, I3, I5, I6, I9, I13, P1, P2, P3, P4, P6, P7, RM1, RM2, RM3, S1,
-S2, S3, T1, T2, T3, TH1-TH7, V1-V8, W2, W4, WK1-WK5, X1-X4.
+Everything else on the board: A1-A5, A7, A8, A9, B3, DM5, DOC1-DOC4, E7, E9, G1,
+I3, I5, I6, I9, I13, P1, P2, P3, P4, P6, P7, RM3, S1, S2, S3, T1, T2, T3, TH5,
+TH6, TH7, V1-V8, W2, WK1-WK5, X1-X4.
 
 ## Parallel and serial
 
@@ -65,10 +91,11 @@ REL1 and I11 are the only tickets startable today.
 
 ## The risk, and the trigger
 
-The reviewer's arithmetic is right: 36 tickets with six human-approval gates is
-not a weekend. The single largest cost is the block model, I1 plus I2 plus I4
-plus C4, which is strictly more work than the eight things the installer
-actually does at v0.1.0.
+The reviewer's arithmetic was right at 36 tickets, and the scope is now 48. The
+single largest cost is the block model, I1 plus I2 plus I4 plus C4, which is
+strictly more work than the eight things the installer actually does at v0.1.0.
+The second largest is now the demo, which drags in the container, free-model
+routing, safety bounding, and the two `dsh-remote` tickets behind it.
 
 The block model stays, because it is what makes the work dispatchable in
 parallel and what keeps `sync.sh`'s comment knowledge from being deleted in

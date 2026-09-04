@@ -1,5 +1,7 @@
 /**
- * The Thursday install engine's block layer: schema, action registry, loader.
+ * The Thursday install engine's block layer: schema, action registry, loader,
+ * and the composition generator that turns a loaded block set into the
+ * profile's `cordis.patch.yml`.
  *
  * A block is one markdown file — YAML frontmatter for the data, prose for the
  * reasons, named actions for the steps. See docs/block-format.md for the
@@ -35,6 +37,17 @@ export {
   type SurfacedConstraint,
 } from "./loader";
 export {
+  PatchError,
+  generateWebPatch,
+  orderBlocks,
+  planWebPatch,
+  type OverrideDifference,
+  type PatchProblem,
+  type PatchRow,
+  type WebPatch,
+  type WebPatchOptions,
+} from "./patch";
+export {
   blockFrontmatterSchema,
   type BlockFrontmatter,
   type ConfigChange,
@@ -47,3 +60,11 @@ export {
   type RawFrontmatter,
   type SideEffect,
 } from "./schema";
+export {
+  UPSTREAM_ROWS,
+  UPSTREAM_ROW_IDS,
+  readBundleDefaults,
+  type UpstreamRow,
+  type UpstreamRowId,
+  type UpstreamRowTable,
+} from "./upstream";

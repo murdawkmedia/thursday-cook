@@ -1385,12 +1385,25 @@ already had, and they complete a real ticket in under ten minutes.
   sizes the desktop entry, the web app manifest, and the website need, in the
   dark high-contrast visual system from D1. The source mark is
   `assets/thursday-logo.svg`, already in the repository; this ticket derives the
-  export set from it and adds the wordmark. Blocked by D1.
+  export set from it and adds the wordmark. The name and the mark: Thursday is
+  named the way Friday in the Avengers films is, an assistant you work with,
+  and it has NOTHING TO DO WITH THOR OR NORSE MYTHOLOGY. Do not reintroduce that
+  reading anywhere — not in the mark, not in the site copy, not in a phrase in
+  TH3's set. The mark is a sturdy hammer read as a TOOL, plain and workmanlike,
+  not a weapon and not anything mythological, and its silhouette doubles as a T
+  for Thursday. That double reading is what the mark is for, so it is a
+  constraint on every export rather than a note: an export that loses the T, or
+  that starts to look heroic rather than like something on a workbench, is wrong
+  even if it is legible. Blocked by D1.
 
   **Evaluate:**
 
   - the 16px raster is legible as a distinct shape: no stroke thinner than one
     pixel and no two features closer than one pixel at that size
+  - the mark reads both as a hammer and as a T at every shipped size, checked at
+    the smallest and the largest
+  - nothing in the mark, the wordmark, or any copy shipped with them refers to
+    Thor, Norse mythology, or the etymology of the weekday
   - the set ships png and svg for Linux, `.icns` for macOS, and `.ico` for Windows
   - the asset set covers every size the manifest and desktop entry require
   - the source is committed as vector, not just raster exports
@@ -1876,6 +1889,11 @@ try-it path any better. Where this lands relative to 1.0 is the user's call.
 
 - AIDOS stays the internal name for the ticketing subsystem. Do not rename
   identifiers just to remove the word.
+- Thursday is named the way Friday in the Avengers films is: an assistant you
+  work with. It is NOT a reference to Thor, to Norse mythology, or to the
+  etymology of the weekday, and no artwork, copy, or phrase may imply that it is.
+  The mark is a sturdy hammer read as a plain tool, and its silhouette doubles as
+  a T.
 - Do not fork dsh. Fork only the plugins that need forking.
 - Prose in docs and skills follows STE-flavored Simplified Technical English,
   matching the existing skills.

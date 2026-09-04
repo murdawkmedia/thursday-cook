@@ -120,6 +120,7 @@ Same rule: one line per item, and an item that needs a paragraph belongs in a
 ticket instead.
 
 - [ ] Lua guard rules, run in a WASM sandbox, replacing brittle regex patterns
+- [ ] Agent-defined dashboards, rendered through nostr-canvas in a WASM-sandboxed Lua VM
 - [ ] An approval surface that only prompts when you are granting something new
 - [ ] A workspace panel: file tree, editor, and git diff review without leaving
 - [ ] A terminal, human-only by construction

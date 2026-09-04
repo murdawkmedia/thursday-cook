@@ -45,7 +45,7 @@ Stated so nobody polishes the wrong thing at 3am.
 
 Foundation: R1, R2, R3, R4, R5, M1, D1.
 Install: I1, I2, I4, I7, I8, I10, I11, I12.
-Composition: C1, C2, C3, C4, C5, C6, A6, E5.
+Composition: C1, C2, C3, C4, C5, C6, A6, E5, A10.
 First run: E1, E2, E3, E4, E6.
 Plugins: P5.
 Website: W1, W3, WS1, WS2, WS4, WS5.
@@ -53,7 +53,13 @@ Look: B1, B2, TH1, TH2, TH3, TH4.
 Demo: E8, DM1, DM2, DM3, DM4, W4, RM1, RM2.
 Process: REL1, REL2.
 
-That is 48 tickets. See the risk below.
+That is 49 tickets. See the risk below.
+
+A10 was added after the first cut, on the user's call: it moves the aidos board
+off dsh session projections onto its own append-only SQLite store. It is real
+architectural work and it lands upstream in aidos rather than as a Thursday
+fork, so E5 bumps its pin instead of forking. It is in scope because the board
+outliving its session is the difference between a demo and a tool.
 
 The look and the demo were added to v0.1.0 by the user after the first cut. Two
 consequences follow and neither is optional.

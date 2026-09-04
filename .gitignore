@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+lib/
+*.tsbuildinfo
+
+# local state
+.thursday/
+*.local
+.env
+.env.*
+!.env.example
+
+# editor and OS
+.DS_Store
+*.swp
+.idea/
+
+# harness scratch and pastes
+.dsh/
+.dsh_better_edit/
+
+# logs
+*.log

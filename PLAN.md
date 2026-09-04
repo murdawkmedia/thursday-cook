@@ -263,7 +263,11 @@ each block is repointed at a workspace package later, one at a time.
 The agreed priority order is bootstrap first (M0, R1, R3, R2), then the v0.1
 milestone, then the import system (M1, N2, N3), with the website track (D1, WS1,
 WS2, W1, WS5) running in parallel because nothing in it can be blocked by
-migration churn. The installation path page, WS4, waits for the install engine:
+migration churn. W1 uses the `wizard` skill where that skill already lives, so
+the claim holds literally and not just in spirit. The Thursday look — TH1 to TH4
+— hangs off D1 alongside the website, because the tokens serve both and shipping
+a bundle that still looks like stock dsh undersells it. The installation path
+page, WS4, waits for the install engine:
 a landing page that ships an install command which does not install anything is
 worse than no landing page.
 
@@ -337,7 +341,9 @@ already had, and they complete a real ticket in under ten minutes.
   something that was elided and the agent recovers it with `resume_search` and
   `resume_read`. The pair is what makes either one land. The seeded material
   exists precisely so chapter 2 has something to compact; an empty workspace has
-  no context worth compacting and the demo falls flat. Blocked by A7, C2, E2.
+  no context worth compacting and the demo falls flat. This ticket owns the only
+  seeded tour in the plan: DM4 dresses this workspace for the public demo rather
+  than authoring a second one. Blocked by E2, E5.
 
   **Evaluate:**
 
@@ -370,7 +376,10 @@ already had, and they complete a real ticket in under ten minutes.
   profile files before install; install, run both presets, run the tour,
   uninstall; checksum again and require byte equality. Today's `sync.sh` fails
   this test by design, because it edits the shipped `standard` preset in place,
-  so this is a genuine behavioral departure. Blocked by I7, T2, E1.
+  so this is a genuine behavioral departure. This ticket owns the byte-identity
+  assertion for the whole plan on the development platform; C6, I7 and T2 refer
+  to it rather than restating it, and T2 is what extends it to macOS and Windows.
+  Blocked by I7, E1.
 
   **Evaluate:**
 
@@ -394,7 +403,8 @@ already had, and they complete a real ticket in under ten minutes.
   - the engine produces a composition equivalent to a `sync.sh` run, artifact by artifact
   - every difference from `sync.sh` is deliberate and named
   - a block's source can be a pin or a local checkout, and repointing changes nothing else
-  - the user runs a real working day inside Thursday using this install
+  - the user completes at least one ticket on this board from inside Thursday,
+    end to end, without falling back to the old bundle
 - [ ] **Ticket E8: The Thursday container image.** One image, built in this
   repository, that installs Thursday with the real installer and serves dsh web.
   It is the substrate for local dogfooding now and the public demo later, so the
@@ -428,6 +438,91 @@ already had, and they complete a real ticket in under ten minutes.
   - the scratch directory is visible inside the container and writable as the host user
   - the user reaches a working Thursday session in a browser from one command
   - settings panels are live, not inert, in that browser session
+- [ ] **Ticket TH1: The Thursday skin.** A client plugin that makes the dsh web
+  UI look like Thursday, driven entirely by the D1 tokens so no color is written
+  twice. Surfaces go black and very dark neutral gray, stepping roughly
+  `#101010`, `#202020`, `#303030`, with panels distinguished by elevation rather
+  than by borders alone. Radii shrink until the UI reads square, close to Zed and
+  far from a consumer app. Buttons, chips, inputs, focus rings, and state colors
+  all resolve to tokens. It overrides dsh's own theme variables from a
+  higher-specificity root selector, the way the existing `system-fonts` plugin
+  already overrides the font tokens, rather than forking the theme package. It
+  ships in the Thursday home only and is reversed by uninstall like any other
+  block. Blocked by D1, I2.
+
+  **Evaluate:**
+
+  - no color literal appears outside the tokens package
+  - panel surfaces use the dark neutral steps and read as distinct elevations
+  - the largest radius in the UI is small enough that the interface reads square
+  - focus states are visible on every interactive control, by keyboard alone
+  - the user's normal dsh install is visually unchanged
+  - uninstall removes the skin with no residue
+- [ ] **Ticket TH2: The mark, the favicon, and the animated logo.** Put the
+  Thursday mark everywhere the dolphin currently is. `assets/thursday-logo.svg`
+  is the source: a segmented cross whose gradient drifts between `#0a5cff` and
+  `#ff8400` on a 14-second loop. Use the animated SVG in the UI where the dolphin
+  sits, and derive the favicon from the same source. The animation must degrade
+  honestly: a static frame under `prefers-reduced-motion`, and a flat fallback
+  wherever an animated SVG cannot be used, such as the favicon at small sizes and
+  the `.ico` and `.icns` exports. Check the mark at 16px before committing to it,
+  because the kerfs between the segments are the first thing to disappear.
+  Blocked by B2, TH1.
+
+  **Evaluate:**
+
+  - the Thursday mark replaces the dolphin in the web UI
+  - the favicon is the Thursday mark and is legible at 16px
+  - `prefers-reduced-motion` yields a static mark
+  - the animated and static forms come from one committed vector source
+  - the user's normal dsh install still shows its own branding
+- [ ] **Ticket TH3: The thinking phrases.** Replace the "Deep diving..." working
+  indicator with a rotating set of phrases in Thursday's voice, a small animated
+  Thursday mark to their left, and the gradient recolored from dsh's
+  white-to-blue to Thursday's blue-to-orange. Write the phrase set rather than
+  importing one: the well-known lists trace back to SimCity 2000's "Reticulating
+  splines" and the scraped collections on GitHub are unlicensed, inconsistent in
+  tone, and full of references that will not age. A curated set of our own keeps
+  one voice and avoids the licensing question entirely. Keep each phrase short
+  enough not to reflow the line, funny on the second reading rather than only the
+  first, and never implying a specific operation that is not happening. Blocked
+  by TH1, TH2.
+
+  **Evaluate:**
+
+  - the phrase set is written for Thursday and carries no copied list
+  - each phrase fits the indicator line without reflowing it at a narrow width
+  - phrases rotate slowly enough to read and never repeat back to back
+  - the gradient runs blue to orange from the tokens, not from a literal
+  - a small animated mark sits to the left, and it honors `prefers-reduced-motion`
+  - no phrase claims a specific operation that is not actually running
+- [ ] **Ticket TH4: Thursday typography and bundled fonts.** Replace the DeepSeek
+  Harness logo in the top left with the word "Thursday" set in a serif face,
+  Literata as the intended choice, so the application reads as Thursday before
+  anything else loads. Bundle the fonts rather than linking them: a browser on
+  another machine, a container, and an offline install must all render the same,
+  and a webfont fetched from a third party is both a privacy leak and a failure
+  mode. Ship Literata for the wordmark, Inter as the UI fallback, and Fantasque
+  Sans Mono as the monospace fallback, each self-hosted from the Thursday assets
+  with a `@font-face` and a local-font-first stack, so a user who has the font
+  installed uses theirs and everyone else still gets the right shape. All three
+  are SIL Open Font License, so bundling is permitted, and the license files ship
+  with them. The existing `system-fonts` plugin is the prior art: it already
+  overrides dsh's hardcoded `:root` font tokens from `html:root`, which outranks
+  them without `!important`, and dsh's monospace stack notably ends at a named
+  font with no `monospace` generic. Extend that mechanism rather than adding a
+  second one. Blocked by TH1, B2.
+
+  **Evaluate:**
+
+  - the top-left mark reads "Thursday" in a serif face, with no dsh logo
+  - every bundled font is served from Thursday's own assets, with no third-party
+    request at runtime, verified with the network panel offline
+  - each font stack tries the locally installed font first, then the bundled copy
+  - the monospace stack ends in the `monospace` generic, so a missing font cannot
+    fall through to a proportional face
+  - the SIL OFL license file for each bundled family ships beside it
+  - text renders in the intended faces with the network disabled
 
 ## Phase 1: Foundation — `pending`
 
@@ -575,19 +670,22 @@ already had, and they complete a real ticket in under ten minutes.
   state; then `aidos-core`, `aidos-tools`, `aidos-board`, `aidos-plan`,
   `aidos-scratch`, and `aidos-guards`. Write the boundaries and their service
   contracts up in `docs/aidos-decomposition.md` before moving any code. Do not
-  over-split: the kernel invariants must stay in exactly one place. Blocked by
-  M1. Blocks A1, A2, A3.
+  over-split: the kernel invariants must stay in exactly one place. This is the
+  approval gate for the decomposition, so A1 names it as a blocker and A2, A3 and
+  A4 inherit it through A1: no AIDOS code moves before the boundaries are
+  approved. Blocked by M1. Blocks A1.
 
   **Evaluate:**
 
   - the document names each plugin, what it owns, and what it depends on
   - exactly one component owns ticket state, and the document says which
-  - each boundary is justified by a composition someone would actually want
+  - every boundary names at least one composition in this plan that uses it, and
+    a boundary no composition uses is merged away before the document is approved
   - Quick's useful subset is named explicitly, and it excludes the board
 - [ ] **Ticket A1: Move the AIDOS kernel and host.** Move `src/kernel/` and
   `src/host/` into `packages/aidos`, keeping module names and the `aidos`
   package name so existing identifiers do not churn. Keep the `cordis.patch.yml`
-  contract: `aidos-invariants` before `aidos-core`. Blocked by R1, R2, M1.
+  contract: `aidos-invariants` before `aidos-core`. Blocked by R1, R2, M1, A8.
 
   **Evaluate:**
 
@@ -666,7 +764,9 @@ already had, and they complete a real ticket in under ten minutes.
   **Evaluate:**
 
   - no hex color literal remains in `packages/aidos/src/client`
-  - the board is visually unchanged or better in a side-by-side screenshot
+  - every token the board now reads resolves to a value, with no fallback silently
+    painting an element, checked by rendering the board with the token sheet absent
+  - the layout is unchanged: no element moves, resizes, or changes typeface
 - [ ] **Ticket A9: The gate-integrity contract.** Splitting AIDOS into plugins
   creates a way to break it that does not exist today: a preset that mounts
   `aidos-tools` without `aidos-guards` gets the board with none of the state
@@ -698,11 +798,13 @@ already had, and they complete a real ticket in under ten minutes.
   - `pnpm test` runs every ported plugin test and passes
   - the bash-guard tests still cover translate, sandbox drift, and planning rules
 
-- [ ] **Ticket P2: Move the client plugin packages.** Move the twelve client
-  packages with their `cordis.patch.yml`, CSS modules, and tests:
+- [ ] **Ticket P2: Move the client plugin packages.** Move the eleven complete
+  client packages with their `cordis.patch.yml`, CSS modules, and tests:
   approval-comment, composer-menu, context-meter, durable-todos, log-viewer,
   mcp-servers, profiles-client, session-archive, subscriptions, system-fonts,
-  tool-render, job-viewer. Blocked by R2, M1.
+  tool-render. job-viewer is deliberately excluded: it has no `package.json` and
+  no bundle patch, so it cannot satisfy the mount criterion below. P4 owns moving
+  it and completing it in one step. Blocked by R2, M1.
 
   **Evaluate:**
 
@@ -720,10 +822,12 @@ already had, and they complete a real ticket in under ten minutes.
   - only one pi-ai adapter registrar is active in a live session
   - the README names the upstream version the fork is based on
 
-- [ ] **Ticket P4: Finish the job-viewer plugin.** The buffer and poller exist;
-  the package does not. Add `package.json`, the host and client halves, the
-  bundle patch, and the panel that shows a background job's output. Blocked by
-  P2.
+- [ ] **Ticket P4: Move and finish the job-viewer plugin.** The buffer and poller
+  exist; the package does not. Move `plugins/job-viewer/src/` into the monorepo
+  and add what is missing: `package.json`, the host and client halves, the bundle
+  patch, and the panel that shows a background job's output. P2 excludes this
+  package for exactly this reason, so the move and the completion happen here in
+  one step. Blocked by R2, M1.
 
   **Evaluate:**
 
@@ -777,7 +881,10 @@ already had, and they complete a real ticket in under ten minutes.
 - [ ] **Ticket C2: The Thursday agent preset.** Build
   `profiles/thursday/agent.cordis.yml` from the aidos preset: shell, fs, jobs,
   skills, web, ask-user, todo, the delegation group, and the AIDOS tools row
-  last. Everything on, AIDOS included. Blocked by A3, C1.
+  last. Everything on, AIDOS included. For v0.1 the AIDOS row resolves to the
+  pinned package E5 installs, so this preset does not wait on the decomposition;
+  A3 repoints the row at the workspace packages later without touching the rest
+  of the composition. Blocked by C1, E5.
 
   **Evaluate:**
 
@@ -829,8 +936,8 @@ already had, and they complete a real ticket in under ten minutes.
 
   - `thursday` opens the web UI with the Thursday preset available
   - `thursday quick` opens a session in the Quick preset
-  - running either leaves `~/.dsh` unmodified, verified by a checksum before and
-    after
+  - running either leaves the user's normal dsh home unmodified, asserted by the
+    E6 byte-identity check rather than by a second checksum of its own
 
 ## Phase 5: Plugin blocks, installation, and reversal — `pending`
 
@@ -838,8 +945,9 @@ already had, and they complete a real ticket in under ten minutes.
   `packages/install`: identity, version, dependencies, files installed,
   configuration modified, dsh configuration modified, environment changes,
   commands, integrations, other side effects, install, detect-installed, and
-  reverse. Every field is data or a named action, never free-form shell. Blocked
-  by R1.
+  reverse. Every field is data or a named action, never free-form shell. Every
+  OS-divergent value in a block is asked of the V1 platform port, never branched
+  on in the block itself. Blocked by R1, V1.
 
   **Evaluate:**
 
@@ -866,7 +974,8 @@ already had, and they complete a real ticket in under ten minutes.
 
   - the ledger records each file written, each config key set, and each command run
   - an install, an edit to the block, and an uninstall still leave a clean tree
-  - the ledger is human-readable and documented
+  - the ledger is plain text a person can read without a tool, and `docs/` explains
+    every field in it
 
 - [ ] **Ticket I4: `thursday install`.** Implement the install command over the
   blocks: resolve dependencies, plan the actions, show what will change, apply,
@@ -909,18 +1018,23 @@ already had, and they complete a real ticket in under ten minutes.
   - uninstall leaves no Thursday file behind, verified by a tree diff
   - a file the user created inside the Thursday home survives uninstall, or the
     command names it and asks
-  - the user's normal `~/.dsh` is byte-identical before install and after uninstall
+  - reversal is complete enough that the E6 byte-identity check passes, which is
+    where that assertion lives
 
 - [ ] **Ticket I8: The shell bootstrapper.** Write `install/install.sh`: detect
   the platform, check for node and pnpm, fetch Thursday, and hand off to the
   TypeScript engine. It stays small and carries no installation logic of its
-  own. Blocked by I4.
+  own. Write it as POSIX sh from the first line rather than as bash: macOS still
+  ships bash 3.2 and `curl | sh` may land in dash, so a bash-5 script here would
+  have to be rewritten rather than extended. V6 is the CI job that keeps it that
+  way. Blocked by I4.
 
   **Evaluate:**
 
   - `curl -fsSL <url> | sh` completes an install on a clean container
   - the script is under 120 lines and contains no plugin-specific knowledge
   - a missing prerequisite fails with a message naming what to install
+  - no array, no `${var,,}`, and no process substitution appears in the script
 
 - [ ] **Ticket I9: The upgrade path.** Upgrading Thursday reconciles blocks
   across versions: a renamed file is moved, a dropped block is reversed, a new
@@ -958,12 +1072,12 @@ already had, and they complete a real ticket in under ten minutes.
   - the installer detects an unsupported configuration before writing anything
   - the bash-guard and the presets behave per the decision, with a test proving it
   - the website's installation page states the Windows requirement plainly
-- [ ] **Ticket V6: Make the bootstrapper bash-3.2 safe.** macOS still ships bash
-  3.2, and `curl | sh` may land in dash or another POSIX shell entirely. Today's
-  `sync.sh` uses bash 4 constructs — `local -a` arrays, `${#arr[@]}` — that would
-  fail there. Write `install/install.sh` as POSIX sh, verify it under `dash`,
-  `bash --posix`, and a bash 3.2 build, and keep it free of any construct newer
-  than that. Blocked by I8.
+- [ ] **Ticket V6: Prove the bootstrapper under every target shell.** I8 writes
+  `install/install.sh` as POSIX sh; this ticket is the CI job that stops it
+  drifting back. Today's `sync.sh` uses bash 4 constructs — `local -a` arrays,
+  `${#arr[@]}` — that fail on the bash 3.2 macOS still ships and in dash, and a
+  constraint with no test decays. Run the script under `dash`, `bash --posix`,
+  and a bash 3.2 build on every change to it. Blocked by I8.
 
   **Evaluate:**
 
@@ -987,11 +1101,14 @@ already had, and they complete a real ticket in under ten minutes.
 
 - [ ] **Ticket B2: The Thursday mark.** Produce the icon and wordmark in the
   sizes the desktop entry, the web app manifest, and the website need, in the
-  dark high-contrast visual system from D1. Blocked by D1.
+  dark high-contrast visual system from D1. The source mark is
+  `assets/thursday-logo.svg`, already in the repository; this ticket derives the
+  export set from it and adds the wordmark. Blocked by D1.
 
   **Evaluate:**
 
-  - the icon reads clearly at 16px and at 512px
+  - the 16px raster is legible as a distinct shape: no stroke thinner than one
+    pixel and no two features closer than one pixel at that size
   - the set ships png and svg for Linux, `.icns` for macOS, and `.ico` for Windows
   - the asset set covers every size the manifest and desktop entry require
   - the source is committed as vector, not just raster exports
@@ -1018,7 +1135,8 @@ already had, and they complete a real ticket in under ten minutes.
 
   - the skill explains both presets and when to use each
   - the skill teaches the block model, not `sync.sh`
-  - an agent that loads it can add a new plugin correctly on the first try
+  - following the skill start to finish adds a working plugin, with every step it
+    names resolving to a real file or command in this repository
 
 - [ ] **Ticket S2: Curate the migrated skill set.** Move the general skills into
   `skills/`, update every reference to `sync.sh`, `$DSH_HOME`, or the old
@@ -1045,7 +1163,10 @@ already had, and they complete a real ticket in under ten minutes.
 
 - [ ] **Ticket W1: The Cloudflare wizard.** Use the `wizard` skill and its
   template to build the Cloudflare setup wizard: account, API token with the
-  least scopes needed, and the values the deploy step consumes. Blocked by S2.
+  least scopes needed, and the values the deploy step consumes. It uses the
+  `wizard` skill where that skill already lives, so it does not wait on S2 and
+  the website track stays free of migration churn as the prose claims. Blocked by
+  nothing.
 
   **Evaluate:**
 
@@ -1096,6 +1217,25 @@ already had, and they complete a real ticket in under ten minutes.
   - no hardcoded compositor, D-Bus address, or display name remains
   - a Linux desktop without kscreen-doctor still inhibits sleep and says blanking is unavailable
   - blanking still refuses when no inhibitor is held
+- [ ] **Ticket V7: Make the promoted personal skills install everywhere.** The
+  user promoted caffeine, etu, easyeda, and nostr out of `dotfiles-ai`. V5 covers
+  caffeine, which needed a rewrite; this ticket covers the other three, whose
+  obligation the plan states in prose and otherwise drops. `etu` is the real work:
+  it shells out to a CLI that is installed by hand on one machine today, so the
+  skill must either detect and install it per system through the V1 port or state
+  plainly that it is unavailable and why. `easyeda` and `nostr` are MCP-gated and
+  mostly OS-neutral, so the work there is confirming that claim rather than
+  assuming it: check every path, binary, and environment variable each one names.
+  Blocked by V1, S2.
+
+  **Evaluate:**
+
+  - `etu` either installs its CLI on each supported system or reports it as
+    unavailable with the reason, and never fails silently
+  - each of the three skills is loaded on each supported system and its declared
+    prerequisites resolve, or it says which one did not
+  - no promoted skill contains a hardcoded path, hostname, or binary location that
+    is only correct on the author's machine
 
 ## Phase 8: Website and demo — `pending`
 
@@ -1110,14 +1250,20 @@ already had, and they complete a real ticket in under ten minutes.
   - every color comes from a token
   - the site is navigable by keyboard alone, with visible focus throughout
 
-- [ ] **Ticket WS2: The landing page.** Write the page around the five product
-  claims: make cheap models useful, get more work per token, plan first, let
-  agents execute in the background, keep the user in control. Show the real
-  workflow, not a generic AI pitch. Blocked by WS1.
+- [ ] **Ticket WS2: The landing page.** Write the page around the four product
+  goals — make cheap models useful, get more useful work per token, front-load
+  planning, keep the user in control — plus background execution, which the brief
+  names as a landing-page claim and which is the mechanism the other four rely
+  on. Five claims on the page, four goals in the product: the README and DOC1
+  state the four, and this page adds the fifth as a mechanism rather than a fifth
+  goal, so the two documents do not disagree. Show the real workflow, not a
+  generic AI pitch. Blocked by WS1.
 
   **Evaluate:**
 
-  - each of the five claims has a concrete explanation, not a slogan
+  - each of the five claims is explained by naming the mechanism that delivers it,
+    not by restating the claim
+  - the four goals on the page are word-for-word the four in the README
   - the page shows the plan-to-tickets-to-background-execution flow
   - the install command appears above the fold and is copyable
 
@@ -1148,13 +1294,16 @@ already had, and they complete a real ticket in under ten minutes.
   - the deploy command is one script, runnable from a clean checkout
   - the live site serves the landing page and the install script
 
-- [ ] **Ticket DM1: The demo container image.** Build a container that runs the
-  real Thursday composition, installed with the same engine, with no personal
-  state. Blocked by I4.
+- [ ] **Ticket DM1: The public demo configuration.** Build the public demo on the
+  E8 image rather than a second image: same installer, same composition,
+  differing only in configuration — free-model routing, no bind mounts, no
+  credentials, and the E4 tour workspace. The brief is explicit that the demo
+  must not be a separate implementation of Thursday, and sharing the image is
+  what enforces that. Blocked by E8.
 
   **Evaluate:**
 
-  - the image builds from the repository with no manual step
+  - the demo is the E8 image plus configuration, with no second Dockerfile
   - the container runs `thursday install` and reaches a working session
   - the image contains no credential, no session log, and no personal file
 
@@ -1177,13 +1326,17 @@ already had, and they complete a real ticket in under ten minutes.
   - a session's state is gone after a reset
   - the limits are documented and enforced by configuration, not convention
 
-- [ ] **Ticket DM4: The demo tour.** Seed the demo with a small repository and a
-  scripted path that shows the planning workflow and real background execution.
-  Link it from the landing page. Blocked by DM2, DM3, WS2.
+- [ ] **Ticket DM4: The demo entry point.** Put the E4 tour workspace in front of
+  a first-time visitor and link it from the landing page. This ticket authors no
+  tour content: E4 owns the seeded workspace, the tutorial script, and the toy
+  source, and duplicating any of it here is how the two copies drift. The work is
+  the entry path — landing, session start, and the one adjustment a public visitor
+  needs that a local installer does not. Blocked by DM2, DM3, WS2, E4.
 
   **Evaluate:**
 
   - a first-time visitor reaches a planned ticket and a background agent run
+  - the tour content is the E4 workspace, with no second copy in `demo/`
   - the tour uses the real Thursday composition, not a demo-only build
   - the landing page links to a working demo entry point
 
@@ -1197,17 +1350,20 @@ already had, and they complete a real ticket in under ten minutes.
 
   - install, sync, status, and uninstall each have tests against a temp home
   - a block with an unreversible effect fails a test
-  - the suite runs in CI time, with no network
+  - the suite runs in under two minutes on a cold checkout, with no network
 
 - [ ] **Ticket T2: The lifecycle test.** Run the brief's lifecycle end to end on
   every supported system: normal dsh, install Thursday, use Thursday, use Quick,
   uninstall, normal dsh unchanged. Linux runs in a container. macOS cannot be
   containerized, so it runs on a `macos-15` runner against a clean runner home.
-  Windows runs per the V4 decision. Blocked by C6, I7, E8, V2, V3, V4.
+  Windows runs per the V4 decision. This is E6's check run on the other two
+  systems, not a new assertion: E6 owns the byte-identity guarantee and proves it
+  on the development platform, and this ticket is what makes the claim true
+  everywhere Thursday ships. Blocked by C6, I7, E6, V2, V3, V4.
 
   **Evaluate:**
 
-  - the test asserts the dsh home is byte-identical before install and after uninstall
+  - the E6 byte-identity check passes unmodified on each supported system
   - both presets complete a real task inside the test
   - the lifecycle passes on Linux, on macOS, and on the supported Windows path
   - the test runs from one command per system
@@ -1228,7 +1384,8 @@ already had, and they complete a real ticket in under ten minutes.
 
   **Evaluate:**
 
-  - a reader who has never seen dsh understands what Thursday does
+  - the README defines every term it uses that a reader new to dsh would not know,
+    at its first appearance, and a reviewer who has not used dsh confirms it
   - every command in the README works from a clean clone
   - the README states that AIDOS is the ticketing subsystem, not the product
 
@@ -1319,12 +1476,17 @@ already had, and they complete a real ticket in under ten minutes.
   already declares its effects, so a registry entry can show exactly what a
   plugin changes before anyone installs it. What this asks of the work happening
   now is only that the block schema stay clean enough to make public.
+  This ticket is deferred and is not started without the user reopening it. Its
+  criteria are therefore obligations on work happening now, which are checkable
+  today, rather than acceptance criteria for a registry nobody is building yet.
 
   **Evaluate:**
 
-  - deferred: do not start without the user reopening it
-  - I1's block schema is reviewed once against "could a stranger publish this"
-  - the AIDOS decomposition in A8 does not depend on being first-party
+  - the I1 block schema carries no field whose value only Thursday could supply,
+    and a block authored outside this repository validates against it unchanged
+  - every plugin block records its effects in the form a registry entry would
+    display, so publishing one needs no second description of what it changes
+  - the A8 boundaries name no component that only a first-party plugin may mount
 
 ## User preferences and special rules
 
@@ -1352,5 +1514,7 @@ already had, and they complete a real ticket in under ten minutes.
 - [ ] V4 — decide the Windows stance: WSL2 only, or native with a degraded tool set.
 - [ ] E1 — walk the install wizard as a stranger would, before v0.1 ships.
 - [ ] E4 — take the tour cold and say where it loses you.
+- [ ] B2 — pick the mark direction and check it at 16px before the exports are cut.
+- [ ] TH4 — confirm Literata, Inter, and Fantasque Sans Mono before they are bundled.
 - [ ] T2 — watch the lifecycle test on the real workstation before Phase 10 begins.
 - [ ] X1 — call the cutover when you are ready to stop working upstream.

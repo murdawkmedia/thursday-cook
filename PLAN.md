@@ -1128,16 +1128,39 @@ already had, and they complete a real ticket in under ten minutes.
 - [ ] **Ticket I1: The plugin block schema.** Define the block type in
   `packages/install`: identity, version, dependencies, files installed,
   configuration modified, dsh configuration modified, environment changes,
-  commands, integrations, other side effects, install, detect-installed, and
-  reverse. Every field is data or a named action, never free-form shell. Every
+  commands, integrations, other side effects, install, and detect-installed.
+  Every field is data or a named action, never free-form shell. Every
   OS-divergent value in a block is asked of the V1 platform port, never branched
-  on in the block itself. Blocked by R1, V1.
+  on in the block itself. The schema carries a `reverse` field, but it is
+  optional at v0.1.0 and unused: reversal is structural, because everything
+  Thursday installs lives inside the Thursday home, so uninstall removes the home
+  rather than replaying recorded effects. I3's ledger earns its place only when a
+  block writes outside that home, and it is deferred to v0.2 for that reason. The
+  block model itself is NOT deferred, and not because of reversal: `sync.sh` is
+  1134 lines of shell that no single agent can hold, which is what makes the work
+  impossible to dispatch in parallel. Blocks are how the migration is split.
+  The load-bearing requirement is that the KNOWLEDGE IN THE COMMENTS SURVIVES.
+  `sync.sh` records why in prose beside the code: why the compaction fork is
+  installed under the basic package name (a direct install would insert rows the
+  web patch already inserts and boot would die on a duplicate loader entry id),
+  why three override rows must be top-level rather than children of the insert
+  list, why the settings file must never take a full YAML round-trip (YAML 1.1
+  reads `off:` as boolean and the schema then drops every pi-ai provider), and
+  why `allowBuilds` needs a reconstructed codeload URL. A field the schema has no
+  place for is a fact that gets deleted in translation, so the schema needs a
+  first-class place for rationale and for constraints of that kind, and porting a
+  step means porting its reasons. Blocked by R1, V1.
 
   **Evaluate:**
 
   - the schema is a typed object validated at load time
-  - a block missing its reversal fails validation
+  - every non-obvious behavior recorded in a `sync.sh` comment has a field to live
+    in, and a reviewer can point at each one in the schema
+  - a block can state a constraint such as "must be a top-level override row" or
+    "must not round-trip this file", and the installer honors it
   - the type has a doc comment per field explaining what belongs there
+  - `reverse` is optional, and the schema says in its own doc comment why: the
+    Thursday home is the reversal mechanism at v0.1.0
 
 - [ ] **Ticket I2: Author a block per Thursday component.** Write the blocks:
   each host plugin, each client package, the third-party roster, the aidos
@@ -1154,10 +1177,17 @@ already had, and they complete a real ticket in under ten minutes.
     block claiming the same file a validation error rather than a race
   - a coverage test fails when a new package has no block
 
-- [ ] **Ticket I3: The install ledger.** Record every effect an install applied,
-  keyed by block and version, in the Thursday home. Uninstall reads the ledger,
-  not the block, so a block that changed after install still reverses what was
-  actually done. Blocked by I1, C1.
+- [ ] **Ticket I3: The install ledger.** DEFERRED TO v0.2. Record every effect an
+  install applied, keyed by block and version, in the Thursday home. Uninstall
+  reads the ledger, not the block, so a block that changed after install still
+  reverses what was actually done. This is deferred because at v0.1.0 everything
+  Thursday installs lives inside the Thursday home, and deleting that home
+  reverses the install completely; a ledger would record effects that need no
+  recording. It becomes necessary the moment a block writes outside the home,
+  which is exactly what the branding override, the desktop entry, and the
+  launcher on PATH do — so this is a v0.2 ticket rather than a discarded one, and
+  I7 names those three exceptions explicitly instead of pretending they do not
+  exist. Blocked by I1, C1.
 
   **Evaluate:**
 
@@ -1167,9 +1197,9 @@ already had, and they complete a real ticket in under ten minutes.
     every field in it
 
 - [ ] **Ticket I4: `thursday install`.** Implement the install command over the
-  blocks: resolve dependencies, plan the actions, show what will change, apply,
-  and write the ledger. It must be idempotent and safe to re-run. Blocked by I2,
-  I3, C4, C5.
+  blocks: resolve dependencies, plan the actions, show what will change, and
+  apply. It must be idempotent and safe to re-run. It writes no ledger at v0.1.0;
+  I3 adds that in v0.2, so this ticket does not wait on it. Blocked by I2, C4, C5.
 
   **Evaluate:**
 
@@ -1190,25 +1220,40 @@ already had, and they complete a real ticket in under ten minutes.
 - [ ] **Ticket I6: `thursday status`.** Report the installed composition: which
   blocks are installed, at which version, what each one changed, and any drift
   from the blocks. This is the command that answers the brief's five questions.
-  Blocked by I3.
+  Without a ledger it reports by comparing the blocks against what is actually in
+  the Thursday home, which is weaker than a ledger for detecting a removed file
+  but sufficient to answer what is installed and what each block changes. Blocked
+  by I2, I4.
 
   **Evaluate:**
 
   - status names every installed block and its version
   - status detects a hand-edited installed file as drift
+  - status reports each block's rationale, so "why is this installed" is answered
+    from the block rather than from a comment in a shell script
   - status explains how to disable and how to remove each block
 
-- [ ] **Ticket I7: `thursday uninstall`.** Reverse every recorded effect without
-  touching unrelated user data: sessions, logs, credentials, and anything the
-  ledger does not claim. Blocked by I3, I4.
+- [ ] **Ticket I7: `thursday uninstall`.** Remove the Thursday home, and the
+  small, enumerable set of things that deliberately live outside it: the launcher
+  on PATH, the desktop entry or `.app` or `.lnk`, and the icon files. That list
+  is the whole of the reversal problem at v0.1.0, because everything else
+  Thursday installs is inside the home by design, and it is short enough to hold
+  in one file rather than in a ledger. Enumerate it in code, not in prose, so
+  adding a fourth outside-the-home effect without adding its removal fails a test.
+  Do not touch unrelated user data: the AI scratch directory is the user's, not
+  Thursday's, and E2 already promises uninstall leaves it alone, so name it and
+  say so rather than deleting a directory the user has been working in. Blocked
+  by I4.
 
   **Evaluate:**
 
   - uninstall leaves no Thursday file behind, verified by a tree diff
   - a file the user created inside the Thursday home survives uninstall, or the
     command names it and asks
-  - a tree diff of the Thursday home before install and after uninstall is empty
-    except for files the ledger does not claim
+  - the outside-the-home effects are enumerated in code, and adding one without
+    its removal fails a test
+  - the AI scratch directory and its contents survive uninstall, and the command
+    says so
   - no file this install wrote outside the Thursday home survives uninstall,
     enumerated from the ledger rather than by inspection
 

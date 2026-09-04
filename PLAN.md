@@ -405,7 +405,11 @@ already had, and they complete a real ticket in under ten minutes.
 
   - the dsh home, package tree, and shell profiles are byte-identical before and after
   - the test covers install, both presets, the tour, and uninstall
-  - no file outside the Thursday home and the AI scratch directory is created
+  - the only paths created or modified outside the Thursday home and the AI
+    scratch directory are the ones I7 enumerates — the launcher, the desktop
+    entry, and the icons — and uninstall removes every one. Modification counts,
+    not just creation, because the A6 case changes an existing file rather than
+    adding one
   - the test runs in CI on every change to the install engine
 - [ ] **Ticket E7: Installer parity first, sources unmoved.** Build the
   installer now against `aidos` and `dotfiles-ai` where they already live, and
@@ -1030,10 +1034,9 @@ already had, and they complete a real ticket in under ten minutes.
 - [ ] **Ticket P7: Document each plugin's effects.** Give every plugin package a
   README section answering the five questions the brief names: what it changes,
   where, why it is installed, how to disable it, how to remove it. Blocked by
-  I1. Deliberately not blocked by P1 and P2: a block's source may be a local
-  checkout in `dotfiles-ai`, exactly as E7 requires, so generating the patch does
-  not wait for 22 packages to move. Repointing a source at a workspace package as
-  P1 and P2 land changes the block, not this generator.
+  I1, P1, P2. This one genuinely does wait for the moves: its criterion below
+  requires every package under `packages/plugins` to carry the section, and a
+  package that has not moved has no README there to carry it.
 
   **Evaluate:**
 
@@ -1082,7 +1085,10 @@ already had, and they complete a real ticket in under ten minutes.
 - [ ] **Ticket C4: The host-plane composition as data.** Replace the heredoc in
   `step_write_web_patch` with a generated `cordis.patch.yml` built from the
   plugin blocks, so adding a plugin is a block change and not a shell edit.
-  Blocked by P1, P2, I1.
+  Blocked by I1. Deliberately not blocked by P1 and P2: a block's source may be a
+  local checkout in `dotfiles-ai`, exactly as E7 requires, so generating the patch
+  does not wait for 22 packages to move. Repointing a source at a workspace
+  package as P1 and P2 land changes the block, not this generator.
 
   **Evaluate:**
 
@@ -1255,7 +1261,8 @@ already had, and they complete a real ticket in under ten minutes.
   - the AI scratch directory and its contents survive uninstall, and the command
     says so
   - no file this install wrote outside the Thursday home survives uninstall,
-    enumerated from the ledger rather than by inspection
+    enumerated from that list in code rather than from a ledger, which is
+    deferred to v0.2, or from inspection
 
 - [ ] **Ticket I8: The shell bootstrapper.** Write `install/install.sh`: detect
   the platform, check for node and pnpm, fetch Thursday, and hand off to the
@@ -1736,7 +1743,9 @@ already had, and they complete a real ticket in under ten minutes.
 
 - [ ] **Ticket X3: Remove every dependency on the aidos repository.** Search
   both remaining repositories and Thursday for `github:xyzshantaram/aidos`,
-  `aidos_PLUGIN_SPEC`, `pin-aidos.sh`, and any path into `~/repos/aidos`, and
+  `AIDOS_PLUGIN_SPEC` (an environment variable, so it keeps its real casing
+  regardless of how the product spells the name), `pin-aidos.sh`, and any path
+  into `~/repos/aidos`, and
   remove or repoint each one. Blocked by A7, I4.
 
   **Evaluate:**

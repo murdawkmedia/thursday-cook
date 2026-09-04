@@ -176,6 +176,12 @@ for (const t of tickets) {
   }
 }
 
+// 5b. Acceptance inversion: a criterion names a ticket that is NOT an ancestor.
+//     The mirror image of the deadlock check, and where the remaining real
+//     defects hide — V3 requiring E6, V8 requiring T2, G1 requiring I1. A
+//     ticket cannot be accepted against work it never declared it needed.
+//     Run after the closure helper is defined, below.
+
 // 6. Transitive closure per ticket, and which phases each phase reaches.
 //    A claim like "Phase 0 does not wait on the migration" is checkable, not
 //    a matter of opinion.
@@ -190,6 +196,24 @@ function closure(id) {
     for (const x of closure(dep)) out.add(x);
   }
   return out;
+}
+
+// 5b. Acceptance inversion: a criterion names a ticket that is NOT an ancestor.
+//     The mirror image of the deadlock check, and where the remaining real
+//     defects hide. A ticket cannot be accepted against work it never declared
+//     it needed, because nothing schedules that work first.
+for (const t of tickets) {
+  const deps = closure(t.id);
+  for (const other of tickets) {
+    if (other.id === t.id || deps.has(other.id)) continue;
+    const re = new RegExp(`\\b${other.id}\\b`);
+    const hit = t.criteria.find((c) => re.test(c));
+    if (hit) {
+      problems.push(
+        `inversion: ${t.id} (line ${t.line}) has a criterion naming ${other.id}, which is not among its blockers: "${hit.slice(0, 80)}"`,
+      );
+    }
+  }
 }
 
 const phases = [...new Set(tickets.map((t) => t.phase))].sort((a, b) => a - b);

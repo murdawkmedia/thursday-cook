@@ -1,0 +1,17 @@
+{
+  // Compiler options come from the workspace base; this package supplies only
+  // its own program. `fixtures/` is deliberately outside it: those files are
+  // build INPUTS used to prove the two bundling modes, and the client fixture
+  // uses the lowercase `react` global that dsh injects into the page rather
+  // than an installed react package, so there are no types for it to check.
+  //
+  // allowJs is on so the test suite can import build.config.mjs — a build
+  // declaration is plain ESM by design (it has to be loadable by
+  // discoverBuildSpecs at runtime without a compile step), and TypeScript
+  // infers its shape from defineBuild's return type.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}

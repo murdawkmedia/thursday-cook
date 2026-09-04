@@ -1,0 +1,31 @@
+{
+  "name": "@thursday/build",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared esbuild pipeline for dsh plugin host and client halves.",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./lib/index.js"
+    },
+    "./cli": {
+      "types": "./src/cli.ts",
+      "import": "./lib/cli.js"
+    }
+  },
+  "main": "./lib/index.js",
+  "types": "./src/index.ts",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "build": "node scripts/bootstrap.mjs",
+    "build:all": "node scripts/build-all.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "verify": "node scripts/verify.mjs"
+  }
+}

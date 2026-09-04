@@ -112,6 +112,17 @@ export interface ClientBuild {
   wrapper?: ClientWrapper;
   /** Extra externals, MERGED with {@link CLIENT_EXTERNAL}. */
   external?: string[];
+  /**
+   * Path to a tsconfig for esbuild to read, resolved against `root`.
+   *
+   * Leave it unset unless the half needs `paths` aliases. Unset, the JSX
+   * settings are pinned with `tsconfigRaw` and no tsconfig.json is read,
+   * which is what keeps a `"jsx": "react-jsx"` tsconfig from silently
+   * switching the half to the automatic JSX runtime. Set, esbuild reads that
+   * file, so it MUST spell `"jsx": "react"` with the `react.createElement`
+   * factory — the workspace's tsconfig.client.json does.
+   */
+  tsconfig?: string;
   /** Raw esbuild options, merged last. */
   esbuild?: EsbuildOverrides;
 }

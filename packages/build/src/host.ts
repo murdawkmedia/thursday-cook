@@ -29,6 +29,16 @@ export function hostBuildOptions(spec: HostBuild, ctx: HostBuildContext): BuildO
 
   const options: BuildOptions = {
     entryPoints: [at(ctx.root, spec.entry)],
+    // Pin esbuild's working directory to the spec root. Not in the original,
+    // and load-bearing for the drift check: esbuild writes each module's path
+    // into the output as a `// path/to/file.ts` comment, RELATIVE to its
+    // working directory. dotfiles-ai/build.mjs inherited process.cwd(), so
+    // the same sources produced different bytes depending on where you stood
+    // when you ran it — running the check from a subdirectory reported drift
+    // that did not exist. Verified: rebuilding dotfiles-ai's committed
+    // bundles from packages/build differed ONLY in those comments, and
+    // became byte-identical once absWorkingDir was set.
+    absWorkingDir: ctx.root,
     bundle: true,
     platform: "node",
     format: "esm",

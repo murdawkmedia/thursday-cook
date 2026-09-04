@@ -523,6 +523,47 @@ already had, and they complete a real ticket in under ten minutes.
     fall through to a proportional face
   - the SIL OFL license file for each bundled family ships beside it
   - text renders in the intended faces with the network disabled
+- [ ] **Ticket TH5: Rework the top bar.** Three changes to the session header,
+  done together because they all move the same row and three agents editing it
+  separately would collide. Center the tabs and style them as badges rather than
+  as underlined text. Move the download-session-log button out of wherever it
+  sits now and put it immediately to the right of the session title as an icon
+  button, so it reads as an action on that session instead of a stray global
+  control. Put the preset name to the left of the session title as a badge, so
+  Thursday versus Quick is visible at a glance and the header answers "which mode
+  am I in" without a click. The title row therefore reads: preset badge, title,
+  log icon. An icon-only control loses its label, so it carries an accessible
+  name and a tooltip; without them the affordance is discoverable only by
+  guessing. All three take
+  their shape from the TH1 tokens: badge fill, radius, and border are token
+  values, not literals, and the preset badge must be distinguishable from a tab
+  badge rather than looking like a fourth tab. This is a different and more
+  invasive kind of change than TH1: TH1 only overrides theme variables from a
+  higher-specificity selector, which upstream cannot break, whereas moving
+  controls means either registering into a slot dsh already offers or replacing
+  the header component outright. Establish which of the two is possible before
+  writing the UI, because the second option couples Thursday to dsh's internal
+  layout and will break on upgrade. Query the client Slot tree for the header
+  region first and record what it offers either way. Blocked by TH1.
+
+  **Evaluate:**
+
+  - the tabs are horizontally centered in the bar and render as badges, not
+    underlined text
+  - the download-session-log control is an icon button immediately right of the
+    session title, and downloads that session's log
+  - the icon button has an accessible name and a tooltip, and is reachable and
+    operable by keyboard
+  - the preset name renders as a badge to the left of the session title, and reads
+    Thursday or Quick correctly in each preset
+  - the preset badge is visually distinct from a tab badge and cannot be mistaken
+    for one
+  - every fill, radius, and border in the bar resolves to a TH1 token, with no
+    literal
+  - the bar keeps working at a narrow width: nothing overlaps and nothing is clipped
+  - the header findings are recorded: which slots dsh offers, and whether the
+    change is a slot registration or a component replacement
+  - the user's normal dsh install has an unmodified top bar
 
 ## Phase 1: Foundation — `pending`
 

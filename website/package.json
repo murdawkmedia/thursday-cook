@@ -1,0 +1,16 @@
+{
+  "name": "@thursday/website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The trythursday.org static site: design system scaffold wired to @thursday/tokens.",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@thursday/tokens": "workspace:*"
+  }
+}

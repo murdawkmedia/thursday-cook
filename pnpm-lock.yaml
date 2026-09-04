@@ -37,6 +37,12 @@ importers:
 
   packages/tokens: {}
 
+  website:
+    dependencies:
+      '@thursday/tokens':
+        specifier: workspace:*
+        version: link:../packages/tokens
+
 packages:
 
   '@esbuild/aix-ppc64@0.28.2':

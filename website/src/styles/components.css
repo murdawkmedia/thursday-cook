@@ -1,0 +1,467 @@
+/*
+ * The component set.
+ *
+ * THE TWO LOAD-BEARING TOKEN DISTINCTIONS, applied literally here:
+ *
+ *   Radius. `--th-radius-control` (3px) on anything a hand touches -- button,
+ *   input, chip, tab, badge. `--th-radius-container` (0.75rem) on anything
+ *   that holds those -- panel, card, well, code block, callout. Square where
+ *   the hands are, rounded where the structure is.
+ *
+ *   Border. `--th-border` only for dividers and chrome that is never a
+ *   control's only edge: panel outlines, table rules, tab rails. Any outline
+ *   that IS the sole thing identifying a control -- a secondary button, a text
+ *   input, a chip -- uses `--th-border-strong`, which clears WCAG 1.4.11's 3:1
+ *   on all three surfaces where `--th-border` clears it on none.
+ */
+
+/* --- containers --------------------------------------------------------- */
+
+.panel {
+  border: var(--web-hairline) solid var(--th-border);
+  border-radius: var(--th-radius-container);
+  background: var(--th-background-elevated);
+}
+
+.panel__header {
+  display: flex;
+  gap: var(--web-space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--web-space-3) var(--web-space-4);
+  border-bottom: var(--web-hairline) solid var(--th-border);
+}
+
+.panel__title {
+  color: var(--th-foreground);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-small);
+  font-weight: 500;
+}
+
+.panel__body {
+  padding: var(--web-space-4);
+}
+
+.panel__body > * + * {
+  margin-top: var(--web-space-3);
+}
+
+/* A well is a container too, so it is a container radius -- but it is the
+   third surface, the one inputs and code sit on. */
+.well {
+  padding: var(--web-space-4);
+  border: var(--web-hairline) solid var(--th-border);
+  border-radius: var(--th-radius-container);
+  background: var(--th-background-surface);
+}
+
+pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: var(--web-space-4);
+  border: var(--web-hairline) solid var(--th-border);
+  border-radius: var(--th-radius-container);
+  background: var(--th-background-surface);
+  color: var(--th-code);
+  font-size: var(--web-text-small);
+  line-height: var(--web-leading-snug);
+  tab-size: 2;
+}
+
+/* --- buttons ------------------------------------------------------------ */
+
+.btn {
+  display: inline-flex;
+  gap: var(--web-space-2);
+  align-items: center;
+  justify-content: center;
+  min-height: 1.875rem;
+  padding: 0 var(--web-space-3);
+  border: var(--web-hairline) solid transparent;
+  border-radius: var(--th-radius-control);
+  background: transparent;
+  color: var(--th-foreground);
+  font-family: inherit;
+  font-size: var(--web-text-small);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  color: var(--th-foreground-muted);
+  cursor: not-allowed;
+}
+
+/* Primary: identified by its fill, so its edge does not have to carry it. */
+.btn--primary {
+  background: var(--th-accent);
+  color: var(--th-background);
+}
+
+.btn--primary:hover {
+  background: var(--th-accent-muted);
+}
+
+/* Secondary: identified by its outline alone -> border-strong, not border. */
+.btn--secondary {
+  border-color: var(--th-border-strong);
+  color: var(--th-foreground);
+}
+
+.btn--secondary:hover {
+  background: var(--th-background-surface);
+}
+
+/* Ghost: identified by its label; no edge to get wrong. */
+.btn--ghost {
+  color: var(--th-foreground-muted);
+}
+
+.btn--ghost:hover {
+  background: var(--th-background-surface);
+  color: var(--th-foreground);
+}
+
+.btn--danger {
+  border-color: var(--th-error);
+  color: var(--th-error);
+}
+
+/* --- chips and badges --------------------------------------------------- */
+
+.chip {
+  display: inline-flex;
+  gap: var(--web-space-2);
+  align-items: center;
+  padding: 0.125rem var(--web-space-2);
+  /* A chip is a control whose only edge is its border. */
+  border: var(--web-hairline) solid var(--th-border-strong);
+  border-radius: var(--th-radius-control);
+  background: transparent;
+  color: var(--th-foreground);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+  line-height: 1.6;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem var(--web-space-2);
+  border-radius: var(--th-radius-control);
+  background: var(--th-background-surface);
+  color: var(--th-foreground-muted);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+  letter-spacing: 0.04em;
+}
+
+.badge--success {
+  color: var(--th-success);
+}
+
+.badge--warning {
+  color: var(--th-warning);
+}
+
+.badge--error {
+  color: var(--th-error);
+}
+
+.badge--info {
+  color: var(--th-info);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0.05em 0.4em;
+  border: var(--web-hairline) solid var(--th-border-strong);
+  border-radius: var(--th-radius-control);
+  background: var(--th-background-surface);
+  color: var(--th-foreground);
+  font-size: var(--web-text-micro);
+  text-align: center;
+}
+
+/* --- tabs --------------------------------------------------------------- */
+
+.tabs__list {
+  display: flex;
+  gap: var(--web-space-1);
+  /* The rail is chrome under the tabs, never a tab's own edge. */
+  border-bottom: var(--web-hairline) solid var(--th-border);
+}
+
+.tab {
+  padding: var(--web-space-2) var(--web-space-3);
+  border: 0;
+  border-radius: var(--th-radius-control) var(--th-radius-control) 0 0;
+  background: transparent;
+  color: var(--th-foreground-muted);
+  font-family: inherit;
+  font-size: var(--web-text-small);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--th-foreground);
+}
+
+.tab[aria-selected="true"] {
+  color: var(--th-foreground);
+  box-shadow: inset 0 -2px 0 0 var(--th-accent);
+}
+
+.tabs__panel {
+  padding-top: var(--web-space-4);
+}
+
+.tabs__panel[hidden] {
+  display: none;
+}
+
+/* --- fields ------------------------------------------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--web-space-1);
+}
+
+.field__label {
+  color: var(--th-foreground-muted);
+  font-size: var(--web-text-small);
+}
+
+.field__control {
+  min-height: 1.875rem;
+  padding: 0 var(--web-space-2);
+  /* An input is identified by its box: border-strong. */
+  border: var(--web-hairline) solid var(--th-border-strong);
+  border-radius: var(--th-radius-control);
+  background: var(--th-background-surface);
+  color: var(--th-foreground);
+  font-family: inherit;
+  font-size: var(--web-text-small);
+}
+
+.field__hint {
+  color: var(--th-foreground-muted);
+  font-size: var(--web-text-micro);
+}
+
+/* --- table -------------------------------------------------------------- */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--web-text-small);
+}
+
+.table th {
+  padding: var(--web-space-2) var(--web-space-3);
+  border-bottom: var(--web-hairline) solid var(--th-border);
+  color: var(--th-foreground-muted);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-align: start;
+  text-transform: uppercase;
+}
+
+.table td {
+  padding: var(--web-space-2) var(--web-space-3);
+  border-bottom: var(--web-hairline) solid var(--th-border);
+  vertical-align: top;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: var(--th-background-surface);
+}
+
+.table__mono {
+  color: var(--th-foreground-muted);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+  white-space: nowrap;
+}
+
+/* --- callout ------------------------------------------------------------ */
+
+.callout {
+  display: grid;
+  gap: var(--web-space-1);
+  padding: var(--web-space-3) var(--web-space-4);
+  border: var(--web-hairline) solid var(--th-border);
+  border-inline-start: 2px solid var(--th-info);
+  border-radius: var(--th-radius-container);
+  background: var(--th-background-elevated);
+  font-size: var(--web-text-small);
+}
+
+.callout--warning {
+  border-inline-start-color: var(--th-warning);
+}
+
+.callout--error {
+  border-inline-start-color: var(--th-error);
+}
+
+.callout__title {
+  color: var(--th-foreground);
+  font-weight: 600;
+}
+
+.callout__body {
+  color: var(--th-foreground-muted);
+}
+
+/* --- specimens (design-system page only) -------------------------------- */
+
+.specimen {
+  display: grid;
+  gap: var(--web-space-3);
+  align-items: baseline;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  padding-block: var(--web-space-2);
+  border-bottom: var(--web-hairline) solid var(--th-border);
+}
+
+.specimen:last-child {
+  border-bottom: 0;
+}
+
+.specimen__meta {
+  color: var(--th-foreground-muted);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+  line-height: var(--web-leading-snug);
+}
+
+.specimen__sample {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.swatch {
+  display: grid;
+  gap: var(--web-space-2);
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  align-items: center;
+}
+
+.swatch__chip {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: var(--web-hairline) solid var(--th-border);
+  border-radius: var(--th-radius-control);
+}
+
+.swatch__name {
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+}
+
+.swatch__value {
+  color: var(--th-foreground-muted);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+}
+
+.surface-demo {
+  display: grid;
+  gap: var(--web-space-3);
+  padding: var(--web-space-3);
+  border: var(--web-hairline) solid var(--th-border);
+  border-radius: var(--th-radius-container);
+  background: var(--th-background);
+}
+
+.surface-demo__step {
+  padding: var(--web-space-3);
+  border: var(--web-hairline) solid var(--th-border);
+  border-radius: var(--th-radius-container);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+}
+
+.surface-demo__step--base {
+  background: var(--th-background);
+}
+
+.surface-demo__step--elevated {
+  background: var(--th-background-elevated);
+}
+
+.surface-demo__step--surface {
+  background: var(--th-background-surface);
+}
+
+.shape-demo {
+  display: grid;
+  place-items: center;
+  height: 5rem;
+  border: var(--web-hairline) solid var(--th-border-strong);
+  background: var(--th-background-surface);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+}
+
+.shape-demo--control {
+  border-radius: var(--th-radius-control);
+}
+
+.shape-demo--container {
+  border-radius: var(--th-radius-container);
+}
+
+.border-demo {
+  padding: var(--web-space-3);
+  border-radius: var(--th-radius-container);
+  background: var(--th-background-elevated);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+}
+
+.border-demo--hairline {
+  border: var(--web-hairline) solid var(--th-border);
+}
+
+.border-demo--strong {
+  border: var(--web-hairline) solid var(--th-border-strong);
+}
+
+/* The placeholder blocks the content ticket writes into. */
+.slot {
+  display: grid;
+  gap: var(--web-space-2);
+  padding: var(--web-space-5);
+  border: var(--web-hairline) dashed var(--th-border-strong);
+  border-radius: var(--th-radius-container);
+  background: var(--th-background-elevated);
+}
+
+.slot__label {
+  color: var(--th-accent);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.slot__brief {
+  max-width: var(--web-measure);
+  color: var(--th-foreground-muted);
+  font-size: var(--web-text-small);
+}

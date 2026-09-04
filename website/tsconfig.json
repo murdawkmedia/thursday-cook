@@ -1,0 +1,8 @@
+{
+  // Typecheck config for the site. The generator (src/site) runs on Node and
+  // the enhancement script (src/client) runs in the browser; the shared root
+  // config already carries both `lib: DOM` and `types: node`, so one project
+  // covers them, and `noEmit` stays inherited -- esbuild does the emitting.
+  "extends": "../tsconfig.json",
+  "include": ["src/**/*.ts"]
+}

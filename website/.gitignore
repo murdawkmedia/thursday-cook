@@ -1,0 +1,5 @@
+# Emitted static site.
+dist/
+
+# Intermediate: the esbuild-bundled generator, run once per build and discarded.
+build/

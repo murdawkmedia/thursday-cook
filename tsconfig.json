@@ -1,0 +1,22 @@
+{
+  // The base every Thursday package extends. It carries compiler options only:
+  // each package supplies its own "include". Derived from aidos/tsconfig.json,
+  // which is the stricter of the two source repositories and the one whose
+  // code moves into this workspace first.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
+  },
+  "files": []
+}

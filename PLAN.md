@@ -709,7 +709,7 @@ already had, and they complete a real ticket in under ten minutes.
   - `PLAN.md` exists at the repository root and matches the board
   - the plan parses under the real aidos parser, run from the aidos checkout at
     `~/repos/aidos/skills/aidos-plan/verify-plan.mjs`, which is where that script
-    lives until A5 moves it into this repository
+    lives today
   - the README names Thursday, the four product goals, and the two presets
   - `git status` is clean after the commit
 - [ ] **Ticket M1: The executable migration map.** Both source repositories stay
@@ -1341,8 +1341,8 @@ already had, and they complete a real ticket in under ten minutes.
   - a `macos-15` runner completes install, launch, and uninstall
   - the app appears in Spotlight with the Thursday name and icon
   - uninstall leaves no `.app`, no icon, and no Launch Services entry
-  - the E6 byte-identity check passes on macOS, which is where that assertion
-    lives; this ticket adds no checksum of its own
+  - the byte-identity check passes on macOS; this ticket adds no checksum of its
+    own, because that assertion is owned by the guarantee ticket, not by this one
 - [ ] **Ticket V4: Settle the Windows stance.** Windows has no bash, and
   Thursday's guard model parses bash commands: the aidos preset already carries
   the only platform branch in either source repository. Decide and document
@@ -1375,7 +1375,7 @@ already had, and they complete a real ticket in under ten minutes.
   - uninstall leaves no shortcut, no icon, and no registry or Start Menu entry
   - an unsupported Windows configuration is detected and explained before anything
     is written
-  - T2's Windows leg has a real target to run against
+  - the lifecycle test has a real Windows target to run against
 - [ ] **Ticket V6: Prove the bootstrapper under every target shell.** I8 writes
   `install/install.sh` as POSIX sh; this ticket is the CI job that stops it
   drifting back. Today's `sync.sh` uses bash 4 constructs — `local -a` arrays,
@@ -1554,7 +1554,7 @@ already had, and they complete a real ticket in under ten minutes.
   - each of the three skills is loaded on each supported system and its declared
     prerequisites resolve, or it says which one did not
   - no promoted skill contains an absolute path outside the Thursday home, a
-    hostname, or a binary path, checked by grep the way V5's criterion is
+    hostname, or a binary path, checked by grep
 
 ## Phase 8: Website and demo — `pending`
 
@@ -1807,11 +1807,11 @@ already had, and they complete a real ticket in under ten minutes.
 
   **Evaluate:**
 
-  - the I1 block schema carries no field whose value only Thursday could supply,
+  - the block schema carries no field whose value only Thursday could supply,
     and a block authored outside this repository validates against it unchanged
   - every plugin block records its effects in the form a registry entry would
     display, so publishing one needs no second description of what it changes
-  - the A8 boundaries name no component that only a first-party plugin may mount
+  - the aidos decomposition names no component only a first-party plugin may mount
 
 ## Phase 12: The workspace surface — `pending`
 

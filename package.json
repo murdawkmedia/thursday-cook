@@ -1,0 +1,28 @@
+{
+  "name": "thursday",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Thursday — an AI development environment built on DeepSeek Harness.",
+  "license": "MIT",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present run build",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test",
+    "format": "prettier --write \"**/*.{ts,tsx,css}\"",
+    "lint": "prettier --check \"**/*.{ts,tsx,css}\"",
+    "check:plan": "node scripts/check-plan.mjs PLAN.md",
+    "check": "pnpm run build && pnpm run typecheck && pnpm run test && pnpm run lint && pnpm run check:plan"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "esbuild": "^0.28.2",
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  }
+}

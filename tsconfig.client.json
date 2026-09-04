@@ -1,0 +1,13 @@
+{
+  // The base for a plugin's client half. dsh injects React into the browser
+  // bundle as a lowercase `react` global rather than an importable module, so
+  // client code compiles with the classic factory and never uses JSX's
+  // automatic runtime. Both source repositories spell it exactly this way.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "react.createElement",
+    "jsxFragmentFactory": "react.Fragment"
+  },
+  "files": []
+}

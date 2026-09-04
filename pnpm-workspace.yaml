@@ -1,0 +1,17 @@
+# Every directory under packages/ is a workspace package. packages/plugins is a
+# container rather than a package: one directory per dsh plugin fork or
+# Thursday plugin, each its own package, so it gets a glob of its own.
+packages:
+  - "packages/*"
+  - "packages/plugins/*"
+
+# Thursday bundles host and client halves with esbuild, so esbuild's install
+# script must be allowed to fetch its platform binary. dotfiles-ai, which owns
+# the build pipeline this workspace inherits, sets the same.
+allowBuilds:
+  esbuild: true
+
+# The root holds the shared toolchain (typescript, vitest, prettier, esbuild)
+# that every package inherits, so adding a dependency to the workspace root is
+# intentional here rather than a mistake worth warning about.
+ignoreWorkspaceRootCheck: true

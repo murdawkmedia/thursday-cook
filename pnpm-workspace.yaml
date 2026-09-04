@@ -15,3 +15,10 @@ allowBuilds:
 # that every package inherits, so adding a dependency to the workspace root is
 # intentional here rather than a mistake worth warning about.
 ignoreWorkspaceRootCheck: true
+
+# The pnpm content-addressable store. pnpm's default is under $PNPM_HOME, which
+# sits outside this repository; agent sandboxes and CI images that can only
+# write the checkout cannot populate it, and a `pnpm add` then aborts with
+# ERR_PNPM_UNEXPECTED_STORE against the node_modules already linked here. A
+# repo-local store keeps install self-contained. .pnpm-store is gitignored.
+storeDir: .pnpm-store

@@ -1,0 +1,13 @@
+{
+  // Compiler options come from the workspace base (ES2022, strict, Bundler
+  // resolution). Only the file set is local: sources, tests, and this
+  // package's vitest config, so a typo in the test config fails typecheck too.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    // vitest.config.ts imports the workspace base config, and Vite's native
+    // config loader requires that import to carry its real extension. Nothing
+    // is emitted from this project (noEmit), so a .ts specifier is safe.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+}

@@ -65,9 +65,9 @@ describe("acceptance 1: every token has a value and a one-line comment", () => {
     expect(comment.endsWith(".")).toBe(true);
   });
 
-  it("has exactly the 19 tokens the design calls for", () => {
-    expect(TOKEN_NAMES).toHaveLength(19);
-    expect(new Set(TOKEN_NAMES).size).toBe(19);
+  it("has exactly the 20 tokens the design calls for", () => {
+    expect(TOKEN_NAMES).toHaveLength(20);
+    expect(new Set(TOKEN_NAMES).size).toBe(20);
   });
 });
 

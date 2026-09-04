@@ -40,6 +40,7 @@ export type TokenName =
   | "foreground"
   | "foreground-muted"
   | "border"
+  | "border-strong"
   | "accent"
   | "accent-muted"
   | "success"
@@ -128,7 +129,12 @@ export const TOKENS = {
   },
   border: {
     value: "#4a4a4a",
-    comment: "Hairline dividers and the resting outline of a control at rest.",
+    comment: "Hairline dividers and resting chrome that never forms the only edge of a control.",
+    group: "content",
+  },
+  "border-strong": {
+    value: "#808080",
+    comment: "Outline of a control identified by its edge alone; clears WCAG 1.4.11 at 3:1.",
     group: "content",
   },
 

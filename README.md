@@ -8,7 +8,7 @@ Planning, bounded tasks, persistent state, and real tool orchestration get more
 out of the model you already have.
 
 **Status: pre-alpha.** Nothing here installs yet. [PLAN.md](PLAN.md) holds the
-implementation plan, and the AIDOS board holds the live version of it.
+implementation plan, and the aidos board holds the live version of it.
 
 ## What it is for
 
@@ -24,7 +24,7 @@ premature implementation, lost state. Never at the cost of correctness. The
 metric is useful work per token, not fewest tokens.
 
 **Front-load planning.** Plan before expensive execution, when the task earns
-it. A plan becomes AIDOS tickets, and a ticket is a bounded task an agent can
+it. A plan becomes aidos tickets, and a ticket is a bounded task an agent can
 finish on its own.
 
 **Keep the user in control.** Explicit permissions, inspectable state, visible
@@ -36,7 +36,7 @@ autonomous system.
 Two presets over one installation, one plugin set, and one configuration. The
 difference is workflow overhead, not capability.
 
-**Thursday** is the full environment: AIDOS, planning, ticketing, background
+**Thursday** is the full environment: aidos, planning, ticketing, background
 execution, persistent state, and every supported plugin. The shape of the work
 is understand, plan, ticket, delegate, execute in the background, review, and
 you decide what happens next. It suits long-running and complex work.
@@ -45,9 +45,9 @@ you decide what happens next. It suits long-running and complex work.
 would cost more than it returns. Rename this variable. Fix this type error.
 Explain this function. Write this small script.
 
-## AIDOS
+## aidos
 
-AIDOS is Thursday's planning and ticketing subsystem, not the product. A ticket
+aidos is Thursday's planning and ticketing subsystem, not the product. A ticket
 moves between states only when the required evidence exists, and the agent
 cannot supply the human half: it cannot sign off its own work and it cannot
 mark anything done. Before signoff it can read and plan, but it cannot write
@@ -57,10 +57,68 @@ The name is a Greek word for the sense of respect that keeps people honest with
 each other. The rules apply to both sides — you cannot drop out of the loop
 either.
 
+## v0.1.0
+
+Done when a stranger with no dsh installed runs one command, completes one real
+aidos ticket, and can remove Thursday without a trace.
+
+One line per item. Keep it that way: if an item needs a paragraph, it belongs in
+[PLAN.md](PLAN.md), not here.
+
+### Install
+
+- [ ] One-command install from trythursday.org
+- [ ] Installs into its own Thursday home; your dsh setup is untouched
+- [ ] Proves it: a check you can run shows your dsh tree byte-identical after uninstall
+- [ ] Installs and pins its own dsh runtime
+- [ ] TypeScript installer composed from plugin blocks, not shell
+- [ ] Installs the full plugin set, wherever each plugin currently lives
+- [ ] Every block records what it changes and why
+- [ ] Install and sync are safe to re-run
+- [ ] `thursday uninstall` removes it cleanly
+- [ ] Linux native, with WSL and Docker supported
+
+### First run
+
+- [ ] Setup wizard for the model provider and profile chains
+- [ ] A free-provider chain configured by default
+- [ ] You name and own the AI scratch directory
+- [ ] First launch opens the tour with the prompt ready
+- [ ] `/teach-me-thursday` restarts the tour any time
+
+### The tour
+
+- [ ] Seeded workspace with a plan that imports to a real board
+- [ ] Chapter 1: one ticket end to end, you sign off and mark it done
+- [ ] Chapter 2: instant `/compact`, then resume recovers what was elided
+- [ ] Deleting the workspace leaves no trace
+
+### The environment
+
+- [ ] Thursday preset: planning, ticketing, background execution
+- [ ] Quick preset: the same system without the ticket overhead
+- [ ] `thursday` and `thursday quick` launch either one
+- [ ] The aidos board: tickets, evidence, gates, and the plan
+- [ ] Semantic design tokens shared by the product and the site
+
+### The website
+
+- [ ] Landing page stating the four goals and the real workflow
+- [ ] Install page carrying the command that was actually tested
+- [ ] trythursday.org live
+
+### Not in v0.1.0
+
+The Thursday skin and mark; the editor, file tree, and git panel; the
+`dsh-remote` migration and restyle; the public demo; macOS and Windows install
+targets; the CI platform matrix; `thursday status`; the install ledger; the
+plugin registry; and finishing the migration out of `aidos` and `dotfiles-ai`.
+Each is a ticket on the board, and each is deliberately after this release.
+
 ## Repository layout
 
 See [PLAN.md](PLAN.md) for the full structure and the reasoning. In short:
-`packages/` holds AIDOS, the install engine, and the plugins; `profiles/` holds
+`packages/` holds aidos, the install engine, and the plugins; `profiles/` holds
 the two presets; `skills/` and `wizards/` hold the agent-facing material;
 `website/` and `demo/` hold the public face; `install/` holds the bootstrapper.
 

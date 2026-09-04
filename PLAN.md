@@ -1,20 +1,20 @@
 ---
 title: Thursday implementation plan
 product: Thursday
-subsystem: AIDOS
+subsystem: aidos
 runtime: DeepSeek Harness (dsh)
 ---
 
 # Thursday implementation plan
 
 Thursday is a full AI development environment that makes cheap models useful by
-front-loading planning, bounding work into AIDOS tickets, running agents in the
+front-loading planning, bounding work into aidos tickets, running agents in the
 background, and keeping the user in control. This document is the migration and
 implementation plan. Delete it when the work ships.
 
 ## Vision
 
-Thursday is the complete product. AIDOS is its planning and ticketing
+Thursday is the complete product. aidos is its planning and ticketing
 subsystem. Quick is its lightweight workflow. DSH is its runtime. This monorepo
 owns the composition.
 
@@ -122,7 +122,7 @@ migration and every install-engine ticket depends on it.
 removal commands for extra plugins and leaves the user to run them. Reversal is
 new work, and it is what the plugin block model exists to provide.
 
-The AIDOS plan-import grammar constrains this very document. `plan_import`
+The aidos plan-import grammar constrains this very document. `plan_import`
 needs an empty project, lands every ticket in `open`, and records the checkbox
 mark as `builtin:imported_state` evidence. Each ticket is one `- [ ] **Ticket
 ID: Title.**` line plus two-space continuation lines, and every ticket must
@@ -216,7 +216,7 @@ decision and not an implementation detail. Ticket V4 settles it.
 thursday/
 ├── packages/
 │   ├── aidos-kernel/   the domain kernel as a plain library (see A8)
-│   ├── aidos-*/        the AIDOS plugins: core, tools, board, plan, scratch, guards
+│   ├── aidos-*/        the aidos plugins: core, tools, board, plan, scratch, guards
 │   ├── cli/            the `thursday` binary: install, uninstall, sync, status
 │   ├── install/        the install engine: block schema, ledger, planner, actions
 │   ├── blocks/         one plugin block definition per Thursday component
@@ -260,13 +260,13 @@ END of the dependency graph, because installing Thursday requires the install
 engine that Phase 5 builds. Read the blockers, not the phase number. An agent
 that starts at the top of Phase 0 will find every ticket blocked.
 
-What Phase 0 avoids is the code migration, not the whole plan. E5 installs AIDOS
+What Phase 0 avoids is the code migration, not the whole plan. E5 installs aidos
 from the package that exists today, E7 builds the installer against both source
 repositories where they already live, and C4 generates the host-plane patch from
 blocks whose sources may still point at `dotfiles-ai` checkouts. So no Phase 0
-ticket waits for AIDOS to be decomposed or for the 24 plugin directories to move.
+ticket waits for aidos to be decomposed or for the 24 plugin directories to move.
 It does wait on one migration ticket by design: A6, the fs-sandbox decision,
-because AIDOS scratch does not work without it and E6 cannot state its guarantee
+because aidos scratch does not work without it and E6 cannot state its guarantee
 until someone has decided whether the dsh tree gets patched.
 
 The agreed priority order is bootstrap first (M0, R1, R3, R2), then the v0.1
@@ -291,11 +291,11 @@ already had, and they complete a real ticket in under ten minutes.
 - [ ] **Ticket E1: The install wizard.** Installation ends in an interactive
   wizard, built with the `wizard` skill's template rather than a parallel
   framework, that configures the things Thursday cannot guess: the model
-  provider and profile chains, the AIDOS durable scratch directory, and the AI
+  provider and profile chains, the aidos durable scratch directory, and the AI
   scratch directory from E2. It must offer a free-provider path so a new user
   can finish setup and try Thursday without a paid account. It runs at the end
   of `thursday install`, is safe to rerun, and writes only inside the Thursday
-  home. The AIDOS durable scratch directory defaults to `$THURSDAY_HOME/scratch`
+  home. The aidos durable scratch directory defaults to `$THURSDAY_HOME/scratch`
   unless A6 relocates it, which is A6's decision to make and not this ticket's:
   read the default from wherever A6 records it rather than hardcoding the path
   twice. Blocked by C1, I4, A6.
@@ -311,7 +311,7 @@ already had, and they complete a real ticket in under ten minutes.
   first session opens, and where throwaway agent work lands. The wizard offers a
   name, suggesting `~/.ai-scratch` and `~/ai-scratch` and accepting anything,
   creates it, and records it as the default workspace. This is distinct from the
-  AIDOS durable scratch directory, which is internal state. One is the user's
+  aidos durable scratch directory, which is internal state. One is the user's
   desk, the other is the board's filing cabinet, and conflating them is how
   people lose work. Blocked by C1.
 
@@ -374,7 +374,7 @@ already had, and they complete a real ticket in under ten minutes.
   - the tour works on a clean install with a free provider and no other repository
 - [ ] **Ticket E5: Ship v0.1 on the existing aidos package.** The try-it bundle
   does not have to wait for the migration. For v0.1 the install engine installs
-  AIDOS from the pinned `aidos` package that exists today, exactly as `sync.sh`
+  aidos from the pinned `aidos` package that exists today, exactly as `sync.sh`
   does. The block records the source as a pinned spec, which is already how the
   third-party roster works, so swapping it for the migrated workspace packages
   later is a one-line block change and not a rewrite. Record the swap criteria
@@ -382,7 +382,7 @@ already had, and they complete a real ticket in under ten minutes.
 
   **Evaluate:**
 
-  - the AIDOS block installs the pinned upstream package and the board works
+  - the aidos block installs the pinned upstream package and the board works
   - swapping the block to workspace packages is a source change with no other edit
   - the ticket names what must be true before the swap happens
   - nothing in the v0.1 bundle depends on the decomposition being finished
@@ -686,7 +686,7 @@ already had, and they complete a real ticket in under ten minutes.
   **Evaluate:**
 
   - `PLAN.md` exists at the repository root and matches the board
-  - the plan parses under the real AIDOS parser, run from the aidos checkout at
+  - the plan parses under the real aidos parser, run from the aidos checkout at
     `~/repos/aidos/skills/aidos-plan/verify-plan.mjs`, which is where that script
     lives until A5 moves it into this repository
   - the README names Thursday, the four product goals, and the two presets
@@ -810,7 +810,7 @@ already had, and they complete a real ticket in under ten minutes.
   - a path matching no map rule is reported loudly as unclassified
   - running status twice with no upstream movement reports nothing to do
 - [ ] **Ticket N3: Drift becomes bounded tickets.** Turn the N2 report into work
-  the board can carry: `thursday upstream import` creates one AIDOS ticket per
+  the board can carry: `thursday upstream import` creates one aidos ticket per
   affected Thursday package, carrying the upstream commit range, the changed
   paths, and the patch to review. This is the mechanism that lets the user keep
   working in `aidos` and `dotfiles-ai` without Thursday falling behind, and it is
@@ -823,12 +823,12 @@ already had, and they complete a real ticket in under ten minutes.
   - re-running import after a ticket is done does not recreate it
   - the recorded upstream commit advances only when its tickets are closed
 
-## Phase 2: The AIDOS subsystem — `pending`
+## Phase 2: The aidos subsystem — `pending`
 
-- [ ] **Ticket A8: Decompose AIDOS into plugin boundaries.** AIDOS ships today
+- [ ] **Ticket A8: Decompose aidos into plugin boundaries.** aidos ships today
   as one package that already spans three planes: the `aidos-core` host service,
   the agent-plane tool rows, and the client board UI. Turn that implicit seam
-  into real plugin boundaries so AIDOS is composed the way any other Thursday
+  into real plugin boundaries so aidos is composed the way any other Thursday
   plugin is, and so a preset can take the parts it needs. The proposed split:
   `aidos-kernel` as a plain library, since two plugins must not each own the
   state; then `aidos-core`, `aidos-tools`, `aidos-board`, `aidos-plan`,
@@ -836,7 +836,7 @@ already had, and they complete a real ticket in under ten minutes.
   contracts up in `docs/aidos-decomposition.md` before moving any code. Do not
   over-split: the kernel invariants must stay in exactly one place. This is the
   approval gate for the decomposition, so A1 names it as a blocker and A2, A3 and
-  A4 inherit it through A1: no AIDOS code moves before the boundaries are
+  A4 inherit it through A1: no aidos code moves before the boundaries are
   approved. Blocked by M1. Blocks A1.
 
   **Evaluate:**
@@ -846,7 +846,7 @@ already had, and they complete a real ticket in under ten minutes.
   - every boundary names at least one composition in this plan that uses it, and
     a boundary no composition uses is merged away before the document is approved
   - Quick's useful subset is named explicitly, and it excludes the board
-- [ ] **Ticket A1: Move the AIDOS kernel and host.** Move `src/kernel/` and
+- [ ] **Ticket A1: Move the aidos kernel and host.** Move `src/kernel/` and
   `src/host/` into `packages/aidos`, keeping module names and the `aidos`
   package name so existing identifiers do not churn. Keep the `cordis.patch.yml`
   contract: `aidos-invariants` before `aidos-core`. Blocked by R1, R2, M1, A8.
@@ -856,7 +856,7 @@ already had, and they complete a real ticket in under ten minutes.
   - `packages/aidos` typechecks with no reference to the old repository
   - the mounted bundle patch still orders invariants before core
 
-- [ ] **Ticket A2: Move the AIDOS board UI.** Move `src/client/` into
+- [ ] **Ticket A2: Move the aidos board UI.** Move `src/client/` into
   `packages/aidos/src/client`, including the vendored highlight module and the
   CSS modules. Do not restyle anything yet; the token migration is D2. Blocked
   by A1.
@@ -866,7 +866,7 @@ already had, and they complete a real ticket in under ten minutes.
   - the client half builds through the shared pipeline from R2
   - the board renders in a live session with tickets, detail panel, and queue
 
-- [ ] **Ticket A3: Move the AIDOS tools and guards.** Move `src/tools/` and
+- [ ] **Ticket A3: Move the aidos tools and guards.** Move `src/tools/` and
   `src/plan/`: the board tools, the state-gated mask, the delegation-depth
   guard, the per-ticket allowlist, the scratch tools, the bash-ask listener, and
   `parsePlan`. Delete the stale `aidos-tools.ts.backup`. Blocked by A1.
@@ -877,7 +877,7 @@ already had, and they complete a real ticket in under ten minutes.
   - the mask still hides write tools while a ticket is `open`
   - `aidos-tools.ts.backup` is gone
 
-- [ ] **Ticket A4: Port the AIDOS test suite.** Move all ~90 vitest files into
+- [ ] **Ticket A4: Port the aidos test suite.** Move all ~90 vitest files into
   `packages/aidos/tests`, update imports, and keep the PORT-MAP notes. Blocked
   by A1, A2, A3.
 
@@ -887,7 +887,7 @@ already had, and they complete a real ticket in under ten minutes.
   - the test count matches the source repository's, or each drop is justified in
     the ticket comments
 
-- [ ] **Ticket A5: Move the AIDOS skills.** Move `skills/aidos-plan/` into the
+- [ ] **Ticket A5: Move the aidos skills.** Move `skills/aidos-plan/` into the
   monorepo `skills/` tree, including `PLAN_IMPORT_TEMPLATE.md` and
   `verify-plan.mjs`. Point the verifier's repo mode at the new
   `packages/aidos/src/plan/plan.ts`. Blocked by A3.
@@ -898,16 +898,16 @@ already had, and they complete a real ticket in under ten minutes.
   - the verifier's mirror mode still works when the skill is copied alone
 
 - [ ] **Ticket A6: Settle the dsh fs-sandbox patch.** Decide and implement one
-  of: keep patching the dsh tree from the install engine, move the AIDOS scratch
+  of: keep patching the dsh tree from the install engine, move the aidos scratch
   root under a path the sandbox already allows, or upstream the exemption.
   Record the decision and its reason in `docs/`. A patch, if kept, must be
   applied by the install engine and reversed by uninstall. This decision gates
-  v0.1 and not only the migration: E5 ships the AIDOS scratch tools, which do not
+  v0.1 and not only the migration: E5 ships the aidos scratch tools, which do not
   work without the exemption, and E6 promises the dsh package tree is untouched.
   Option one honors E6's checksum, because the patch is reversed at uninstall,
   but not its stated meaning, because Thursday would mutate the shared dsh tree
   for as long as it is installed. Say plainly which is being chosen. It does not
-  depend on the AIDOS code having moved, only on the home layout. Blocked by C1.
+  depend on the aidos code having moved, only on the home layout. Blocked by C1.
 
   **Evaluate:**
 
@@ -918,7 +918,7 @@ already had, and they complete a real ticket in under ten minutes.
     downstream guarantee and the website must reuse verbatim
   - if a patch is kept, uninstall restores the original file byte for byte
 
-- [ ] **Ticket A7: AIDOS mounts from the monorepo.** Make the migrated package
+- [ ] **Ticket A7: aidos mounts from the monorepo.** Make the migrated package
   installable and mountable without the old GitHub pin: the install engine
   installs it from the workspace or a published artifact, and the preset
   resolves `aidos-tools.js` without the `aidos-loader.js` shim that `sync.sh`
@@ -926,11 +926,11 @@ already had, and they complete a real ticket in under ten minutes.
 
   **Evaluate:**
 
-  - a fresh install mounts AIDOS with no `github:xyzshantaram/aidos` spec anywhere
+  - a fresh install mounts aidos with no `github:xyzshantaram/aidos` spec anywhere
   - no generated loader shim exists in the Thursday DSH home
 
 - [ ] **Ticket D2: Move the board UI onto the design tokens.** Replace the
-  hard-coded colors in the AIDOS board CSS with the tokens from D1. Keep the
+  hard-coded colors in the aidos board CSS with the tokens from D1. Keep the
   dense, high-contrast, editor-like feel; do not redesign the layout. Blocked by
   A2, D1.
 
@@ -940,10 +940,10 @@ already had, and they complete a real ticket in under ten minutes.
   - every token the board now reads resolves to a value, with no fallback silently
     painting an element, checked by rendering the board with the token sheet absent
   - the layout is unchanged: no element moves, resizes, or changes typeface
-- [ ] **Ticket A9: The gate-integrity contract.** Splitting AIDOS into plugins
+- [ ] **Ticket A9: The gate-integrity contract.** Splitting aidos into plugins
   creates a way to break it that does not exist today: a preset that mounts
   `aidos-tools` without `aidos-guards` gets the board with none of the state
-  gating, which is the whole reason AIDOS exists. The agent could then write
+  gating, which is the whole reason aidos exists. The agent could then write
   files with no signoff while the board still displays a lifecycle that is no
   longer enforced. Make that impossible by accident. Declare which plugins are
   load-bearing for the guarantee, have `aidos-core` refuse to serve tools when
@@ -1056,8 +1056,8 @@ already had, and they complete a real ticket in under ten minutes.
 
 - [ ] **Ticket C2: The Thursday agent preset.** Build
   `profiles/thursday/agent.cordis.yml` from the aidos preset: shell, fs, jobs,
-  skills, web, ask-user, todo, the delegation group, and the AIDOS tools row
-  last. Everything on, AIDOS included. For v0.1 the AIDOS row resolves to the
+  skills, web, ask-user, todo, the delegation group, and the aidos tools row
+  last. Everything on, aidos included. For v0.1 the aidos row resolves to the
   pinned package E5 installs, so this preset does not wait on the decomposition;
   A3 repoints the row at the workspace packages later without touching the rest
   of the composition. Blocked by C1, E5.
@@ -1069,7 +1069,7 @@ already had, and they complete a real ticket in under ten minutes.
   - the preset mounts with no duplicate tool registration
 
 - [ ] **Ticket C3: The Quick agent preset.** Build `profiles/quick/` as the same
-  composition minus the AIDOS rows and the ticket-state tool masking: the same
+  composition minus the aidos rows and the ticket-state tool masking: the same
   plugins, guards, skills, and model routing, with no board and no signoff gate.
   Blocked by C2.
 
@@ -1685,7 +1685,7 @@ already had, and they complete a real ticket in under ten minutes.
   - the README defines every term it uses that a reader new to dsh would not know,
     at its first appearance, and a reviewer who has not used dsh confirms it
   - every command in the README works from a clean clone
-  - the README states that AIDOS is the ticketing subsystem, not the product
+  - the README states that aidos is the ticketing subsystem, not the product
 
 - [ ] **Ticket DOC2: The architecture document.** Document the host plane, the
   agent plane, the block model, the DSH home layout, and how the two presets
@@ -1736,7 +1736,7 @@ already had, and they complete a real ticket in under ten minutes.
 
 - [ ] **Ticket X3: Remove every dependency on the aidos repository.** Search
   both remaining repositories and Thursday for `github:xyzshantaram/aidos`,
-  `AIDOS_PLUGIN_SPEC`, `pin-aidos.sh`, and any path into `~/repos/aidos`, and
+  `aidos_PLUGIN_SPEC`, `pin-aidos.sh`, and any path into `~/repos/aidos`, and
   remove or repoint each one. Blocked by A7, I4.
 
   **Evaluate:**
@@ -1745,7 +1745,7 @@ already had, and they complete a real ticket in under ten minutes.
   - a clean install works with the old aidos repository moved away
 
 - [ ] **Ticket X4: Archive the aidos repository.** Rewrite its README to state
-  that AIDOS is now the ticketing subsystem inside Thursday, link to the new
+  that aidos is now the ticketing subsystem inside Thursday, link to the new
   repository, and update the repository metadata: description, topics, and the
   archived flag. Do not delete it. Blocked by X3.
 
@@ -1828,7 +1828,7 @@ try-it path any better. Where this lands relative to 1.0 is the user's call.
   through the fs sandbox and the ticket allowlist like every other write, and
   what the file allowlist means for a human typing directly into a panel. Answer
   those in the ticket before enabling writes; a panel that bypasses the allowlist
-  would silently defeat the guarantee AIDOS exists to provide. Syntax
+  would silently defeat the guarantee aidos exists to provide. Syntax
   highlighting should come from the languages actually used here first, not from
   every CodeMirror language package, because each one is inlined into the bundle.
   Blocked by WK1, D1.
@@ -1887,7 +1887,7 @@ try-it path any better. Where this lands relative to 1.0 is the user's call.
 
 ## User preferences and special rules
 
-- AIDOS stays the internal name for the ticketing subsystem. Do not rename
+- aidos stays the internal name for the ticketing subsystem. Do not rename
   identifiers just to remove the word.
 - Thursday is named the way Friday in the Avengers films is: an assistant you
   work with. It is NOT a reference to Thor, to Norse mythology, or to the
@@ -1910,7 +1910,7 @@ try-it path any better. Where this lands relative to 1.0 is the user's call.
 
 - [ ] M1 — confirm the executable map covers every path, with no remainder.
 - [ ] A6 — approve the decision on the dsh fs-sandbox patch.
-- [ ] A8 — approve the AIDOS plugin boundaries before any code moves.
+- [ ] A8 — approve the aidos plugin boundaries before any code moves.
 - [ ] C1 — approve the Thursday DSH home layout before the install engine builds on it.
 - [ ] D1 — approve the derived token palette against the shcmonokai reference.
 - [ ] V4 — decide the Windows stance: WSL2 only, or native with a degraded tool set.

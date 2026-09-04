@@ -6,7 +6,7 @@ Design records and reference documents. Each one is produced by a ticket in
 | Document | Produced by | Holds |
 | --- | --- | --- |
 | `MIGRATION-MAP.md` | M1 | Generated from the executable map: every source path and its verdict. |
-| `aidos-decomposition.md` | A8 | The AIDOS plugin boundaries and their service contracts. |
+| `aidos-decomposition.md` | A8 | The aidos plugin boundaries and their service contracts. |
 | `dsh-home.md` | C1 | The Thursday home layout and what owns each path. |
 | `platforms.md` | V4 | The supported systems, and the Windows decision with its reasoning. |
 | `branding.md` | B1 | Which dsh manifest values can be overridden per home. |

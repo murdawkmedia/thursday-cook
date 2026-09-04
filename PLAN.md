@@ -7,6 +7,23 @@ runtime: DeepSeek Harness (dsh)
 
 # Thursday implementation plan
 
+> **RETIRED as of R5. This document is no longer the source of truth.**
+>
+> The aidos board is. Dependencies live in each ticket's `dependsOn` field as
+> structured data, not as `Blocked by` prose in here, and the board is what an
+> agent actually works from.
+>
+> This file is kept because the brief requires a root `PLAN.md`, because
+> `plan_import` needs one to seed a project, and because it is what a reader
+> clones. It is a snapshot, and it is already behind: thirteen tickets exist on
+> the board and not in here, which is exactly the drift that retired it.
+>
+> Do not hand-edit this file to record a decision. Edit the ticket. Regenerating
+> this document from the board is the remaining half of R5.
+>
+> Release scope lives in `docs/release-scope.md`. The v0.1.0 checklist lives in
+> `README.md`. Graph integrity is checked by `scripts/check-plan.mjs`.
+
 Thursday is a full AI development environment that makes cheap models useful by
 front-loading planning, bounding work into aidos tickets, running agents in the
 background, and keeping the user in control. This document is the migration and

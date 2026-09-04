@@ -254,20 +254,32 @@ Phase 10 is therefore gated on a decision, not on a date. Nothing is removed
 from a source repository until the user explicitly calls the cutover, and until
 Phase 9 proves Thursday reproduces the behavior.
 
-Phase 0 is the v0.1 milestone: the smallest thing a stranger can install and
-try. It deliberately does not wait for the migration. E5 installs AIDOS from the
-package that exists today and E7 builds the installer against both source
-repositories where they already live, so the public bundle ships in weeks and
-each block is repointed at a workspace package later, one at a time.
+Phase numbers are grouping, not execution order. Phase 0 is the v0.1 milestone —
+the smallest thing a stranger can install and try — and most of it sits near the
+END of the dependency graph, because installing Thursday requires the install
+engine that Phase 5 builds. Read the blockers, not the phase number. An agent
+that starts at the top of Phase 0 will find every ticket blocked.
+
+What Phase 0 avoids is the code migration, not the whole plan. E5 installs AIDOS
+from the package that exists today, E7 builds the installer against both source
+repositories where they already live, and C4 generates the host-plane patch from
+blocks whose sources may still point at `dotfiles-ai` checkouts. So no Phase 0
+ticket waits for AIDOS to be decomposed or for the 24 plugin directories to move.
+It does wait on one migration ticket by design: A6, the fs-sandbox decision,
+because AIDOS scratch does not work without it and E6 cannot state its guarantee
+until someone has decided whether the dsh tree gets patched.
 
 The agreed priority order is bootstrap first (M0, R1, R3, R2), then the v0.1
-milestone, then the import system (M1, N2, N3), with the website track (D1, WS1,
-WS2, W1, WS5) running in parallel because nothing in it can be blocked by
-migration churn. W1 uses the `wizard` skill where that skill already lives, so
-the claim holds literally and not just in spirit. The Thursday look — TH1 to TH4
-— hangs off D1 alongside the website, because the tokens serve both and shipping
-a bundle that still looks like stock dsh undersells it. The installation path
-page, WS4, waits for the install engine:
+milestone, then the import system (M1, N2, N3). R1 is deliberately unblocked so
+that order is executable; it was blocked by M1, which put the ticket everything
+else depends on behind the third group. The website track (D1, WS1, WS2, W1, WS5)
+runs alongside, because nothing in it can be blocked by migration churn: W1 uses
+the `wizard` skill where that skill already lives, so the claim holds literally
+and not just in spirit. The Thursday look — TH1 to TH6 — hangs off D1 alongside
+the website, because the tokens serve both and shipping a bundle that still looks
+like stock dsh undersells it. Phase 12, the workspace surface, is outside all of
+this and is not v0.1. The installation path page, WS4, waits for the install
+engine:
 a landing page that ships an install command which does not install anything is
 worse than no landing page.
 
@@ -283,8 +295,10 @@ already had, and they complete a real ticket in under ten minutes.
   scratch directory from E2. It must offer a free-provider path so a new user
   can finish setup and try Thursday without a paid account. It runs at the end
   of `thursday install`, is safe to rerun, and writes only inside the Thursday
-  home. The AIDOS durable scratch directory defaults to `$THURSDAY_HOME/scratch`.
-  Blocked by C1, I4.
+  home. The AIDOS durable scratch directory defaults to `$THURSDAY_HOME/scratch`
+  unless A6 relocates it, which is A6's decision to make and not this ticket's:
+  read the default from wherever A6 records it rather than hardcoding the path
+  twice. Blocked by C1, I4, A6.
 
   **Evaluate:**
 
@@ -324,6 +338,9 @@ already had, and they complete a real ticket in under ten minutes.
   - typing `/teach-me-thursday` in any later session starts the tour too
   - the second launch is a normal session with an empty composer
   - the findings on `ui-onboarding` and slash commands are recorded either way
+  - if either mechanism turns out not to exist, the ticket closes on the recorded
+    finding plus the nearest working substitute, rather than staying open forever
+    on a capability dsh does not have
 - [ ] **Ticket E4: The seeded tour workspace.** The tour is data, not machinery.
   The installer seeds a workspace directory `trying-out-thursday/` inside the E2
   AI scratch directory, holding a skill file with the tutorial script, a
@@ -379,7 +396,10 @@ already had, and they complete a real ticket in under ten minutes.
   so this is a genuine behavioral departure. This ticket owns the byte-identity
   assertion for the whole plan on the development platform; C6, I7 and T2 refer
   to it rather than restating it, and T2 is what extends it to macOS and Windows.
-  Blocked by I7, E1.
+  I7 states its own reversal criteria in terms of the ledger and does not refer
+  forward to this check, because a mutual reference between the two would
+  deadlock. The criteria below run both presets and the tour, so C6 and E4 are
+  blockers and not assumptions. Blocked by I7, E1, C6, E4, A6.
 
   **Evaluate:**
 
@@ -440,10 +460,13 @@ already had, and they complete a real ticket in under ten minutes.
   - settings panels are live, not inert, in that browser session
 - [ ] **Ticket TH1: The Thursday skin.** A client plugin that makes the dsh web
   UI look like Thursday, driven entirely by the D1 tokens so no color is written
-  twice. Surfaces go black and very dark neutral gray, stepping roughly
-  `#101010`, `#202020`, `#303030`, with panels distinguished by elevation rather
-  than by borders alone. Radii shrink until the UI reads square, close to Zed and
-  far from a consumer app. Buttons, chips, inputs, focus rings, and state colors
+  twice. Surfaces go black and very dark neutral gray; `#101010`, `#202020` and
+  `#303030` are the requested direction, offered to D1 as input rather than fixed
+  here, because D1 derives the palette from shcmonokai and the user approves it,
+  and a ticket that hardcodes three greys pre-empts that review. Panels are
+  distinguished by elevation rather than by borders alone. Radii shrink until the
+  UI reads square, close to Zed and far from a consumer app. Buttons, chips,
+  inputs, focus rings, and state colors
   all resolve to tokens. It overrides dsh's own theme variables from a
   higher-specificity root selector, the way the existing `system-fonts` plugin
   already overrides the font tokens, rather than forking the theme package. It
@@ -452,9 +475,14 @@ already had, and they complete a real ticket in under ten minutes.
 
   **Evaluate:**
 
-  - no color literal appears outside the tokens package
-  - panel surfaces use the dark neutral steps and read as distinct elevations
-  - the largest radius in the UI is small enough that the interface reads square
+  - no color literal appears in this plugin's stylesheets; every value is a token.
+    The rule is scoped to the skin, because `assets/` holds the brand mark and its
+    own colors and the tokens package holds the definitions
+  - adjacent panel surfaces differ by a stated minimum luminance step, and the
+    step is recorded so a later change cannot flatten them by accident
+  - no control — button, input, chip, tab — exceeds D1's control radius, which is
+    at most 4px, except where a control is a circle by design. Containers use D1's
+    separate container radius; see TH7 for why the two differ
   - focus states are visible on every interactive control, by keyboard alone
   - the user's normal dsh install is visually unchanged
   - uninstall removes the skin with no residue
@@ -472,7 +500,9 @@ already had, and they complete a real ticket in under ten minutes.
   **Evaluate:**
 
   - the Thursday mark replaces the dolphin in the web UI
-  - the favicon is the Thursday mark and is legible at 16px
+  - the favicon is the Thursday mark and meets B2's 16px legibility rule, which is
+    where that rule is defined; B2 cuts the raster and `.ico` exports and this
+    ticket wires them up rather than cutting a second set
   - `prefers-reduced-motion` yields a static mark
   - the animated and static forms come from one committed vector source
   - the user's normal dsh install still shows its own branding
@@ -490,12 +520,18 @@ already had, and they complete a real ticket in under ten minutes.
 
   **Evaluate:**
 
-  - the phrase set is written for Thursday and carries no copied list
-  - each phrase fits the indicator line without reflowing it at a narrow width
-  - phrases rotate slowly enough to read and never repeat back to back
-  - the gradient runs blue to orange from the tokens, not from a literal
+  - every phrase is original to Thursday: each one is searched for verbatim before
+    it ships, and a phrase found in an existing published list is replaced
+  - no phrase exceeds 32 characters, so the indicator line does not reflow at the
+    narrowest supported width
+  - the rotation interval is at least 2.5 seconds and no phrase repeats until the
+    set has been exhausted
+  - the gradient runs from the brand-blue token to the brand-orange token that D1
+    defines, with no literal
+  - no phrase names a tool, a file, a model, or an operation, so none of them can
+    claim something that is not running
   - a small animated mark sits to the left, and it honors `prefers-reduced-motion`
-  - no phrase claims a specific operation that is not actually running
+  - the phrase set is a data file, so adding one needs no code change
 - [ ] **Ticket TH4: Thursday typography and bundled fonts.** Replace the DeepSeek
   Harness logo in the top left with the word "Thursday" set in a serif face,
   Literata as the intended choice, so the application reads as Thursday before
@@ -510,12 +546,17 @@ already had, and they complete a real ticket in under ten minutes.
   with them. The existing `system-fonts` plugin is the prior art: it already
   overrides dsh's hardcoded `:root` font tokens from `html:root`, which outranks
   them without `!important`, and dsh's monospace stack notably ends at a named
-  font with no `monospace` generic. Extend that mechanism rather than adding a
-  second one. Blocked by TH1, B2.
+  font with no `monospace` generic. Use that technique rather than inventing a
+  second one; this does not require the plugin itself to have moved, so P2 is not
+  a blocker. The top-left wordmark here is live text, not B2's wordmark asset:
+  B2's asset is for the desktop entry, the manifest and the website, and this one
+  must be selectable, scalable and themable, so the two are deliberately different
+  artifacts and the ticket says which is which. Blocked by TH1, B2.
 
   **Evaluate:**
 
-  - the top-left mark reads "Thursday" in a serif face, with no dsh logo
+  - the top-left mark reads "Thursday" as live text in a serif face, with no dsh
+    logo, and it is selectable and scales with the UI
   - every bundled font is served from Thursday's own assets, with no third-party
     request at runtime, verified with the network panel offline
   - each font stack tries the locally installed font first, then the bundled copy
@@ -550,6 +591,10 @@ already had, and they complete a real ticket in under ten minutes.
 
   - the tabs are horizontally centered in the bar and render as badges, not
     underlined text
+  - each of the three tabs carries an icon, and the tab reading "Trajectory" is
+    relabelled "Session log"
+  - the relabel is cosmetic only: no event name, projection, route, or stored
+    value is renamed with it
   - the download-session-log control is an icon button immediately right of the
     session title, and downloads that session's log
   - the icon button has an accessible name and a tooltip, and is reachable and
@@ -564,6 +609,71 @@ already had, and they complete a real ticket in under ten minutes.
   - the header findings are recorded: which slots dsh offers, and whether the
     change is a slot registration or a component replacement
   - the user's normal dsh install has an unmodified top bar
+- [ ] **Ticket TH6: Raw request and response inspection in the session log.** Let
+  a session-log entry be opened to show the raw HTTP request and response pair
+  behind it, so a user can see exactly what was sent and returned rather than the
+  harness's rendering of it. This is the highest-value debugging surface in the
+  product and the one thing no amount of prose about token efficiency can
+  substitute for: it is how a user learns what their tokens actually bought.
+  Establish first whether dsh retains the wire pair at all, because the trajectory
+  is built from normalized events and a normalized event is not a request; if the
+  pair is not retained, the first deliverable is the host-side capture that
+  retains it, bounded so it cannot grow without limit. Redaction is not optional
+  and not a later ticket: a raw request carries the Authorization header and
+  therefore the user's API key, and TH5 puts a one-click download of the whole
+  session log in the header, so an unredacted pair turns a debugging feature into
+  a credential leak the moment someone shares a log to ask for help. Redact on
+  capture, never on display, so the secret never reaches disk. Bodies can be very
+  large, so render progressively rather than dumping them into the DOM. Blocked
+  by TH1, TH5.
+
+  **Evaluate:**
+
+  - a session-log entry opens to show its request and response pair, with headers
+    and body
+  - whether dsh retains the wire pair is established and recorded, and if it does
+    not, the capture that retains it ships with this ticket
+  - every credential-bearing header is redacted at capture, so no unredacted
+    secret is ever written to disk
+  - a downloaded session log contains no API key, verified by searching the export
+    for the configured key
+  - a multi-megabyte body opens without freezing the UI
+  - retention is bounded, and the bound is stated and enforced
+  - turning the capture off is possible and documented, and the feature degrades
+    to today's behavior
+- [ ] **Ticket TH7: Sidebar workspace items as panels.** The sidebar's workspace
+  list reads as a wall of text because nothing separates one item from the next.
+  Give each item the card treatment the tool-call cards already use, so the eye
+  can find an item's edges. The existing rule, from
+  `tool-render/src/client.module.css`, is a 1px `--dsw-alias-border-l2` border, a
+  `0.75rem` radius, a `--dsw-alias-bg-layer-1` background, `0.3125rem 0.5rem`
+  padding, and a border-color lift to `--dsw-alias-border-l3` on hover. Port those
+  values into the D1 tokens rather than copying the dsh alias variables through,
+  so Thursday's sidebar and Thursday's tool cards stay in step by construction.
+  Note the conflict this resolves: TH1 says the UI reads square with no radius
+  above 4px, and this card is 12px, so one rule cannot cover both. The resolution
+  is two radius tokens, not a winner — a container radius for panels and cards,
+  and a control radius for buttons, inputs, chips and tabs. That is what Zed
+  actually does, and it keeps the interface square where a user's hands are while
+  still letting a panel have edges. Both tokens are D1's to define, and TH1's
+  criterion is written against the control radius. Density matters more than
+  decoration here: a card that adds vertical padding to every row turns a
+  scannable list into a scrolling one, so keep the padding as tight as the tool
+  card's. Blocked by TH1, D1.
+
+  **Evaluate:**
+
+  - each sidebar workspace item renders as a bordered, rounded panel with a
+    distinct background from the sidebar behind it
+  - the border, radius, background, and hover treatment all resolve to D1 tokens,
+    with no dsh alias variable and no literal
+  - the item uses the container radius token and the value matches the tool-call
+    card, so the two read as the same component family
+  - the number of items visible without scrolling drops by no more than one
+    against the current list
+  - hover and keyboard focus are both visibly distinct from rest, and from each other
+  - the tool-call cards and the sidebar items stay in step: changing the container
+    token moves both
 
 ## Phase 1: Foundation — `pending`
 
@@ -576,7 +686,9 @@ already had, and they complete a real ticket in under ten minutes.
   **Evaluate:**
 
   - `PLAN.md` exists at the repository root and matches the board
-  - `node verify-plan.mjs PLAN.md` exits 0
+  - the plan parses under the real AIDOS parser, run from the aidos checkout at
+    `~/repos/aidos/skills/aidos-plan/verify-plan.mjs`, which is where that script
+    lives until A5 moves it into this repository
   - the README names Thursday, the four product goals, and the two presets
   - `git status` is clean after the commit
 - [ ] **Ticket M1: The executable migration map.** Both source repositories stay
@@ -586,7 +698,8 @@ already had, and they complete a real ticket in under ten minutes.
   destinations, each with a verdict of move, stay, or drop, and a reason.
   `docs/MIGRATION-MAP.md` is generated from it so the human-readable version
   cannot drift. N2 consumes it to route upstream changes to the packages they
-  affect. Blocks every later migration ticket.
+  affect. Blocks A1, P1, P2, P4, P5, S2, C1 and N2, each of which names it back;
+  everything else that needs it inherits it through one of those.
 
   **Evaluate:**
 
@@ -599,8 +712,12 @@ already had, and they complete a real ticket in under ten minutes.
   the root `package.json`, `pnpm-workspace.yaml`, the base `tsconfig.json`, the
   prettier config, and the vitest config, using the two source repositories'
   configs as the starting point rather than inventing new ones. Create the empty
-  package directories from the structure above with a one-line README each.
-  Blocked by M1.
+  package directories from the structure above with a one-line README each. This
+  is deliberately not blocked by M1: the skeleton is the workspace plumbing and
+  the directory shape, both of which the structure section above already fixes,
+  and gating it on the map would put the ticket every other ticket depends on
+  behind the migration. M1 refines the package list later; adding a directory is
+  cheap. Blocked by nothing.
 
   **Evaluate:**
 
@@ -635,7 +752,13 @@ already had, and they complete a real ticket in under ten minutes.
   exporting the token set as CSS custom properties and as a typed TypeScript
   object: background, background-elevated, background-surface, foreground,
   foreground-muted, border, accent, accent-muted, success, warning, error, info,
-  selection, focus, code. Derive the values from the `xyzshantaram/shcmonokai`
+  selection, focus, code, plus brand-blue and brand-orange, which are the two
+  endpoint colors of `assets/thursday-logo.svg` and which TH3's gradient and the
+  website both need by name. Two radius tokens as well, not one: a control radius
+  of at most 4px for buttons, inputs, chips and tabs, and a container radius for
+  panels and cards, which the existing tool-call card sets at `0.75rem`. One
+  radius cannot serve both, and TH7 explains why. Derive the color values from
+  the `xyzshantaram/shcmonokai`
   VS Code theme, with Zed's surface treatment as the secondary reference. No
   hard-coded hex outside this package. Blocked by R1.
 
@@ -778,12 +901,20 @@ already had, and they complete a real ticket in under ten minutes.
   of: keep patching the dsh tree from the install engine, move the AIDOS scratch
   root under a path the sandbox already allows, or upstream the exemption.
   Record the decision and its reason in `docs/`. A patch, if kept, must be
-  applied by the install engine and reversed by uninstall. Blocked by A3, C1.
+  applied by the install engine and reversed by uninstall. This decision gates
+  v0.1 and not only the migration: E5 ships the AIDOS scratch tools, which do not
+  work without the exemption, and E6 promises the dsh package tree is untouched.
+  Option one honors E6's checksum, because the patch is reversed at uninstall,
+  but not its stated meaning, because Thursday would mutate the shared dsh tree
+  for as long as it is installed. Say plainly which is being chosen. It does not
+  depend on the AIDOS code having moved, only on the home layout. Blocked by C1.
 
   **Evaluate:**
 
   - a scratch write succeeds in a fresh Thursday install with no manual step
   - the decision document names the alternatives and why they lost
+  - the document states whether the shared dsh package tree is modified while
+    Thursday is installed, in one sentence, and E6 and the website use that wording
   - if a patch is kept, uninstall restores the original file byte for byte
 
 - [ ] **Ticket A7: AIDOS mounts from the monorepo.** Make the migrated package
@@ -898,7 +1029,10 @@ already had, and they complete a real ticket in under ten minutes.
 - [ ] **Ticket P7: Document each plugin's effects.** Give every plugin package a
   README section answering the five questions the brief names: what it changes,
   where, why it is installed, how to disable it, how to remove it. Blocked by
-  P1, P2, I1.
+  I1. Deliberately not blocked by P1 and P2: a block's source may be a local
+  checkout in `dotfiles-ai`, exactly as E7 requires, so generating the patch does
+  not wait for 22 packages to move. Repointing a source at a workspace package as
+  P1 and P2 land changes the block, not this generator.
 
   **Evaluate:**
 
@@ -956,13 +1090,19 @@ already had, and they complete a real ticket in under ten minutes.
     their placement, and boot does not fail on a duplicate id
   - adding a plugin block adds its row with no hand-written YAML
 
-- [ ] **Ticket C5: The settings template.** Move `home/settings.yaml` into
-  `config/`, strip the personal accounts and model routes into an overlay the
-  user supplies, and keep the profile chain structure. Preserve the byte-level
-  care the old script took: no full YAML round-trip, because YAML 1.1 mangles
-  the `off:` key. Blocked by C1.
+- [ ] **Ticket C5: The settings template and the agent rules file.** Move
+  `home/settings.yaml` into `config/`, strip the personal accounts and model
+  routes into an overlay the user supplies, and keep the profile chain structure.
+  Preserve the byte-level care the old script took: no full YAML round-trip,
+  because YAML 1.1 mangles the `off:` key. Move `home/AGENTS.md` here too and
+  install it the same way. It is listed in the structure section and in the
+  `sync.sh` effects the engine must reproduce, and no other ticket in any phase
+  claims it, so without this it is silently dropped and every session loses the
+  rules file. Blocked by C1.
 
   **Evaluate:**
+
+  - `AGENTS.md` is installed into the Thursday home and a session reads it
 
   - a fresh install writes a settings file with no personal account names
   - `profile.active` survives a re-sync
@@ -1004,6 +1144,11 @@ already had, and they complete a real ticket in under ten minutes.
   **Evaluate:**
 
   - every artifact `sync.sh` installed is covered by exactly one block
+  - the Thursday-specific client plugins (TH1 to TH6) and the WK panels each have
+    a block too, so the look and the workspace surface install and reverse like
+    everything else rather than being special cases
+  - exactly one block owns the branding override, and it is named; TH1's skin and
+    B3's manifest override are not two blocks fighting over the same files
   - a coverage test fails when a new package has no block
 
 - [ ] **Ticket I3: The install ledger.** Record every effect an install applied,
@@ -1059,8 +1204,10 @@ already had, and they complete a real ticket in under ten minutes.
   - uninstall leaves no Thursday file behind, verified by a tree diff
   - a file the user created inside the Thursday home survives uninstall, or the
     command names it and asks
-  - reversal is complete enough that the E6 byte-identity check passes, which is
-    where that assertion lives
+  - a tree diff of the Thursday home before install and after uninstall is empty
+    except for files the ledger does not claim
+  - no file this install wrote outside the Thursday home survives uninstall,
+    enumerated from the ledger rather than by inspection
 
 - [ ] **Ticket I8: The shell bootstrapper.** Write `install/install.sh`: detect
   the platform, check for node and pnpm, fetch Thursday, and hand off to the
@@ -1086,6 +1233,30 @@ already had, and they complete a real ticket in under ten minutes.
   - installing version A then version B leaves the same state as a clean B install
   - the upgrade reports what it changed
   - a block whose version fell behind is named in status
+- [ ] **Ticket I10: Install and pin the dsh runtime itself.** Nothing in this
+  plan currently gives a stranger a dsh to run. I8 checks only for node and pnpm,
+  I2's block list stops at Thursday's own artifacts, and E6, C6 and E8 all speak
+  of "the dsh package tree" and "dsh web" as though they already exist. On the
+  author's machine they do; on a clean one they do not. Add the block that
+  installs dsh, pinned to an exact version, into the Thursday home rather than
+  globally, so Thursday's runtime and whatever dsh the user may already have are
+  separate installs that cannot disturb each other. Record the pin in one place,
+  because every composition row and every patch in this plan is written against a
+  specific dsh, and an unpinned runtime turns an upstream release into a silent
+  breakage. Adopting an existing global dsh instead is the alternative to
+  consider and reject in writing: it would make the E6 guarantee untestable,
+  since Thursday would then share the tree it promises not to touch. Blocked by
+  I1, C1.
+
+  **Evaluate:**
+
+  - a machine with no dsh installed reaches a working Thursday session
+  - a machine with a different dsh version installed keeps it, unmodified, and
+    Thursday runs its own pinned copy
+  - the pinned version appears in exactly one file, and a mismatch fails the build
+  - uninstall removes Thursday's dsh and leaves any pre-existing one alone
+  - the decision to install rather than adopt is recorded with its reason
+
 - [ ] **Ticket V3: The macOS install target.** Make `thursday install` produce a
   real macOS installation through the V1 port: the `.app` bundle with its
   `Info.plist`, the `.icns` icon, the launcher on PATH, and the Thursday home
@@ -1098,7 +1269,8 @@ already had, and they complete a real ticket in under ten minutes.
   - a `macos-15` runner completes install, launch, and uninstall
   - the app appears in Spotlight with the Thursday name and icon
   - uninstall leaves no `.app`, no icon, and no Launch Services entry
-  - the home directory tree is byte-identical before install and after uninstall
+  - the E6 byte-identity check passes on macOS, which is where that assertion
+    lives; this ticket adds no checksum of its own
 - [ ] **Ticket V4: Settle the Windows stance.** Windows has no bash, and
   Thursday's guard model parses bash commands: the aidos preset already carries
   the only platform branch in either source repository. Decide and document
@@ -1113,6 +1285,25 @@ already had, and they complete a real ticket in under ten minutes.
   - the installer detects an unsupported configuration before writing anything
   - the bash-guard and the presets behave per the decision, with a test proving it
   - the website's installation page states the Windows requirement plainly
+- [ ] **Ticket V8: The Windows install target.** macOS got V3, which builds the
+  `.app`, the `.icns`, the launcher and the Launch Services reversal. Windows got
+  only V4, which decides the stance and documents it. That leaves T2 requiring
+  the lifecycle to pass on "the supported Windows path" with no ticket producing
+  one. Implement whichever target V4 selects, through the V1 port: if WSL2, the
+  detection, the guidance when it is absent, and the install inside it; if
+  native, the `%LOCALAPPDATA%\Thursday` home, the `.lnk` in the Start Menu, the
+  `.ico`, and the launcher on PATH. Uninstall reverses all of it. If V4 chooses
+  WSL2-only this ticket is small and mostly detection and messaging, and it
+  should say so rather than being quietly dropped. Blocked by V1, V4, I4, B2.
+
+  **Evaluate:**
+
+  - a Windows runner completes install, launch, and uninstall on the path V4 selected
+  - the shortcut or launcher V4's decision implies exists and starts Thursday
+  - uninstall leaves no shortcut, no icon, and no registry or Start Menu entry
+  - an unsupported Windows configuration is detected and explained before anything
+    is written
+  - T2's Windows leg has a real target to run against
 - [ ] **Ticket V6: Prove the bootstrapper under every target shell.** I8 writes
   `install/install.sh` as POSIX sh; this ticket is the CI job that stops it
   drifting back. Today's `sync.sh` uses bash 4 constructs — `local -a` arrays,
@@ -1122,10 +1313,12 @@ already had, and they complete a real ticket in under ten minutes.
 
   **Evaluate:**
 
-  - the script runs to completion under dash and under bash 3.2
+  - the script runs to completion under dash, under `bash --posix`, and under a
+    bash 3.2 build
   - `shellcheck -s sh` is clean
-  - a CI job runs the bootstrapper under at least two shells
-  - no array, no `${var,,}`, and no process substitution appears in the script
+  - the job runs on every change to `install/install.sh`, and a bash-4 construct
+    introduced there fails it; the construct list itself lives in I8's criteria
+    and is not restated here
 
 ## Phase 6: Branding — `pending`
 
@@ -1275,8 +1468,8 @@ already had, and they complete a real ticket in under ten minutes.
     unavailable with the reason, and never fails silently
   - each of the three skills is loaded on each supported system and its declared
     prerequisites resolve, or it says which one did not
-  - no promoted skill contains a hardcoded path, hostname, or binary location that
-    is only correct on the author's machine
+  - no promoted skill contains an absolute path outside the Thursday home, a
+    hostname, or a binary path, checked by grep the way V5's criterion is
 
 ## Phase 8: Website and demo — `pending`
 
@@ -1421,7 +1614,10 @@ already had, and they complete a real ticket in under ten minutes.
 
 - [ ] **Ticket DOC1: The root README.** Explain what Thursday is, the four
   product goals, the two presets, installation, uninstallation, and the
-  repository layout. Blocked by I8, C6.
+  repository layout. WS2 copies the four goal sentences word for word onto the
+  landing page and has a criterion saying so, so any rewording here must be
+  carried there in the same change; the two documents are one text in two places.
+  Blocked by I8, C6.
 
   **Evaluate:**
 
@@ -1457,7 +1653,8 @@ already had, and they complete a real ticket in under ten minutes.
   repositories, so this does not start on a schedule. It starts when the user
   decides to stop working upstream and cut over. Until then N2 and N3 keep
   Thursday current and both repositories stay authoritative for their own work.
-  Blocked by T2, DOC1, and an explicit user go-ahead.
+  The user go-ahead is not a blocker line, because it is not a ticket; it is the
+  first criterion below. Blocked by T2, DOC1.
 
   **Evaluate:**
 
@@ -1528,6 +1725,104 @@ already had, and they complete a real ticket in under ten minutes.
   - every plugin block records its effects in the form a registry entry would
     display, so publishing one needs no second description of what it changes
   - the A8 boundaries name no component that only a first-party plugin may mount
+
+## Phase 12: The workspace surface — `pending`
+
+An editor, a directory tree, and a git panel inside Thursday. Deliberately not in
+Phase 0: v0.1 is the smallest thing a stranger can install and try, and an IDE
+surface is a large addition that would delay the bundle without making the
+try-it path any better. Where this lands relative to 1.0 is the user's call.
+
+- [ ] **Ticket WK1: Survey the prior art and build the workspace panel shell.**
+  The editor, the directory tree, and the git panel are one surface with three
+  views, so they share a shell: a resizable region, a view switcher, and one
+  notion of "the file currently open" that all three agree on. Build that first,
+  because three panels each inventing their own selection state is how this
+  becomes unusable. Do the survey before the shell, since the instruction is to
+  reuse rather than reinvent: read the existing client packages for the patterns
+  that already work here — `log-viewer` for a scrolling read-only pane,
+  `session-archive` for a list-and-detail panel, `mcp-servers` for a settings
+  surface with host-side state, and `shared/settings-panel.tsx` and
+  `shared/client-util.ts` for the conventions every one of them follows. Record
+  what is reusable and what is not, so WK2, WK3 and WK4 start from a known base
+  instead of three different guesses. Note the constraint that shapes all of it:
+  dsh's client plugins bundle CJS with npm dependencies inlined, because the
+  browser module table cannot resolve npm packages, so anything these panels
+  import is inlined and its size is a real cost. Blocked by TH1.
+
+  **Evaluate:**
+
+  - the survey names, for each existing plugin read, what is reused and what is not
+  - the shell hosts a view and is resizable, and its size survives a page reload
+  - one selection state is shared by every view, and selecting a file in one is
+    visible in the others
+  - the shell registers in a queried slot, with the slot and its contract recorded
+  - the bundle size of the shell alone is measured and recorded as the baseline
+- [ ] **Ticket WK2: The CodeMirror editor view.** A CodeMirror 6 editor in the
+  WK1 shell, themed from the D1 tokens so it matches the rest of Thursday rather
+  than shipping a stock theme. Read-only first and editing second, deliberately:
+  a read-only viewer is most of the value at a fraction of the risk, and an
+  editor introduces questions the plan must answer before it writes anything —
+  what happens when the agent edits the file you have open, whether a save goes
+  through the fs sandbox and the ticket allowlist like every other write, and
+  what the file allowlist means for a human typing directly into a panel. Answer
+  those in the ticket before enabling writes; a panel that bypasses the allowlist
+  would silently defeat the guarantee AIDOS exists to provide. Syntax
+  highlighting should come from the languages actually used here first, not from
+  every CodeMirror language package, because each one is inlined into the bundle.
+  Blocked by WK1, D1.
+
+  **Evaluate:**
+
+  - a file opens read-only with syntax highlighting and line numbers
+  - every color in the editor resolves to a D1 token, with no stock CodeMirror theme
+  - the file the agent is editing updates in the panel, or the panel says it is stale
+  - whether writes are allowed is decided in writing, and if they are, a save is
+    subject to the same fs sandbox and ticket allowlist as any agent write
+  - a write attempt outside the allowlist is refused with the same message an
+    agent would get
+  - the added bundle size over the WK1 baseline is measured and recorded
+- [ ] **Ticket WK3: The directory tree view.** A directory tree for the session's
+  workspace in the WK1 shell, which opens a file into the WK2 editor. It reads
+  through the host, never through a browser filesystem API, so the same sandbox
+  that bounds agent reads bounds this one: a tree that can browse outside the
+  workspace is an information leak in the demo container and in any remote-access
+  session, both of which this plan ships. Lazy-load directory contents rather
+  than walking the tree on open, because a `node_modules` in the workspace root
+  would otherwise hang the panel, and honor the same ignore rules the rest of the
+  tooling uses so the tree shows what the user thinks of as their project.
+  Blocked by WK1.
+
+  **Evaluate:**
+
+  - the tree lists the workspace and expands a directory on demand, not on open
+  - a workspace containing `node_modules` opens without a visible delay
+  - selecting a file opens it in the editor view through the WK1 shared selection
+  - no path outside the session workspace is reachable, including through a symlink
+  - ignored paths are hidden by default and the rule doing the hiding is stated
+- [ ] **Ticket WK4: The git panel.** A git panel in the WK1 shell showing status,
+  the working diff, and recent history, with the diff rendered in the WK2 editor
+  rather than in a second diff renderer. Read-only to begin with, and mutations
+  gated: this repository's own bash-guard already treats git this way, running
+  read-only verbs freely and making mutations ask, and a panel that lets a click
+  do what a command must ask permission for would quietly route around that rule.
+  So any button that changes repository state goes through the same approval path
+  as the equivalent command, and the ticket says which buttons exist before it
+  builds them. Reviewing an agent's diff is the reason this panel earns its place:
+  it is the surface where a user decides whether work is acceptable, which is the
+  review step the ticket lifecycle already depends on and currently sends people
+  to a terminal for. Blocked by WK1, WK2.
+
+  **Evaluate:**
+
+  - status, the working diff, and recent history are visible for the workspace
+  - the diff renders in the WK2 editor, with no second diff implementation
+  - every action that mutates repository state goes through the same approval path
+    as the equivalent bash-guard command
+  - a repository with no commits, and a workspace that is not a repository at all,
+    both render an explanation rather than an error
+  - the panel shows an agent's uncommitted work well enough to review it without
+    leaving the UI
 
 ## User preferences and special rules
 

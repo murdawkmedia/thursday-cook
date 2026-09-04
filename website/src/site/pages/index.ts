@@ -262,9 +262,9 @@ export function indexPage(): string {
           title: "thursday quick",
           aside: badge("no ceremony"),
           body: html`<p>
-            The same system without the ticket overhead, for work where ticketing would cost more
-            than it returns. Rename this variable. Fix this type error. Explain this function. The
-            capability is not reduced; the process is.
+            The same agent without the long-horizon surfaces, for work where ticketing would cost
+            more than it returns. Rename this variable. Fix this type error. Explain this function.
+            No board, no plan mode, no multi-agent orchestration; the same model, tools, and shell.
           </p>`,
         })}
       </div>

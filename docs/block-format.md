@@ -96,11 +96,26 @@ with a conditional, anything whose failure needs interpreting, or anything
 touching a path a block already declares. A `run` step must carry a `why`, and
 review should treat one as a request for a new action.
 
-**Constraints are data.** `top-level-override`, `no-yaml-round-trip`,
-`needs-allow-builds`. The installer honours them. This is where `sync.sh`'s
-hardest-won knowledge lands — the `off:` key that YAML 1.1 turns into a boolean
-and drops every pi-ai provider with it, the codeload URL `allowBuilds` needs —
-instead of being deleted in translation.
+**Constraints are data, and the set is closed.** `top-level-override`,
+`no-yaml-round-trip`, `needs-allow-builds`, `alias-install-name`,
+`nested-tool-config`. This is where `sync.sh`'s hardest-won knowledge lands —
+the `off:` key that YAML 1.1 turns into a boolean and drops every pi-ai
+provider with it, the codeload URL `allowBuilds` needs — instead of being
+deleted in translation.
+
+Saying "the installer honours them" is not enough, and I1's implementation was
+right to push back on it. A constraint name with nothing behind it is a string,
+and the knowledge dies exactly the way it died in the shell comments. So each
+constraint is a REGISTRY ENTRY carrying three things: its failure mode in plain
+words, the named actions that honour it, and where in `sync.sh` it came from.
+Two rules fall out and both are enforced at load. A constraint name outside the
+registry is a validation error, because an open-ended name gives the installer
+nothing to act on. And a constraint declared on an action that does not honour
+it is also an error, which is what stops a constraint decaying into decoration
+that looks like a guarantee.
+
+A `why` is mandatory wherever a constraint appears. Optional prose is prose
+nobody writes.
 
 **One copy of each step.** The code for a step exists only as its action
 implementation, and the block references it. Prose describes; it never restates.

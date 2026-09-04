@@ -1,0 +1,542 @@
+{
+  "$comment": [
+    "The third-party plugin roster. THIS FILE IS THE SOURCE OF TRUTH for what the",
+    "install engine installs into the web profile. It replaces the hard-coded",
+    "`pnpm_ins` calls in step_install_plugins() of dotfiles-ai/sync.sh, and the",
+    "hand-maintained `expected` array in step_report_extra_plugins() is derived from",
+    "it rather than kept in sync by hand.",
+    "",
+    "Format: JSON, not YAML. Same reason as config/migration-map.json: Thursday must",
+    "be validatable on a bare checkout with plain `node`, which parses JSON natively",
+    "and has no YAML parser. Consistency with the migration map matters more than",
+    "preference. The one thing YAML would have bought -- comments -- is carried by",
+    "the mandatory `why` field on every entry, by `notes`, and by `hazards`.",
+    "",
+    "THE COMMENTS IN sync.sh ARE THE VALUABLE PART. They record failures that were",
+    "already paid for once: duplicate loader entry ids, double-registered tools,",
+    "an npm release that ships fewer tools than the bundled one, four upstream",
+    "compaction bugs. Every one of them is carried here as a field value. When you",
+    "bump a pin, you are responsible for re-reading that entry's `hazards` first.",
+    "",
+    "This file does not install anything and does not encode install ORDER: sync.sh",
+    "collects every spec and hands them to one `dsh plugin add`, whose reconcile step",
+    "mounts them all. Order in this array is grouping, not sequence."
+  ],
+  "version": 1,
+  "generatedFrom": {
+    "repo": "dotfiles-ai",
+    "path": "/home/sid/repos/dotfiles-ai/sync.sh",
+    "functions": ["step_install_plugins", "step_allow_builds", "step_report_extra_plugins", "step_install_aidos"],
+    "commit": "8a50d9e",
+    "transcribedOn": "2026-09-05"
+  },
+
+  "fieldSyntax": {
+    "id": "stable slug for this entry; referenced by tickets and by the composition patch",
+    "packageName": "the name the package is installed UNDER, i.e. the key that appears in the web profile's dependencies. For an aliased install this is NOT the upstream package name; see `alias`.",
+    "installSpec": "the exact string handed to `dsh plugin --profile web add`. Reproduces the sync.sh pnpm_ins argument verbatim.",
+    "origin": "`fetched` = resolved from a remote (git, tarball, npm) at install time. `vendored` = the source lives in this repository and is installed from a path.",
+    "source": "where the bytes come from: type git|tarball|npm|in-repo, plus repo/url/path.",
+    "pin": "kind + value + immutability. `immutability` is how hard it is for the bytes behind this pin to change without a change in this file: sha > short-sha > npm-version > tag > none.",
+    "alias": "present only when packageName differs from the upstream package's own name. Never remove one without reading its `why`.",
+    "plane": "host | client | both. Host-plane code runs in the DSH node process with the process's full authority; client-plane code runs in the browser page with full page authority. Neither is sandboxed.",
+    "why": "MANDATORY. Why this is installed, in words a stranger can act on: what breaks or is missing without it.",
+    "allowBuilds": "whether pnpm must be allowed to run this package's lifecycle scripts, and the exact pnpm-workspace.yaml key if so. See `allowBuildsPolicy`.",
+    "trust": "tier from `trustTiers`, plus the basis for the assignment. Advisory today; a later ticket automates the evidence.",
+    "lastReviewed": "the date someone last LOOKED AT THIS PIN and confirmed it is the pin we intend to install. It does NOT assert that the code at that pin was read -- `trust.tier` says that, and `trust.codeReviewed` says it plainly.",
+    "notes": "carried-forward prose from sync.sh and the web patch: context that is true but not a rule.",
+    "hazards": "carried-forward prose that IS a rule. Each one records a failure that already happened. Read before bumping, renaming, or removing."
+  },
+
+  "trustTiers": {
+    "$comment": [
+      "Every entry in this roster runs in the SAME cordis composition as bash-guard,",
+      "mcp-servers and dsh-remote. Host-plane entries get the DSH process's full",
+      "authority -- filesystem, network, subprocess, session data, tool registration --",
+      "with no sandbox and no capability boundary between plugins. A client-plane entry",
+      "gets the whole page, including the session transcript and every credential the",
+      "page can reach. There is no tier that means 'safe'; the tiers rank only HOW MUCH",
+      "IS KNOWN about the code, and the honest answer for most of this roster is: the",
+      "pin is fixed and nobody here has read it."
+    ],
+    "first-party": "Authored in this repository or by its author, and reviewed as ordinary source in ordinary review. The pin, if any, points at a commit written here.",
+    "maintained-fork": "Third-party code forked by this repository's author and pinned to a commit authored here. The DELTA from upstream is known and was written deliberately; the BASE it forks is third-party code nobody here has audited. Do not read this tier as 'ours'.",
+    "pinned-unreviewed": "Third-party code, pinned to a specific ref, never read by anyone here. It is trusted for exactly one reason: the pin cannot silently change under us. Bumping the pin is a new trust decision, not a routine update.",
+    "unpinned": "Resolved at install time from a range or a moving ref, so the code can change with no change in this repository. A DEFECT TIER. No entry should sit here; one that does is a bug to fix, not a state to accept."
+  },
+
+  "allowBuildsPolicy": {
+    "$comment": [
+      "Carried from step_allow_builds(). pnpm 10+ refuses to run a package's",
+      "install/build lifecycle scripts unless its EXACT RESOLVED tarball URL is listed",
+      "under `allowBuilds` in the web profile's pnpm-workspace.yaml. The install engine",
+      "must reconstruct that URL the same way pnpm does, because the URL contains the",
+      "pin and therefore changes on every bump."
+    ],
+    "workspaceFile": "$DSH_HOME/profiles/web/pnpm-workspace.yaml",
+    "keyTemplate": "<basename(owner/repo)>@https://codeload.github.com/<owner>/<repo>/tar.gz/<ref>",
+    "derivation": "From a `github:owner/repo#ref` spec: path = spec minus the `github:` prefix and minus `#ref`; ref = everything after the last `#`; name = basename(path). Emit `  <name>@<tarball>: true` under an `allowBuilds:` block, creating the block if absent. Idempotent: skip if the exact line is already present.",
+    "onBump": "The key embeds the ref, so bumping any pin whose entry has allowBuilds.required=true invalidates its old key. Re-derive; do not hand-edit. Stale keys are inert but should be pruned.",
+    "todayRequiredBy": ["aidos"]
+  },
+
+  "entries": [
+    {
+      "id": "input-history",
+      "packageName": "dsh-input-history",
+      "installSpec": "github:sunshaobei/dsh-input-history#9b5b7a494a5c",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/sunshaobei/dsh-input-history" },
+      "pin": { "kind": "git-sha", "value": "9b5b7a494a5c", "immutability": "short-sha", "note": "Abbreviated sha. Content-addressed, so the bytes cannot change, but an abbreviation can in principle become ambiguous as the repo grows. Expand to the full 40-character sha on the next bump; sync.sh's own header already says 'always use the full git commit sha'." },
+      "alias": null,
+      "plane": "client",
+      "why": "Recall previously sent messages in the composer with the up arrow, the way a shell history works. Without it the composer starts empty every time and a long prompt typed once cannot be retrieved or edited.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not listed in sync.sh BUILD_SPECS; it declares no install-time lifecycle script that has ever needed unblocking." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party single-author repo, pinned to a commit. No audit performed or recorded. Runs in the page with access to everything typed into the composer." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": ["sync.sh carries no comment on this entry; the `why` above is reconstructed from the package's behaviour, not quoted."],
+      "hazards": []
+    },
+    {
+      "id": "tool-calculator",
+      "packageName": "@deepseek-ai/dsh-tool-calculator",
+      "installSpec": "github:omdsh-dev/dsh-tool-calculator#05090e946113721c5295518cc20e74f427022c55",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/omdsh-dev/dsh-tool-calculator" },
+      "pin": { "kind": "git-sha", "value": "05090e946113721c5295518cc20e74f427022c55", "immutability": "sha", "note": "Full sha." },
+      "alias": null,
+      "plane": "host",
+      "why": "Registers the `calculator` tool so arithmetic is evaluated exactly instead of being guessed by the model. Installed as its own repo, deliberately not through the omdsh-dev/dsh-toolkit monorepo -- see hazards.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party, pinned to a full sha, unread. Registers a host-plane tool, so it can do anything the DSH process can." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": [],
+      "hazards": [
+        "Do NOT replace this entry (or dsh-tool-diff) with the omdsh-dev/dsh-toolkit monorepo. That collection ALSO registers calculator and diff, which are already installed here, and they would be double-registered. This is why the four util-gated tools below are four separate repos."
+      ]
+    },
+    {
+      "id": "tool-diff",
+      "packageName": "@deepseek-ai/dsh-tool-diff",
+      "installSpec": "github:omdsh-dev/dsh-tool-diff#d4afd6e2de0b411151fefc60adebd0973373ec10",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/omdsh-dev/dsh-tool-diff" },
+      "pin": { "kind": "git-sha", "value": "d4afd6e2de0b411151fefc60adebd0973373ec10", "immutability": "sha", "note": "Full sha." },
+      "alias": null,
+      "plane": "host",
+      "why": "Registers the `diff` tool: in-memory text/JSON/CSV/Markdown diffing, so the agent can compare two blobs without writing temp files or shelling out. Installed as its own repo, deliberately not through the toolkit monorepo -- see hazards.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party, pinned to a full sha, unread. Host-plane tool registrar." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": [],
+      "hazards": [
+        "Do NOT replace this entry (or dsh-tool-calculator) with the omdsh-dev/dsh-toolkit monorepo: that collection also registers calculator and diff and would double-register them."
+      ]
+    },
+    {
+      "id": "tool-time",
+      "packageName": "@deepseek-ai/dsh-tool-time",
+      "installSpec": "github:omdsh-dev/dsh-tool-time#8b7a2137f516f9d9179663f5aa58928034c90377",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/omdsh-dev/dsh-tool-time" },
+      "pin": { "kind": "git-sha", "value": "8b7a2137f516f9d9179663f5aa58928034c90377", "immutability": "sha", "note": "Full sha." },
+      "alias": null,
+      "plane": "host",
+      "gatedBy": "util",
+      "why": "One of the four tools the `util` skill gates (ticket E4). Gives the agent real clock and timezone arithmetic instead of a model guess about the current time.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party, pinned to a full sha, unread. Host-plane tool registrar; the skill gate hides it until the util skill loads but does not sandbox it." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": ["One of the four `util`-gated tools installed as four separate repos."],
+      "hazards": [
+        "Installed as a separate repo, NOT through the omdsh-dev/dsh-toolkit monorepo: that collection also registers calculator and diff, which are already installed above, and would double-register them."
+      ]
+    },
+    {
+      "id": "tool-regex",
+      "packageName": "@deepseek-ai/dsh-tool-regex",
+      "installSpec": "github:omdsh-dev/dsh-tool-regex#5afda86cd6862a25f6684056b378c330a5aa86b3",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/omdsh-dev/dsh-tool-regex" },
+      "pin": { "kind": "git-sha", "value": "5afda86cd6862a25f6684056b378c330a5aa86b3", "immutability": "sha", "note": "Full sha." },
+      "alias": null,
+      "plane": "host",
+      "gatedBy": "util",
+      "why": "One of the four `util`-gated tools (ticket E4). Builds and tests regular expressions against sample input so a pattern is verified before it is used on real files.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party, pinned to a full sha, unread. Host-plane tool registrar." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": ["One of the four `util`-gated tools installed as four separate repos."],
+      "hazards": [
+        "Installed as a separate repo, NOT through the omdsh-dev/dsh-toolkit monorepo: that collection also registers calculator and diff, which are already installed above, and would double-register them."
+      ]
+    },
+    {
+      "id": "tool-markdown",
+      "packageName": "@deepseek-ai/dsh-tool-markdown",
+      "installSpec": "github:omdsh-dev/dsh-tool-markdown#267871b115c49c5cde072d05d0d2cef6982ae8f8",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/omdsh-dev/dsh-tool-markdown" },
+      "pin": { "kind": "git-sha", "value": "267871b115c49c5cde072d05d0d2cef6982ae8f8", "immutability": "sha", "note": "Full sha." },
+      "alias": null,
+      "plane": "host",
+      "gatedBy": "util",
+      "why": "One of the four `util`-gated tools (ticket E4). Structured markdown manipulation -- heading trees, section extraction -- so documents are edited by structure instead of by fragile string surgery.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party, pinned to a full sha, unread. Host-plane tool registrar." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": ["One of the four `util`-gated tools installed as four separate repos."],
+      "hazards": [
+        "Installed as a separate repo, NOT through the omdsh-dev/dsh-toolkit monorepo: that collection also registers calculator and diff, which are already installed above, and would double-register them."
+      ]
+    },
+    {
+      "id": "tool-encoding",
+      "packageName": "@deepseek-ai/dsh-tool-encoding",
+      "installSpec": "github:omdsh-dev/dsh-tool-encoding#dbf829b5a755d27ed64a146a4bfa50a62f985f6c",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/omdsh-dev/dsh-tool-encoding" },
+      "pin": { "kind": "git-sha", "value": "dbf829b5a755d27ed64a146a4bfa50a62f985f6c", "immutability": "sha", "note": "Full sha." },
+      "alias": null,
+      "plane": "host",
+      "gatedBy": "util",
+      "why": "One of the four `util`-gated tools (ticket E4). base64/hex/URL/JSON encoding and decoding done exactly, instead of the model transcribing an encoded blob by hand and corrupting it.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party, pinned to a full sha, unread. Host-plane tool registrar." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": ["One of the four `util`-gated tools installed as four separate repos."],
+      "hazards": [
+        "Installed as a separate repo, NOT through the omdsh-dev/dsh-toolkit monorepo: that collection also registers calculator and diff, which are already installed above, and would double-register them."
+      ]
+    },
+    {
+      "id": "at-file",
+      "packageName": "dsh-at-file",
+      "installSpec": "https://github.com/omdsh-dev/dsh-at-file/archive/refs/tags/v0.6.7.tar.gz",
+      "origin": "fetched",
+      "source": { "type": "tarball", "url": "https://github.com/omdsh-dev/dsh-at-file/archive/refs/tags/v0.6.7.tar.gz", "repo": "github.com/omdsh-dev/dsh-at-file" },
+      "pin": { "kind": "git-tag", "value": "v0.6.7", "immutability": "tag", "note": "WEAKEST PIN IN THE ROSTER. A git tag is a movable pointer: the upstream author can retag v0.6.7 at different bytes and this install silently changes. There is no integrity hash on the tarball either. On the next bump, replace with a commit-sha tarball URL (archive/<sha>.tar.gz) or a git spec pinned to a sha." },
+      "alias": null,
+      "plane": "client",
+      "why": "The `@` file-reference affordance in the composer: type @ and pick a path, and the message carries a real file reference the agent can read instead of a pasted excerpt.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party, unread, and pinned by a MOVABLE tag rather than by content. It is the one entry where the pin itself does not guarantee the bytes; treat a bump as mandatory re-evaluation." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": ["Installed from a release tarball rather than a git spec; this is the only tarball entry in the roster."],
+      "hazards": []
+    },
+    {
+      "id": "session-search",
+      "packageName": "@dsh-external/dsh-session-search",
+      "installSpec": "github:Tieboyh/dsh-session-search#82990a0e9804",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/Tieboyh/dsh-session-search" },
+      "pin": { "kind": "git-sha", "value": "82990a0e9804", "immutability": "short-sha", "note": "Abbreviated sha; expand to the full 40 characters on the next bump." },
+      "alias": { "note": "Not an alias: the package's own name is @dsh-external/dsh-session-search, which is simply not derivable from the repo name. The install spec says Tieboyh/dsh-session-search; the dependency key is the scoped name. The extra-plugin check must use the scoped name." },
+      "plane": "both",
+      "why": "Searches past DSH session logs, so a decision made in an earlier session can be found again instead of being re-derived. Paired with the `session-search` skill, which documents how to drive it.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party, pinned, unread. Reads every stored session transcript, which is the most sensitive data on the host." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": [],
+      "hazards": []
+    },
+    {
+      "id": "remote",
+      "packageName": "@xgone/dsh-remote",
+      "installSpec": "github:xyzshantaram/dsh-remote#0c9e708c2b5c",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/xyzshantaram/dsh-remote", "upstream": "a fork maintained by this repository's author" },
+      "pin": { "kind": "git-sha", "value": "0c9e708c2b5c", "immutability": "short-sha", "note": "Abbreviated sha; expand on the next bump. Upgrading this entry means bumping this pin -- there is no version range to widen." },
+      "alias": { "note": "Not an alias: the fork keeps upstream's own package name @xgone/dsh-remote, so the dependency key does not mention xyzshantaram. The extra-plugin check must expect @xgone/dsh-remote." },
+      "plane": "both",
+      "why": "Remote-access authentication. DSH serves its settings RPCs loopback-only, so every browser reaching the app through a proxy gets inert, empty settings scopes without this plugin -- the settings UI loads and does nothing. Installing it is what makes remote (non-loopback) use work at all.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "maintained-fork", "codeReviewed": false, "basis": "Forked and pinned by this repository's author, so the delta is ours; the upstream base is unaudited third-party code. This entry is the AUTHENTICATION BOUNDARY for remote use -- it owns the session cookie, the account list and the rate limiter -- so it deserves the roster's first real code review." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": [
+        "Self-mounts through its own bundle patch; the composition patch supplies only the config row (secure cookie, debug trace).",
+        "applyEntryPatches assigns each override key WHOLESALE (target[key] = value, in dsh-app-boot/lib/index.js). It does NOT deep-merge, so the config override block must repeat EVERY default from the plugin's own cordis.patch.yml. Only two values differ from those defaults: session.secure (true, because the proxy terminates TLS so the cookie may carry Secure) and debug (registers POST /auth/trace, which writes client trace lines to the server journal; keep it false unless debugging a remote-mode fault -- the client half only ships traces when the page URL also carries ?dshTrace=1)."
+      ],
+      "hazards": [
+        "The `remote` composition row MUST be a TOP-LEVEL override row, NOT a child of the insert list. The plugin creates the remote row from its own bundle patch, so an insert row with the same id kills boot with: duplicate loader entry id: remote."
+      ]
+    },
+    {
+      "id": "better-markdown",
+      "packageName": "dsh-better-markdown",
+      "installSpec": "dsh-better-markdown@0.1.2",
+      "origin": "fetched",
+      "source": { "type": "npm", "package": "dsh-better-markdown" },
+      "pin": { "kind": "npm-version", "value": "0.1.2", "immutability": "npm-version", "note": "An exact version, not a range, so pnpm resolves the same release every time. Weaker than a sha: it is a name-to-bytes promise made by the registry, not content addressing. The lockfile's integrity hash is what actually holds it." },
+      "alias": null,
+      "plane": "client",
+      "why": "Streaming markdown renderer for assistant output, with Mermaid diagrams, KaTeX math and Shiki syntax highlighting. Client-only. Without it those blocks render as plain fenced text.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS; an npm release ships built." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party npm package at an exact version, unread. It renders model output into the page, which is the classic injection surface: a hostile document rendered by a buggy renderer is script in the session's own origin." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": ["The only npm-sourced entry in the roster; everything else comes from git or a tarball."],
+      "hazards": []
+    },
+    {
+      "id": "paste-to-path",
+      "packageName": "dsh-paste-to-path",
+      "installSpec": "github:Johnny-xuan/dsh-paste-to-path#d68fb104ca25a663ba3912bb17f8c2ab32d60e37",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/Johnny-xuan/dsh-paste-to-path" },
+      "pin": { "kind": "git-sha", "value": "d68fb104ca25a663ba3912bb17f8c2ab32d60e37", "immutability": "sha", "note": "Full sha." },
+      "alias": null,
+      "plane": "both",
+      "why": "Paste-to-path: a pasted file lands under <workspace>/.dsh/pastes/ and the composer carries a PATH reference instead of an inline blob, so the agent reads the file with its own tools. Replaced the earlier dsh-paste-input plugin.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party, pinned to a full sha, unread. It writes files into the workspace on a paste, so it holds a write path triggered by ordinary UI input." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": ["Supersedes dsh-paste-input, which must not be reinstalled alongside it."],
+      "hazards": []
+    },
+    {
+      "id": "better-mobile-ui",
+      "packageName": "dsh-plugin-better-mobile-ui",
+      "installSpec": "github:davidgereb/dsh-plugin-better-mobile-ui#16e21548315866b50d5f3f64b91a70f24f3318ba",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/davidgereb/dsh-plugin-better-mobile-ui" },
+      "pin": { "kind": "git-sha", "value": "16e21548315866b50d5f3f64b91a70f24f3318ba", "immutability": "sha", "note": "Full sha." },
+      "alias": null,
+      "plane": "client",
+      "why": "Makes the web UI usable on a phone: touch-sized targets and a layout that survives a narrow viewport. This is what makes remote use from a phone (see the `remote` entry) worth having.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "pinned-unreviewed", "codeReviewed": false, "basis": "Third-party, pinned to a full sha, unread. Client-plane; restyles the whole app." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": ["Mounted by the composition patch as the `ui-better-mobile` row, under the package name dsh-plugin-better-mobile-ui."],
+      "hazards": []
+    },
+    {
+      "id": "compaction-instant",
+      "packageName": "@deepseek-ai/dsh-compaction-basic",
+      "installSpec": "@deepseek-ai/dsh-compaction-basic@github:xyzshantaram/dsh-compaction-instant#9525c7233d0f92651bd850ff7d49bb2d149d099f",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/xyzshantaram/dsh-compaction-instant", "branch": "fix/retention-and-shrink-gate", "upstream": "dsh-compaction-instant, published 0.1.4; forked by this repository's author" },
+      "pin": { "kind": "git-sha", "value": "9525c7233d0f92651bd850ff7d49bb2d149d099f", "immutability": "sha", "note": "Full sha off the fork's fix/retention-and-shrink-gate branch, taken from published 0.1.4. Upgrading = bumping this pin." },
+      "alias": {
+        "installedAs": "@deepseek-ai/dsh-compaction-basic",
+        "upstreamName": "@deepseek-ai/dsh-compaction-instant",
+        "deliberate": true,
+        "why": "Installing UNDER THE BASIC NAME shadows the builtin compaction package instead of adding a second one. The composition patch then names @deepseek-ai/dsh-compaction-basic for all three rows (compaction-instant, tool-recall via .../tool, and the engine the /compact command uses)."
+      },
+      "plane": "host",
+      "why": "Deterministic instant compaction: it shrinks a long session on a fixed rule instead of asking a model to summarise, so compaction is predictable and cheap. Upstream's automatic compaction fails outright on some sessions (see hazards), which is why this is a fork and not the published package.",
+      "allowBuilds": { "required": false, "key": null, "why": "Not in BUILD_SPECS." },
+      "trust": { "tier": "maintained-fork", "codeReviewed": false, "basis": "Forked, patched and pinned by this repository's author; the fork's own fixes were written and exercised here. The base is third-party. Host-plane, and it REWRITES SESSION HISTORY -- a bug here destroys context rather than leaking it, which is why the fork exists." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": [
+        "Fork behaviour: triggers on SURFACE tokens alone, compactAtTokens 250000 down to compactToTokens 15000, held as a RATIO so a surface that overshot the trigger earns a proportionately larger checkpoint.",
+        "Fork behaviour: drops errored tool calls and todo_write bookkeeping from the checkpoint, and reports the token size of every dropped tool result so the agent can see what its own calls cost.",
+        "The skill-gate config alwaysDeny list hides this package's `search` and `recall` tools from every agent unconditionally: they are superseded by resume_search/resume_read from the resume plugin, and no skill may re-expose them."
+      ],
+      "hazards": [
+        "INSTALL NAME: the package declares its own dsh.bundle patch, so a direct install under its REAL name inserts compaction rows the web patch already inserts and boot dies on a duplicate loader entry id. It must stay installed under @deepseek-ai/dsh-compaction-basic.",
+        "UPSTREAM BUG 1 (retention): a node larger than the retain ceiling crashes range selection, failing every automatic compaction on such a session.",
+        "UPSTREAM BUG 2 (checkpoint cap): the checkpoint cap ignores the span, so the compiler elides nothing.",
+        "UPSTREAM BUG 3 (framing cost): the fixed framing cost then makes the checkpoint LARGER than what it replaces.",
+        "UPSTREAM BUG 4 (self-consumption): compaction consumed its own checkpoints. Absorbing a prior checkpoint whole nested the envelopes and freed almost nothing; automatic pressure then read the token meter's ANCHORED REQUEST TOTAL, which also counts the system prompt, the tool schemas and cache read/write tokens, so an irreducible floor held the session above the threshold -- compaction re-fired at the next step and ate the checkpoint it had just written.",
+        "Do NOT track upstream main: it imports @deepseek-ai/dsh-util-values, which needs dsh 0.1.2.",
+        "The `command-compact` re-enable MUST be a top-level override row, NOT a child of the insert list: dsh-base already owns that id and a second one kills boot with 'duplicate loader entry id: command-compact'. dsh-base mounts command-compact on the host plane and dsh-web-app disables it (the web app moves the compaction backend to the preset plane); because this bundle keeps a compaction engine on the HOST plane, /compact belongs there too and must not depend on which preset a session uses."
+      ]
+    },
+    {
+      "id": "llm-pi-ai-affinity",
+      "packageName": "@deepseek-ai/dsh-llm-pi-ai",
+      "installSpec": "$HERE/plugins/llm-pi-ai",
+      "origin": "vendored",
+      "source": { "type": "in-repo", "path": "packages/plugins/llm-pi-ai", "pathToday": "dotfiles-ai/plugins/llm-pi-ai", "upstream": "the dsh builtin @deepseek-ai/dsh-llm-pi-ai at 0.1.0-rc.8" },
+      "pin": { "kind": "vendored-version", "value": "0.1.0-rc.8-affinity.1", "immutability": "in-repo", "note": "There is no remote ref: this repository's git history IS the pin. The version string records the dsh RC it forks. It must be re-checked on every dsh upgrade, because it shadows a builtin that upgrades with dsh." },
+      "alias": {
+        "installedAs": "@deepseek-ai/dsh-llm-pi-ai",
+        "upstreamName": "@deepseek-ai/dsh-llm-pi-ai",
+        "deliberate": true,
+        "why": "Same name as the builtin ON PURPOSE, so the vendored fork is what the profile resolves. The composition mounts it as the llm-pi-ai-affinity row and DISABLES the builtin llm-pi-ai row."
+      },
+      "plane": "host",
+      "why": "Vendored fork of the dsh llm-pi-ai builtin that adds session-affinity headers on anthropic-messages routes, so a session's requests keep landing on the same upstream and the provider cache is actually hit. The stock builtin has no affinity and cannot be configured into having it.",
+      "allowBuilds": { "required": false, "key": null, "why": "Vendored and installed from a path; nothing is fetched, so no codeload URL exists to allow." },
+      "trust": { "tier": "maintained-fork", "codeReviewed": false, "basis": "Third-party base (a dsh builtin) vendored into this repository with a local delta. Vendoring means the bytes are visible in review and cannot change without a commit here -- the strongest position in the roster -- but the rc.8 base itself has not been read. Host-plane: it is the LLM adapter, so it sees every prompt and every credential on the route." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": [
+        "Unlike every other vendored plugin package its lib/ IS the source -- there is no src/ -- so nothing in it is build output (config/migration-map.json rule df-plugin-llm-pi-ai says the same).",
+        "This is the roster's worked example of a VENDORED entry; every other entry here is fetched."
+      ],
+      "hazards": [
+        "The builtin llm-pi-ai composition row MUST stay disabled while this is installed. The vendored fork, linked into the web profile under the same package name, is the only pi-ai adapter registrar; leaving the builtin enabled registers the adapter twice.",
+        "Re-check on every dsh upgrade: it forks 0.1.0-rc.8, and a dsh bump can move the builtin out from under the fork."
+      ]
+    },
+    {
+      "id": "aidos",
+      "packageName": "aidos",
+      "installSpec": "github:xyzshantaram/aidos#fc435af68e384963a8575abd1ddac08e54daaa49",
+      "installedBy": "step_install_aidos (a separate step from step_install_plugins, and the only member of BUILD_SPECS)",
+      "overridableBy": "AIDOS_PLUGIN_SPEC environment variable; sync.sh's header says to always use the full git commit sha",
+      "origin": "fetched",
+      "source": { "type": "git", "repo": "github.com/xyzshantaram/aidos", "upstream": "authored by this repository's author; migrates into packages/aidos (see config/migration-map.json)" },
+      "pin": { "kind": "git-sha", "value": "fc435af68e384963a8575abd1ddac08e54daaa49", "immutability": "sha", "note": "Full sha. Ticket E5 keeps this pinned install for v0.1 and swaps it for the migrated workspace package later; that swap is a source change here, not a rewrite." },
+      "alias": null,
+      "plane": "both",
+      "why": "The ticket board: its tools run against a host-plane `aidos` core service that the package's own dsh.bundle.patch mounts, and `dsh plugin add` installs it AND auto-mounts the patch, idempotently. Without it there is no board, no gate and no evidence trail. The same pinned commit is also cloned to copy its skills/ into $DSH_HOME.",
+      "allowBuilds": {
+        "required": true,
+        "key": "aidos@https://codeload.github.com/xyzshantaram/aidos/tar.gz/fc435af68e384963a8575abd1ddac08e54daaa49",
+        "why": "aidos runs a postinstall, and pnpm 10+ blocks lifecycle scripts unless the exact resolved tarball URL is listed under allowBuilds in the web profile's pnpm-workspace.yaml. The key above is reconstructed from the github spec the way pnpm resolves it (owner/repo#ref -> codeload tarball, name = repo basename), so bumping the pin here is all an upgrade needs -- but it also invalidates the old key."
+      },
+      "trust": { "tier": "first-party", "codeReviewed": true, "basis": "Authored by this repository's author and reviewed as ordinary source; it migrates into packages/aidos as a workspace package. It is nonetheless the ONLY entry allowed to run install-time scripts, which is the roster's largest single grant." },
+      "lastReviewed": "2026-09-05",
+      "reviewKind": "roster-transcription",
+      "notes": [
+        "step_sync_aidos_skills clones the PINNED commit from GitHub and copies skills/ out; no local checkout is used, because that would defeat the pin. If the pinned commit does not exist the whole sync panics and aborts."
+      ],
+      "hazards": [
+        "The allowBuilds key embeds the pin. Bump the pin and the old key stops matching, so the postinstall is silently blocked again unless the key is re-derived."
+      ]
+    }
+  ],
+
+  "excluded": {
+    "$comment": [
+      "Packages deliberately NOT installed, and the reason. These are the most",
+      "expensive comments in sync.sh to lose: each one records a mistake that was made",
+      "or narrowly avoided, and without them the obvious next move is to install the",
+      "thing again. An install engine should treat this list as a denylist and refuse",
+      "an entry whose packageName appears here."
+    ],
+    "packages": [
+      {
+        "packageName": "@deepseek-ai/dsh-tool-cordis",
+        "wanted": "the cordis_* tools that the two cordis skills gate",
+        "verdict": "do-not-install",
+        "why": "The registry's latest is 0.0.1-rc.1 and registers only THREE tools, while the DSH install bundles 0.1.0-rc.8 with the full set (inspect_list, inspect_query, inspect_self, define, run, stop, undefine). Installing from npm would REPLACE a complete tool set with an incomplete one.",
+        "insteadDo": "Leave it out of the roster entirely. The `tool-cordis` composition row then resolves against the HOST BASE, because the profile does not shadow the name.",
+        "hazard": "Do NOT add a pnpm_ins / roster entry for this name."
+      },
+      {
+        "packageName": "omdsh-dev/dsh-toolkit",
+        "wanted": "one monorepo instead of six separate tool repos",
+        "verdict": "do-not-install",
+        "why": "The collection ALSO registers calculator and diff, which are already installed as their own repos, so mounting it double-registers both tools.",
+        "insteadDo": "Keep tool-time, tool-regex, tool-markdown and tool-encoding as four separate repo entries, exactly as they appear in `entries`.",
+        "hazard": "This is why the roster looks redundant. It is not redundancy; it is the fix."
+      },
+      {
+        "packageName": "(every MCP manager plugin on npm and GitHub)",
+        "wanted": "a UI for managing MCP servers",
+        "verdict": "do-not-install",
+        "why": "They are all visual editors for cordis.patch.yml that delegate to dsh-mcp-client, so none of them can run a browser login (OAuth).",
+        "insteadDo": "Use this repository's own mcp-servers plugin, which owns every MCP server, both transports and the OAuth login, and reads its roster from $DSH_HOME/mcp-servers.json (written by step_sync_mcp_config).",
+        "hazard": "The builtin dsh-mcp-client composition rows are also gone: two registrars for one server name would register each tool twice."
+      },
+      {
+        "packageName": "dsh-worktree",
+        "wanted": "git worktree management",
+        "verdict": "not-installed",
+        "why": "Present in sync.sh only as a commented-out `dsh plugin --profile web add dsh-worktree` line. It was considered and left out; no reason was recorded. Recorded here so the commented line can be deleted from the shell script without losing the fact that someone thought about it.",
+        "insteadDo": "Nothing. Reopen the decision explicitly if worktree support is wanted.",
+        "hazard": null
+      },
+      {
+        "packageName": "dsh-paste-input",
+        "wanted": "pasting files into the composer",
+        "verdict": "superseded",
+        "why": "Replaced by dsh-paste-to-path, which writes the paste to <workspace>/.dsh/pastes/ and passes a path reference.",
+        "insteadDo": "Use the `paste-to-path` entry.",
+        "hazard": "Do not install both."
+      }
+    ]
+  },
+
+  "candidates": {
+    "$comment": [
+      "Not installed today. Recorded so the decision is visible instead of living in",
+      "someone's head. A candidate carries the same fields as an entry, minus a pin it",
+      "does not have yet."
+    ],
+    "packages": [
+      {
+        "id": "web-tools",
+        "packageName": "(unknown -- not yet resolved)",
+        "proposedSource": { "type": "git", "repo": "github.com/A3Boy/dsh-web-tools" },
+        "origin": "undecided",
+        "preferredOrigin": "vendored",
+        "why": "Named by ticket P5 as a wanted capability and, unlike everything in `entries`, as a candidate for VENDORING rather than pinning. Vendoring puts the bytes in this repository's review and history, which is the only mechanism in this roster that turns a `pinned-unreviewed` entry into something a reviewer actually sees.",
+        "status": "unverified",
+        "blocker": "It appears NOWHERE in dotfiles-ai or in Thursday: sync.sh never installed it, and no PLAN.md or docs entry mentions it. Its package name, its licence and what it actually registers are all unknown to this ticket. It cannot be given a pin, a plane or an honest trust tier until someone fetches it and reads it.",
+        "allowBuilds": { "required": null, "key": null, "why": "Unknown until the package is inspected." },
+        "trust": { "tier": null, "codeReviewed": false, "basis": "Cannot be assigned. Assigning a tier to code nobody has located would be the exact dishonesty this field exists to prevent." },
+        "lastReviewed": null,
+        "notes": [
+          "If it is vendored, it becomes an `origin: vendored` entry shaped like llm-pi-ai-affinity: source.type in-repo, pin.kind vendored-version, allowBuilds.required false.",
+          "If it is pinned instead, it becomes an ordinary fetched entry and starts at tier pinned-unreviewed."
+        ],
+        "hazards": []
+      }
+    ]
+  },
+
+  "workspacePlugins": {
+    "$comment": [
+      "The rest of step_install_plugins: this repository's OWN plugin packages,",
+      "installed from a path (`$HERE/plugins/<name>`) rather than fetched. They are",
+      "listed here so that nothing in step_install_plugins is lost when the shell",
+      "function is deleted, and so the derived extra-plugin check has the full set of",
+      "expected dependency names -- but they are NOT third-party roster entries: they",
+      "have no pin, no upstream and no trust question, and in Thursday they become",
+      "workspace packages under packages/plugins/ that the engine links, not installs.",
+      "Every one of them is tier `first-party`, origin `vendored`, allowBuilds false.",
+      "llm-pi-ai is the one exception and lives in `entries` instead, because it is a",
+      "vendored fork of a third-party builtin."
+    ],
+    "packages": [
+      { "packageName": "session-archive", "installSpec": "$HERE/plugins/session-archive", "why": "Archive and restore sessions from the UI." },
+      { "packageName": "subscriptions", "installSpec": "$HERE/plugins/subscriptions", "why": "Provider subscription panel; needs the user's own credentials at runtime, but ships none." },
+      { "packageName": "tool-render", "installSpec": "$HERE/plugins/tool-render", "why": "The tool-card renderer: turns raw tool calls and results into readable cards." },
+      { "packageName": "profiles-client", "installSpec": "$HERE/plugins/profiles-client", "why": "Browser half of the profiles host plugin: the profile/route picker UI." },
+      { "packageName": "approval-comment", "installSpec": "$HERE/plugins/approval-comment", "why": "Lets the human attach a comment when approving or rejecting, so a rejection says why." },
+      { "packageName": "durable-todos", "installSpec": "$HERE/plugins/durable-todos", "why": "The todo panel that survives an interrupt. The official todos projection clears on every turn/start, so the panel blanks as soon as the next message goes out; this mirrors the list into a projection that ignores turn/start. Self-mounts through its own cordis.patch.yml, so the web patch needs no row." },
+      { "packageName": "context-meter", "installSpec": "$HERE/plugins/context-meter", "why": "The shipped context ring reads a provider figure that only ever GROWS. This replaces it with one measured from the surface, so the ring falls after a compaction instead of pinning at full." },
+      { "packageName": "system-fonts", "installSpec": "$HERE/plugins/system-fonts", "why": "dsh hardcodes its font tokens on :root and its monospace stack ends at a named font with NO `monospace` generic, so the browser never reaches the font the system is configured with. This overrides both tokens from html:root, which outranks :root without needing !important." },
+      { "packageName": "tooltips", "installSpec": "$HERE/plugins/tooltips", "why": "Styled tooltips. An element opts in with data-dsh-tip and KEEPS its own title attribute, which stays the fallback: if this package fails or never loads, the browser shows the native tooltip." },
+      { "packageName": "composer-menu", "installSpec": "$HERE/plugins/composer-menu", "why": "The composer overflow menu: holds the sandbox picker and offers a slot for other plugins." },
+      { "packageName": "log-viewer", "installSpec": "$HERE/plugins/log-viewer", "why": "Read the harness logs from the UI instead of tailing a file." },
+      { "packageName": "job-viewer", "installSpec": "$HERE/plugins/job-viewer", "why": "Background job output buffer, replacement job_list/job_output/job_kill tools, HTTP routes, completion delivery and the replacement dropdown. The builtin tool-jobs and dsh-client-ui-jobs rows are disabled once this mounts." },
+      { "packageName": "mcp-servers", "installSpec": "$HERE/plugins/mcp-servers", "why": "Owns every MCP server, both transports and the OAuth login. Its roster is $DSH_HOME/mcp-servers.json, written by step_sync_mcp_config. It exists because every third-party MCP manager is a cordis.patch.yml editor that cannot run a browser login -- see excluded.packages." }
+    ]
+  },
+
+  "derivedChecks": {
+    "$comment": [
+      "step_report_extra_plugins() keeps a hand-maintained `expected` array and warns",
+      "in three separate comments to keep it in sync with the pnpm_ins list. That",
+      "duplication is exactly what this file removes: the expected set is DERIVED, not",
+      "written twice."
+    ],
+    "expectedDependencies": "the union of entries[].packageName and workspacePlugins.packages[].packageName",
+    "profileBaseDependencies": [
+      "@deepseek-ai/dsh-client-ui-attachment",
+      "@deepseek-ai/dsh-client-web-react"
+    ],
+    "profileBaseNote": "The web profile's own base deps. They are installed by dsh, not by this roster, and must not be reported as extras.",
+    "extraPluginPolicy": "A dependency of the web profile that is in neither set is an EXTRA: the install engine prints it and prints the exact `dsh plugin --profile web remove <name>` command, and never removes it itself. Installing only ever adds, so a package dropped from this roster stays installed until a human removes it."
+  }
+}

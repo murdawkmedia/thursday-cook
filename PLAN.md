@@ -481,8 +481,8 @@ already had, and they complete a real ticket in under ten minutes.
   - adjacent panel surfaces differ by a stated minimum luminance step, and the
     step is recorded so a later change cannot flatten them by accident
   - no control — button, input, chip, tab — exceeds D1's control radius, which is
-    at most 4px, except where a control is a circle by design. Containers use D1's
-    separate container radius; see TH7 for why the two differ
+    at most 4px, except where a control is a circle by design. Containers use the
+    separate container radius, which D1 defines and explains
   - focus states are visible on every interactive control, by keyboard alone
   - the user's normal dsh install is visually unchanged
   - uninstall removes the skin with no residue
@@ -913,8 +913,9 @@ already had, and they complete a real ticket in under ten minutes.
 
   - a scratch write succeeds in a fresh Thursday install with no manual step
   - the decision document names the alternatives and why they lost
-  - the document states whether the shared dsh package tree is modified while
-    Thursday is installed, in one sentence, and E6 and the website use that wording
+  - the document states, in one sentence, whether the shared dsh package tree is
+    modified while Thursday is installed. That sentence is the wording every
+    downstream guarantee and the website must reuse verbatim
   - if a patch is kept, uninstall restores the original file byte for byte
 
 - [ ] **Ticket A7: AIDOS mounts from the monorepo.** Make the migrated package
@@ -1117,8 +1118,10 @@ already had, and they complete a real ticket in under ten minutes.
 
   - `thursday` opens the web UI with the Thursday preset available
   - `thursday quick` opens a session in the Quick preset
-  - running either leaves the user's normal dsh home unmodified, asserted by the
-    E6 byte-identity check rather than by a second checksum of its own
+  - neither command opens, reads, or writes any path outside the Thursday home,
+    checked by tracing the launcher's filesystem calls. The end-to-end byte
+    identity of the user's dsh home is asserted once, downstream, and is not
+    restated here
 
 ## Phase 5: Plugin blocks, installation, and reversal — `pending`
 
@@ -1144,11 +1147,11 @@ already had, and they complete a real ticket in under ten minutes.
   **Evaluate:**
 
   - every artifact `sync.sh` installed is covered by exactly one block
-  - the Thursday-specific client plugins (TH1 to TH6) and the WK panels each have
-    a block too, so the look and the workspace surface install and reverse like
-    everything else rather than being special cases
-  - exactly one block owns the branding override, and it is named; TH1's skin and
-    B3's manifest override are not two blocks fighting over the same files
+  - the rule is stated as a rule and not as a list: every client plugin this
+    repository ships gets a block, so the ones written later are covered without
+    this ticket being reopened to name them
+  - exactly one block owns the branding override, and the schema makes a second
+    block claiming the same file a validation error rather than a race
   - a coverage test fails when a new package has no block
 
 - [ ] **Ticket I3: The install ledger.** Record every effect an install applied,

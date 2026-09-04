@@ -109,11 +109,25 @@ One line per item. Keep it that way: if an item needs a paragraph, it belongs in
 
 ### Not in v0.1.0
 
-The Thursday skin and mark; the editor, file tree, and git panel; the
-`dsh-remote` migration and restyle; the public demo; macOS and Windows install
-targets; the CI platform matrix; `thursday status`; the install ledger; the
-plugin registry; and finishing the migration out of `aidos` and `dotfiles-ai`.
-Each is a ticket on the board, and each is deliberately after this release.
+macOS and Windows install targets; the CI platform matrix; `thursday status`;
+the install ledger; the raw request and response inspector; and finishing the
+migration out of `aidos` and `dotfiles-ai`. Each is a ticket on the board, and
+each is deliberately after this release.
+
+## After v0.1.0
+
+Same rule: one line per item, and an item that needs a paragraph belongs in a
+ticket instead.
+
+- [ ] Lua guard rules, run in a WASM sandbox, replacing brittle regex patterns
+- [ ] An approval surface that only prompts when you are granting something new
+- [ ] A workspace panel: file tree, editor, and git diff review without leaving
+- [ ] A terminal, human-only by construction
+- [ ] Shared boards: a pluggable backing store over git or nostr
+- [ ] A plugin registry, and a first-class way to write and publish one
+- [ ] macOS and Windows
+- [ ] The install ledger, once a block writes outside the Thursday home
+- [ ] Supply-chain audit and trust tiers for every third-party plugin
 
 ## Repository layout
 

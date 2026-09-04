@@ -103,6 +103,7 @@ detect:
   - action: row-present
     id: llm-pi-ai
     placement: override
+    disabled: true
 ---
 
 # llm-pi-ai
@@ -155,8 +156,9 @@ moved into the insert list.
 The adapter registering twice means the `llm-pi-ai` override row is missing or
 has been re-enabled. Note that `disable-row` cannot detect this: a patch whose
 id matches nothing only *warns* and is skipped
-(`dsh-app-boot/lib/index.js:92-94`), and `row-present` can check that the
-override row exists but not that it still says `disabled: true`.
+(`dsh-app-boot/lib/index.js:92-94`). That is why the third detect entry is
+`row-present` with `disabled: true`: it is the one check that fails when the
+override row is missing outright or has been re-enabled by hand.
 
 Affinity headers never appearing on the wire, with the fork correctly
 installed, means no provider profile asks for them: check

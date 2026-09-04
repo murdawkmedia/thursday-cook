@@ -38,11 +38,20 @@ export const CONSTRAINTS = {
     summary:
       "The row must be written as a top-level override in the dsh composition patch, never as a child of the insert list.",
     failureMode:
-      "dsh-base already owns these ids. A second row with the same id kills boot with 'duplicate loader entry id: <id>'. Seen with command-compact, remote and llm-pi-ai. Overrides are also assigned wholesale rather than deep-merged, so an override must restate every default it wants to keep.",
+      "dsh-base already owns these ids. A second row with the same id kills boot with 'duplicate loader entry id: <id>'. Seen with command-compact, remote and llm-pi-ai. (The wholesale-assignment hazard of an override carrying a `config:` is a separate constraint: wholesale-override-config.)",
     honouredBy: ["patch-row", "disable-row", "enable-row"],
     origin: "dotfiles-ai/sync.sh:163-213 (llm-pi-ai, command-compact, remote)",
   },
-  "no-yaml-round-trip": {
+  "wholesale-override-config": {
+    name: "wholesale-override-config",
+    summary:
+      "An override row that carries a `config:` key must restate every default the base row's config sets; override assignment is wholesale, not a deep merge.",
+    failureMode:
+      "dsh's applyEntryPatches assigns each override key wholesale (target[key] = value, dsh-app-boot/lib/index.js:100-103). A `config:` on an override replaces the base row's entire config object, so every default not restated silently disappears: the row boots, parses fine, and runs with the options missing. An override that only sets `disabled` is exempt, which is why the check fires only when a `config:` is present.",
+    honouredBy: ["patch-row", "disable-row", "enable-row"],
+    origin: "dotfiles-ai/sync.sh:163-213 (the wholesale-assignment half of the old top-level-override entry)",
+  },
+"no-yaml-round-trip": {
     name: "no-yaml-round-trip",
     summary: "Patch the file by line, byte-preserving. Never load and re-serialise it.",
     failureMode:

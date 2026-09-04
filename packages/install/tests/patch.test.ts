@@ -101,6 +101,8 @@ steps:
   - action: patch-row
     id: remote
     placement: override
+    constraint: wholesale-override-config
+    why: the override restates every default the base row supplies.
     config:
       enabled: true
       debug: true
@@ -371,6 +373,8 @@ steps:
   - action: patch-row
     id: ghost
     placement: override
+    constraint: wholesale-override-config
+    why: the override restates every default the base row supplies.
     config:
       a: 1
 detect:
@@ -402,6 +406,8 @@ steps:
   - action: patch-row
     id: remote
     placement: override
+    constraint: wholesale-override-config
+    why: the override restates every default the base row supplies.
     config:
       enabled: true
       debug: true

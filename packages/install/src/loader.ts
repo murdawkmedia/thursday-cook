@@ -201,29 +201,68 @@ function surfaceConstraints(
   ];
   for (const list of stepLists) {
     list.steps.forEach((step, i) => {
-      const name = step.constraint;
-      if (name === undefined) return;
-      const definition = CONSTRAINTS[name];
-      const action = list.registry[step.action];
-      // A constraint no action honours is knowledge that would never be acted
-      // on, which is the failure this whole field exists to prevent.
-      if (action !== undefined && !action.honours.includes(name)) {
-        problems.push({
-          field: `${list.field}[${i}].constraint`,
-          message: `action \`${step.action}\` does not honour \`${name}\`; it is honoured by: ${definition.honouredBy.join(", ")}`,
+      const names = Array.isArray(step.constraint)
+        ? step.constraint
+        : step.constraint === undefined
+          ? []
+          : [step.constraint];
+      for (const name of names) {
+        const definition = CONSTRAINTS[name];
+        const action = list.registry[step.action];
+        // A constraint no action honours is knowledge that would never be
+        // acted on, which is the failure this whole field exists to prevent.
+        if (action !== undefined && !action.honours.includes(name)) {
+          problems.push({
+            field: `${list.field}[${i}].constraint`,
+            message: `action \`${step.action}\` does not honour \`${name}\`; it is honoured by: ${definition.honouredBy.join(", ")}`,
+          });
+          continue;
+        }
+        found.push({
+          name,
+          why: step.why ?? "",
+          where: `${list.field}[${i}]`,
+          definition,
         });
-        return;
       }
-      found.push({
-        name,
-        why: step.why ?? "",
-        where: `${list.field}[${i}]`,
-        definition,
-      });
     });
   }
 
   return found;
+}
+
+/**
+ * The wholesale-override check, enforced at load.
+ *
+ * Override assignment in dsh is wholesale (`target[key] = value`), so an
+ * override `patch-row` that carries a `config:` key replaces the base row's
+ * entire config object. A block that does that must declare
+ * `wholesale-override-config` so the obligation to restate every default is
+ * recorded next to the step that has it; leaving it off is exactly the
+ * silent-default-dropping bug, so it is refused here rather than trusted to
+ * review. Overrides without a `config:` (a bare `disabled: true`, say) are
+ * exempt: there is nothing to restate.
+ */
+function checkWholesaleOverrideConfig(
+  steps: ReadonlyArray<Step>,
+  field: string,
+  problems: BlockProblem[],
+): void {
+  steps.forEach((step, i) => {
+    if (step.action !== "patch-row") return;
+    if (step.placement !== "override") return;
+    if (step.config === undefined) return;
+    const declared = Array.isArray(step.constraint)
+      ? step.constraint
+      : step.constraint === undefined
+        ? []
+        : [step.constraint];
+    if (declared.includes("wholesale-override-config")) return;
+    problems.push({
+      field: `${field}[${i}].constraint`,
+      message: `this override row carries a \`config:\` key, which replaces the base row's whole config object; the override must restate every default it wants to keep. Declare \`constraint: wholesale-override-config\` to record that obligation${step.constraint === undefined ? "" : ` (this step declares \`${step.constraint}\`, which covers placement only)`}`,
+    });
+  });
 }
 
 /**
@@ -277,6 +316,11 @@ export function parseBlock(text: string, source = "<inline>"): Block {
     detect: detect as DetectStep[],
     ...(reverse === undefined ? {} : { reverse: reverse as Step[] }),
   } as BlockFrontmatter;
+
+  checkWholesaleOverrideConfig(frontmatter.steps, "steps", problems);
+  if (frontmatter.reverse !== undefined) {
+    checkWholesaleOverrideConfig(frontmatter.reverse, "reverse", problems);
+  }
 
   const constraints = surfaceConstraints(frontmatter, problems);
   if (problems.length > 0) throw new BlockError(source, problems);

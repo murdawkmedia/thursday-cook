@@ -13,8 +13,12 @@ import type { BlockProblem } from "./errors";
  * mandatory.
  */
 const stepMetaShape = {
-  /** A constraint the installer must honour while running this step. */
-  constraint: constraintNameSchema.optional(),
+  /** A constraint the installer must honour while running this step. An array
+   * states several obligations about one change, such as placement AND
+   * completeness on the same override row. */
+  constraint: z
+    .union([constraintNameSchema, z.array(constraintNameSchema)])
+    .optional(),
   /** Why this step is written this way. Required when `constraint` is set. */
   why: z.string().min(1).optional(),
 };
@@ -109,7 +113,7 @@ export const INSTALL_ACTIONS = {
     summary: "Write one loader row into the profile's dsh composition patch.",
     idempotence:
       "Rows are keyed by id: an existing row with this id is rewritten in place rather than appended.",
-    honours: ["top-level-override", "nested-tool-config"],
+    honours: ["top-level-override", "wholesale-override-config", "nested-tool-config"],
     shape: {
       /** The loader entry id. Unique across the whole composition. */
       id: z.string().min(1),
@@ -134,7 +138,7 @@ export const INSTALL_ACTIONS = {
     kind: "install",
     summary: "Disable a loader row an upstream bundle owns.",
     idempotence: "Sets disabled: true on the override row; already-disabled is a no-op.",
-    honours: ["top-level-override"],
+    honours: ["top-level-override", "wholesale-override-config"],
     shape: {
       /** The id of the upstream row to switch off. */
       id: z.string().min(1),
@@ -146,7 +150,7 @@ export const INSTALL_ACTIONS = {
     kind: "install",
     summary: "Re-enable a loader row a downstream bundle disabled.",
     idempotence: "Sets disabled: false on the override row; already-enabled is a no-op.",
-    honours: ["top-level-override"],
+    honours: ["top-level-override", "wholesale-override-config"],
     shape: {
       /** The id of the row to switch back on. */
       id: z.string().min(1),
@@ -239,6 +243,14 @@ export const DETECT_ACTIONS = {
       name: z.string().min(1).optional(),
       /** Which list to look in. Defaults to the insert list. */
       placement: z.enum(["insert", "override"]).default("insert"),
+      /**
+       * When set, the row must ALSO carry this `disabled` value. This is the
+       * only way `detect` can assert "the builtin row is OFF": without it, a
+       * row someone re-enabled by hand still counts as present, and dsh
+       * itself treats a no-match patch as a warning, so the failure is
+       * silent at both layers.
+       */
+      disabled: z.boolean().optional(),
     },
   }),
 
@@ -307,6 +319,25 @@ export type Step = {
 export type DetectStep = {
   [K in DetectActionName]: { action: K } & z.infer<(typeof DETECT_ACTIONS)[K]["params"]>;
 }[DetectActionName];
+
+/**
+ * Evaluate one `row-present` detect step against a patch row.
+ *
+ * `row` is the row found in the composition patch for the step's id and
+ * placement, or undefined when there is none. The step passes only when the
+ * row exists, matches `name` when the step gave one, and matches `disabled`
+ * when the step gave one. Pure so the installer's patch reader and the tests
+ * share one definition of "present".
+ */
+export function rowPresentSatisfied(
+  step: { name?: string; disabled?: boolean },
+  row: { name?: string; disabled?: boolean } | undefined,
+): boolean {
+  if (row === undefined) return false;
+  if (step.name !== undefined && row.name !== step.name) return false;
+  if (step.disabled !== undefined && row.disabled !== step.disabled) return false;
+  return true;
+}
 
 function registryFor(kind: "install" | "detect"): Record<string, ActionDefinition> {
   return (kind === "install" ? INSTALL_ACTIONS : DETECT_ACTIONS) as unknown as Record<

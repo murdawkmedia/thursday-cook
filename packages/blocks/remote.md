@@ -38,7 +38,7 @@ steps:
   - action: patch-row
     id: remote
     placement: override
-    constraint: top-level-override
+    constraint: [top-level-override, wholesale-override-config]
     config:
       enabled: true
       debug: true

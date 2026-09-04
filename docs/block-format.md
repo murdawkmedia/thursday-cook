@@ -97,8 +97,8 @@ touching a path a block already declares. A `run` step must carry a `why`, and
 review should treat one as a request for a new action.
 
 **Constraints are data, and the set is closed.** `top-level-override`,
-`no-yaml-round-trip`, `needs-allow-builds`, `alias-install-name`,
-`nested-tool-config`. This is where `sync.sh`'s hardest-won knowledge lands —
+`wholesale-override-config`, `no-yaml-round-trip`, `needs-allow-builds`,
+`alias-install-name`, `nested-tool-config`. This is where `sync.sh`'s hardest-won knowledge lands —
 the `off:` key that YAML 1.1 turns into a boolean and drops every pi-ai
 provider with it, the codeload URL `allowBuilds` needs — instead of being
 deleted in translation.
@@ -108,6 +108,15 @@ right to push back on it. A constraint name with nothing behind it is a string,
 and the knowledge dies exactly the way it died in the shell comments. So each
 constraint is a REGISTRY ENTRY carrying three things: its failure mode in plain
 words, the named actions that honour it, and where in `sync.sh` it came from.
+Two of them are deliberately split so each name carries one hazard.
+`top-level-override` is about placement only: the row must be a top-level
+override, never a child of the insert list, because a duplicate loader entry id
+kills boot. `wholesale-override-config` is about completeness: override
+assignment is wholesale (`target[key] = value`), so an override carrying a
+`config:` must restate every default it wants to keep. The loader enforces the
+second at load: an override `patch-row` step that carries a `config:` and does
+not declare `wholesale-override-config` is a load error, and an override
+without a `config:` (a bare `disabled: true`) needs no such declaration.
 Two rules fall out and both are enforced at load. A constraint name outside the
 registry is a validation error, because an open-ended name gives the installer
 nothing to act on. And a constraint declared on an action that does not honour

@@ -25,3 +25,10 @@ lib/
 
 # logs
 *.log
+
+# built artifacts never enter version control, regardless of location:
+# compiled js, emitted maps, generated token output, exported brand assets.
+# source is .ts/.tsx/.css and hand-written .mjs/.cjs scripts only.
+packages/tokens/dist/
+packages/*/generated/
+assets/generated/

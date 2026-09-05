@@ -50,6 +50,7 @@ repository and fails on any hex literal in a `.ts`, `.tsx`, `.css`, `.js`,
 | `foreground`          | `#f8f8f0`        | Primary body and UI text; the default ink on any surface.                               |
 | `foreground-muted`    | `#ababab`        | Secondary text: captions, timestamps, placeholders, and disabled labels.                |
 | `border`              | `#4a4a4a`        | Hairline dividers and the resting outline of a control at rest.                         |
+| `border-strong`       | `#808080`        | Outline of a control identified by its edge alone; clears WCAG 1.4.11 at 3:1.           |
 | `brand-blue`          | `#0a5cff`        | Brand identity blue: the cool endpoint of the Thursday logo gradient.                   |
 | `brand-orange`        | `#ff8400`        | Brand identity orange: the warm endpoint of the Thursday logo gradient.                 |
 | `accent`              | → `brand-orange` | Primary interactive accent: active tab, primary button, current-item marker.            |

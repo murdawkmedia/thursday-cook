@@ -1,8 +1,8 @@
 # Documentation
 
 Design records and reference documents. Each one is produced by a ticket on
-the aidos board (the project's sole source of truth — see the root README),
-and none of them exists yet.
+the aidos board (the project's sole source of truth — see the root README). A
+row with no file behind it has not been written yet.
 
 | Document                 | Produced by | Holds                                                                    |
 | ------------------------ | ----------- | ------------------------------------------------------------------------ |

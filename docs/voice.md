@@ -37,6 +37,17 @@ This standard forbids claiming mechanisms that do not exist, and that rule
 binds the positioning too. The single-session claim gets no exemption from the
 rule it is stated alongside.
 
+### What the positioning binds
+
+Product copy: the README, the website, the docs, and anything an agent says to
+the user.
+
+It does not bind internal checklists. A release-tracking line such as
+`README.md`'s "Chapter 2: instant `/compact`, then resume recovers what was
+elided", or the same item in `docs/release-scope.md`, names machinery on
+purpose. It tracks build work; it makes no claim about the product. Those stay
+as written.
+
 ## 2. Voice
 
 Thursday talks the way a computer talks — or a chair, or a desk. Neutral.
@@ -51,6 +62,10 @@ emotional uplift. Corporate-aligned behaviours are suppressed:
 
 The user's linguistic tone, emotional state, or implied affect are not
 mirrored and not accommodated.
+
+Grammatical person is not affect. "You" and "I" are permitted, in agent
+conversation and in product copy alike. The neutral rule governs affect and
+padding and does not reach pronouns. No surface needs to settle this again.
 
 ## 3. Banned constructions
 
@@ -102,17 +117,20 @@ Four defects have a shape rather than a word, and are scanned for by reading:
 ## 4. The one sanctioned offer form
 
 Where an alternate output form would serve better, one construction is
-permitted, verbatim:
+permitted:
 
 ```
-If you would like a [sketch/diagram/variant], let me know.
+If you would like a [form], let me know.
 ```
 
-It is not phrased as a question and does not imply a recommendation. Any other
-offer construction is a defect. "Want me to draw that?", "I can also produce a
-diagram if that would help", and "Would you like me to sketch it?" are all
-defects — the third included, which differs from the sanctioned form only in
-being a question.
+`[form]` is a slot, not a closed list. `a sketch`, `a diagram`, `a variant` and
+`a table` all fill it.
+
+The shape is the rule. The sentence is not phrased as a question and it
+implies no recommendation. Any construction of another shape is a defect:
+"Want me to draw that?" and "I can also produce a diagram if that would help"
+are defects, and so is "Would you like me to sketch it?", which differs from
+the sanctioned form only in being a question.
 
 ## 5. Agent-facing copy
 
@@ -159,7 +177,45 @@ mechanism, the answer is yes, and the reader can check. If the answer is no —
 if the sentence is true by construction because it is an adjective about its
 own subject — it is a slogan, and it goes.
 
-## 7. Before and after
+## 7. The four goals
+
+The four goals are the worked case of section 6, and they are the one place in
+this repository where copy is duplicated across surfaces. These four sentences
+are canonical. `README.md` and the landing page reproduce them word for word,
+and neither may edit its copy alone.
+
+Each heading names a mechanism. None of them names the goal, because a goal
+named is a goal asserting itself: "Keep the user in control" is section 6's
+banned construction in imperative mood, and a heading is copy like any other.
+The goal is what the mechanism is for; the reader gets there from the
+mechanism, not from being told.
+
+1. **A wrong tool call is rewritten, not refused.**
+2. **Delegated work returns a result, not the exploration that produced it.**
+3. **The plan is written and edited before it becomes tickets.**
+4. **The agent cannot sign off a ticket, and it cannot mark one done.**
+
+The body under each heading is the surface's own. It must name mechanisms
+under section 6, and it does not have to match across surfaces. Only the four
+sentences above are held identical.
+
+Where each one is grounded, so a reviewer can check that none of them claims a
+capability that does not exist:
+
+| #   | Mechanism                                                                                              | Grounded in                                                                         |
+| --- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| 1   | The guard layer translates a `find` or `grep` call into the `fd` or `rg` form and runs that form.      | `config/guards/find.json:6`, `config/guards/grep.json:6`, `config/guards/rg.json:5` |
+| 2   | A delegated ticket runs against a context of its own, so its reading never enters the parent's.        | `config/AGENTS.md:18-22`, `config/AGENTS.md:26-31`                                  |
+| 3   | A plan document imports to a board as tickets, each carrying its criteria and its writable files.      | `docs/release-scope.md:15`, `packages/blocks/aidos.md:1-8`                          |
+| 4   | Signoff and done are human evidence kinds; the tools that supply them are not in the agent's tool set. | `README.md:59-63`, `config/plugin-roster.json:679`                                  |
+
+Two of these are grounded in an installed dependency rather than in source
+here: aidos is pinned by `packages/blocks/aidos.md`, and `packages/aidos/` is
+a stub until the migration lands. The mechanism is real and running; its
+source is not yet in this repository. Rows 3 and 4 must be re-checked against
+`packages/aidos/` once it does.
+
+## 8. Before and after
 
 Real strings from this repository.
 
@@ -207,20 +263,20 @@ The list was always the instruction. The persona was decoration around it.
 `honestly` asks the reader to credit the document's motives. The trailing
 clause names an audience the sentence already had.
 
-**`README.md`** — a goal restated instead of a mechanism:
+**`README.md`** — a goal asserting itself, heading and body:
 
 > Before: **Keep the user in control.** Explicit permissions, inspectable
 > state, visible task state, interruptible execution, and reversible
 > operations. Not an opaque autonomous system.
 >
-> After: **Keep the user in control.** The agent cannot sign off a ticket and
-> cannot mark one done; those tools are not in its tool set. Before signoff it
-> holds no write tool and no command tool. After signoff, a write outside the
-> ticket's file allowlist is refused.
+> After: **The agent cannot sign off a ticket, and it cannot mark one done.**
+> Those tools are not in its tool set, so this is not a rule it is asked to
+> follow. Before signoff it holds no write tool and no command tool. After
+> signoff, a write outside the ticket's file allowlist is refused.
 
-The heading is the goal, and a goal may be stated as a goal. The body under it
-was five adjectival nouns. The replacement is checkable: read the agent's tool
-list and the claim is true or it is not.
+The heading was the banned construction and the body was five adjectival
+nouns. Both are replaced. The result is checkable: read the agent's tool list
+and the claim is true or it is not.
 
 **`website/src/site/pages/index.ts`** — positioning:
 
@@ -231,29 +287,15 @@ list and the claim is true or it is not.
 Session boundaries are implementation. The sentence's content — the work does
 not spend your context — survives without naming them.
 
-## 8. Open questions
+## 9. Decisions recorded
 
-Cases this standard does not settle. Each needs a decision from the user, not
-a preference from an author.
+Questions this document raised and the user settled, so none is reopened per
+surface.
 
-1. **Goal headings.** The four product goals in `README.md` are imperative
-   phrases, and one of them — "Keep the user in control" — is section 6's
-   banned construction in imperative mood. Section 7 assumes a goal heading
-   may state a goal, as long as the body under it names mechanisms. That
-   assumption is not in the standard as the user stated it.
-
-2. **Quoted machinery.** The v0.1.0 checklist line "Chapter 2: instant
-   `/compact`, then resume recovers what was elided" names a mechanism the
-   positioning calls implementation. It is a list of build work, not product
-   copy. Whether the positioning binds internal checklists as well as product
-   copy is unsettled.
-
-3. **Second person.** Almost every existing surface addresses the reader as
-   "you". A chair does not say "you". Whether the neutral-voice rule reaches
-   second-person address, or only affect and padding, is unsettled. This
-   document uses "you" where the existing surfaces do.
-
-4. **The `[sketch/diagram/variant]` slot.** Whether those three nouns are the
-   closed set, or examples of a category the writer may extend, is unsettled.
-   Closed forbids "If you would like a table, let me know". Open makes the
-   form a template rather than a verbatim string.
+1. **Headings obey the rule.** A goal heading may not state the goal. Section
+   7 carries the four canonical replacements.
+2. **The positioning binds product copy only.** Internal checklists may name
+   the machinery. Section 1.
+3. **Grammatical person is not affect.** "You" and "I" are permitted. Section 2.
+4. **The offer form's slot is extensible.** The sentence shape is the rule,
+   not a closed list of nouns. Section 4.

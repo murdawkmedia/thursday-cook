@@ -5,12 +5,7 @@ import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
 
 import { loadBlockFile, parseBlock, type Block } from "../src/loader";
-import {
-  PatchError,
-  generateWebPatch,
-  planWebPatch,
-  type PatchProblem,
-} from "../src/patch";
+import { PatchError, generateWebPatch, planWebPatch, type PatchProblem } from "../src/patch";
 
 // Where the fixture came from: dotfiles-ai/sync.sh step_write_web_patch,
 // the 115-line heredoc this generator replaces. The heredoc interpolated
@@ -19,8 +14,7 @@ import {
 // the comparison substitutes one home for both.
 const HOME = "/dsh-home";
 
-const blockFile = (name: string) =>
-  fileURLToPath(new URL(`../../blocks/${name}`, import.meta.url));
+const blockFile = (name: string) => fileURLToPath(new URL(`../../blocks/${name}`, import.meta.url));
 const exampleFile = (name: string) =>
   fileURLToPath(new URL(`../../blocks/${name}`, import.meta.url));
 
@@ -144,9 +138,9 @@ describe("the generated composition reproduces the sync.sh heredoc", () => {
 
     // Every insert row, in the heredoc's own order — insert order IS mount
     // order, so this must match exactly.
-    expect(
-      fromGenerator.filter((r) => r.placement === "insert").map((r) => r.entry["id"]),
-    ).toEqual(fromFixture.filter((r) => r.placement === "insert").map((r) => r.entry["id"]));
+    expect(fromGenerator.filter((r) => r.placement === "insert").map((r) => r.entry["id"])).toEqual(
+      fromFixture.filter((r) => r.placement === "insert").map((r) => r.entry["id"]),
+    );
 
     // The overrides: same three rows, same placements, all at top level.
     // The heredoc writes llm-pi-ai before command-compact; the generator
@@ -155,7 +149,9 @@ describe("the generated composition reproduces the sync.sh heredoc", () => {
     // earlier. The two overrides touch different ids and do not interact,
     // so either order boots; the set and placement are what the heredoc
     // actually requires.
-    expect(fromGenerator.filter((r) => r.placement === "override").map((r) => r.entry["id"])).toEqual(
+    expect(
+      fromGenerator.filter((r) => r.placement === "override").map((r) => r.entry["id"]),
+    ).toEqual(
       expect.arrayContaining(
         fromFixture.filter((r) => r.placement === "override").map((r) => r.entry["id"]),
       ),
@@ -188,11 +184,7 @@ describe("the generated composition reproduces the sync.sh heredoc", () => {
       "ui-better-mobile",
       "llm-pi-ai-affinity",
     ]);
-    expect([...generated.overrideIds].sort()).toEqual([
-      "command-compact",
-      "llm-pi-ai",
-      "remote",
-    ]);
+    expect([...generated.overrideIds].sort()).toEqual(["command-compact", "llm-pi-ai", "remote"]);
   });
 
   it("keeps the three kill-boot rows OUT of the insert list", () => {
@@ -329,10 +321,9 @@ detect:
 
 describe("rule 2: an override is assigned wholesale", () => {
   it("refuses an override that drops a default", () => {
-    const dropped = makeBlock(OVERRIDE_REMOTE.replace(
-      /      secret: ""\n/,
-      "",
-    ).replace("      enforceRoles: true\n", ""));
+    const dropped = makeBlock(
+      OVERRIDE_REMOTE.replace(/      secret: ""\n/, "").replace("      enforceRoles: true\n", ""),
+    );
     const problems = problemsOf([dropped]);
     const message = problems.map((p) => p.message).join("\n");
     expect(message).toContain("`config.secret`");
@@ -341,13 +332,9 @@ describe("rule 2: an override is assigned wholesale", () => {
   });
 
   it("refuses an override that drops a nested default", () => {
-    const dropped = makeBlock(
-      OVERRIDE_REMOTE.replace("        windowMs: 900000\n", ""),
-    );
+    const dropped = makeBlock(OVERRIDE_REMOTE.replace("        windowMs: 900000\n", ""));
     const problems = problemsOf([dropped]);
-    expect(problems.map((p) => p.message).join("\n")).toContain(
-      "`config.rateLimit.windowMs`",
-    );
+    expect(problems.map((p) => p.message).join("\n")).toContain("`config.rateLimit.windowMs`");
   });
 
   it("accepts the complete remote override and records what actually differs", () => {
@@ -541,7 +528,7 @@ describe("the heredoc's comments now live in the generated file", () => {
     // them, rather than trusting a comment to stay true.
     expect(comments).toContain("Assigned wholesale over @xgone/dsh-remote's row");
     expect(comments).toContain("config.session.secure = true (was false)");
-    expect(comments).toContain('config.debug = true (added)');
+    expect(comments).toContain("config.debug = true (added)");
     expect(comments).toContain('config.files.roots = ["/tmp/thursday"] (added)');
   });
 
@@ -563,7 +550,7 @@ describe("adding a plugin is a block change, not a YAML edit", () => {
     // One new top-level override switching the builtin panel off.
     expect(result.overrideIds).toContain("ui-jobs");
     const doc = parseYaml(result.yaml) as Array<Record<string, unknown>>;
-    const overrides = doc.slice(1) as Record<string, unknown>[];
+    const overrides = doc.slice(1);
     expect(overrides.at(-1)).toEqual({ id: "ui-jobs", disabled: true });
 
     // And the reason travelled with it, into the file, from the block.
@@ -574,10 +561,9 @@ describe("adding a plugin is a block change, not a YAML edit", () => {
 
   it("and the previous blocks' rows are untouched by it", () => {
     const before = generateWebPatch(syncBlocks(), { dshHome: HOME });
-    const after = generateWebPatch(
-      [...syncBlocks(), loadBlockFile(exampleFile("job-viewer.md"))],
-      { dshHome: HOME },
-    );
+    const after = generateWebPatch([...syncBlocks(), loadBlockFile(exampleFile("job-viewer.md"))], {
+      dshHome: HOME,
+    });
     expect(after.insertIds.slice(0, -1)).toEqual(before.insertIds);
     expect(after.overrideIds.filter((id) => id !== "ui-jobs")).toEqual(before.overrideIds);
   });

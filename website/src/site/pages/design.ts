@@ -143,8 +143,8 @@ export function designPage(): string {
         <h1>The pieces a Thursday page is built from</h1>
         <p class="section__note">
           Every colour, radius and border below resolves to a token in
-          <code>@trythursday/tokens</code>. This stylesheet contains no colour literals; this page is
-          generated from the token table itself.
+          <code>@trythursday/tokens</code>. This stylesheet contains no colour literals; this page
+          is generated from the token table itself.
         </p>
       </header>
 

@@ -630,36 +630,6 @@ already had, and they complete a real ticket in under ten minutes.
   - the header findings are recorded: which slots dsh offers, and whether the
     change is a slot registration or a component replacement
   - the user's normal dsh install has an unmodified top bar
-- [ ] **Ticket TH6: Working cost metering.** The session UI shows no money:
-  token counts without prices tell the user nothing about what a session
-  costs, and cost is the number Thursday's "make cheap models useful" promise
-  is measured against. Live cost per turn and cumulative per session,
-  computed from the usage events already in the dsh session event log (tokens
-  in and out per model) multiplied by a price table keyed by model. The price
-  table is data, not code: a small checked-in table with per-million-token
-  input and output rates per model, plus an obvious place for the user to
-  extend or override it in personal config, because prices change and the
-  table will go stale. Where a model has no known price, say "unknown price"
-  rather than guessing or hiding the row. Show enough breakdown to steer:
-  cost this turn, this session, and a per-model split, so the user can see
-  what a preset's routing actually spends. Display lives in the session
-  header, which TH5 reworks, so this lands with or after TH5 or the two are
-  designed together; they must not edit that row independently.
-
-  **Evaluate:**
-
-  - the header shows cost this turn and cumulative cost this session,
-    computed from usage events already in the session event log; no new
-    telemetry path is added
-  - costs come from a checked-in price table keyed by model with
-    per-million-token input and output rates, and a user override in personal
-    config wins over the checked-in table
-  - a per-model split is visible, so the cost of a preset's routing can be
-    read directly
-  - a model with no known price renders as "unknown price" rather than a
-    guessed number, and nothing errors
-  - the meter renders inside the TH5 header layout without colliding with the
-    preset badge, title, or log icon at narrow width
 - [ ] **Ticket TH6: Raw request and response inspection in the session log.** Let
   a session-log entry be opened to show the raw HTTP request and response pair
   behind it, so a user can see exactly what was sent and returned rather than the
@@ -725,6 +695,37 @@ already had, and they complete a real ticket in under ten minutes.
   - hover and keyboard focus are both visibly distinct from rest, and from each other
   - the tool-call cards and the sidebar items stay in step: changing the container
     token moves both
+- [ ] **Ticket TH8: Working cost metering.** The session UI shows no money:
+  token counts without prices tell the user nothing about what a session
+  costs, and cost is the number Thursday's "make cheap models useful" promise
+  is measured against. Live cost per turn and cumulative per session,
+  computed from the usage events already in the dsh session event log (tokens
+  in and out per model) multiplied by a price table keyed by model. The price
+  table is data, not code: a small checked-in table with per-million-token
+  input and output rates per model, plus an obvious place for the user to
+  extend or override it in personal config, because prices change and the
+  table will go stale. Where a model has no known price, say "unknown price"
+  rather than guessing or hiding the row. Show enough breakdown to steer:
+  cost this turn, this session, and a per-model split, so the user can see
+  what a preset's routing actually spends. Display lives in the session
+  header, which TH5 reworks, so this lands with or after TH5 or the two are
+  designed together; they must not edit that row independently. Blocked by
+  TH5.
+
+  **Evaluate:**
+
+  - the header shows cost this turn and cumulative cost this session,
+    computed from usage events already in the session event log; no new
+    telemetry path is added
+  - costs come from a checked-in price table keyed by model with
+    per-million-token input and output rates, and a user override in personal
+    config wins over the checked-in table
+  - a per-model split is visible, so the cost of a preset's routing can be
+    read directly
+  - a model with no known price renders as "unknown price" rather than a
+    guessed number, and nothing errors
+  - the meter renders inside the TH5 header layout without colliding with the
+    preset badge, title, or log icon at narrow width
 
 ## Phase 1: Foundation — `pending`
 

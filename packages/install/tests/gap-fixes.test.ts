@@ -55,8 +55,18 @@ describe("row-present can assert a row is disabled", () => {
   });
 
   it("still honours the name check", () => {
-    expect(rowPresentSatisfied({ name: "@deepseek-ai/dsh-llm-pi-ai", disabled: true }, { name: "@deepseek-ai/dsh-llm-pi-ai", disabled: true })).toBe(true);
-    expect(rowPresentSatisfied({ name: "@deepseek-ai/dsh-llm-pi-ai", disabled: true }, { name: "other", disabled: true })).toBe(false);
+    expect(
+      rowPresentSatisfied(
+        { name: "@deepseek-ai/dsh-llm-pi-ai", disabled: true },
+        { name: "@deepseek-ai/dsh-llm-pi-ai", disabled: true },
+      ),
+    ).toBe(true);
+    expect(
+      rowPresentSatisfied(
+        { name: "@deepseek-ai/dsh-llm-pi-ai", disabled: true },
+        { name: "other", disabled: true },
+      ),
+    ).toBe(false);
   });
 
   it("parses `disabled: true` on a detect step and the pilot block states the guarantee", () => {
@@ -80,9 +90,13 @@ steps:
     id: remote
     placement: override
     config:
-      model: gpt-4o${constraint === null ? "" : `
+      model: gpt-4o${
+        constraint === null
+          ? ""
+          : `
     constraint: ${constraint}
-    why: the base row's defaults are all restated here`}
+    why: the base row's defaults are all restated here`
+      }
 detect:
   - action: path-exists
     path: b`);
@@ -157,9 +171,7 @@ reverse:
   it("the registry entry carries the completeness failure mode, and top-level-override keeps only placement", () => {
     expect(CONSTRAINTS["top-level-override"].failureMode).toContain("duplicate loader entry id");
     expect(CONSTRAINTS["top-level-override"].failureMode).not.toContain("restate every default");
-    expect(CONSTRAINTS["wholesale-override-config"].failureMode).toContain(
-      "target[key] = value",
-    );
+    expect(CONSTRAINTS["wholesale-override-config"].failureMode).toContain("target[key] = value");
     expect(CONSTRAINTS["wholesale-override-config"].honouredBy).toContain("patch-row");
   });
 });

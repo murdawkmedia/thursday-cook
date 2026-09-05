@@ -46,7 +46,6 @@ function tokenValue(name) {
   return `#${m[1]}`;
 }
 const BRAND_BLUE = tokenValue("brand-blue");
-const BRAND_ORANGE = tokenValue("brand-orange");
 
 // ---- helpers ------------------------------------------------------------ //
 function run(cmd, args) {

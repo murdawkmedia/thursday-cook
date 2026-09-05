@@ -49,9 +49,10 @@ export const CONSTRAINTS = {
     failureMode:
       "dsh's applyEntryPatches assigns each override key wholesale (target[key] = value, dsh-app-boot/lib/index.js:100-103). A `config:` on an override replaces the base row's entire config object, so every default not restated silently disappears: the row boots, parses fine, and runs with the options missing. An override that only sets `disabled` is exempt, which is why the check fires only when a `config:` is present.",
     honouredBy: ["patch-row", "disable-row", "enable-row"],
-    origin: "dotfiles-ai/sync.sh:163-213 (the wholesale-assignment half of the old top-level-override entry)",
+    origin:
+      "dotfiles-ai/sync.sh:163-213 (the wholesale-assignment half of the old top-level-override entry)",
   },
-"no-yaml-round-trip": {
+  "no-yaml-round-trip": {
     name: "no-yaml-round-trip",
     summary: "Patch the file by line, byte-preserving. Never load and re-serialise it.",
     failureMode:

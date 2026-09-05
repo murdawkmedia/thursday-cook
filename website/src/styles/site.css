@@ -6,8 +6,8 @@
  * package's own artifact rather than a copy of it. esbuild inlines it, which
  * is why the emitted assets/site.css is a single file with no runtime import.
  */
-@import "@trythursday/tokens/tokens.css";
+@import url("@trythursday/tokens/tokens.css");
 
-@import "./base.css";
-@import "./layout.css";
-@import "./components.css";
+@import url("./base.css");
+@import url("./layout.css");
+@import url("./components.css");

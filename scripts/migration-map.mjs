@@ -493,7 +493,7 @@ const doc = renderDoc();
 const lines = [];
 lines.push("migration-map: validating config/migration-map.json");
 lines.push("");
-for (const [name, info] of Object.entries(map.repos)) {
+for (const [name] of Object.entries(map.repos)) {
   const files = inventory.get(name);
   const fakes = opts.fakes.filter((f) => f.repo === name).length;
   lines.push(

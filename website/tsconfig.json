@@ -4,5 +4,5 @@
   // config already carries both `lib: DOM` and `types: node`, so one project
   // covers them, and `noEmit` stays inherited -- esbuild does the emitting.
   "extends": "../tsconfig.json",
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
 }

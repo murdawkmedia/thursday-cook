@@ -16,9 +16,7 @@ const stepMetaShape = {
   /** A constraint the installer must honour while running this step. An array
    * states several obligations about one change, such as placement AND
    * completeness on the same override row. */
-  constraint: z
-    .union([constraintNameSchema, z.array(constraintNameSchema)])
-    .optional(),
+  constraint: z.union([constraintNameSchema, z.array(constraintNameSchema)]).optional(),
   /** Why this step is written this way. Required when `constraint` is set. */
   why: z.string().min(1).optional(),
 };
@@ -340,10 +338,7 @@ export function rowPresentSatisfied(
 }
 
 function registryFor(kind: "install" | "detect"): Record<string, ActionDefinition> {
-  return (kind === "install" ? INSTALL_ACTIONS : DETECT_ACTIONS) as unknown as Record<
-    string,
-    ActionDefinition
-  >;
+  return kind === "install" ? INSTALL_ACTIONS : DETECT_ACTIONS;
 }
 
 function namesFor(kind: "install" | "detect"): string[] {
@@ -408,11 +403,11 @@ export function validateStepList(
       }
       return;
     }
-    const value = parsed.data as Record<string, unknown>;
+    const value = parsed.data;
     if (value["constraint"] !== undefined && value["why"] === undefined) {
       problems.push({
         field: `${at}.why`,
-        message: `required when \`constraint: ${String(value["constraint"])}\` is declared: record the reason next to the constraint`,
+        message: `required when \`constraint: ${JSON.stringify(value["constraint"])}\` is declared: record the reason next to the constraint`,
       });
       return;
     }

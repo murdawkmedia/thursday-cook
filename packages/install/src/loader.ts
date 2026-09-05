@@ -186,17 +186,17 @@ function surfaceConstraints(
     {
       field: "steps",
       steps: frontmatter.steps,
-      registry: INSTALL_ACTIONS as unknown as Record<string, ActionDefinition>,
+      registry: INSTALL_ACTIONS,
     },
     {
       field: "detect",
       steps: frontmatter.detect,
-      registry: DETECT_ACTIONS as unknown as Record<string, ActionDefinition>,
+      registry: DETECT_ACTIONS,
     },
     {
       field: "reverse",
       steps: frontmatter.reverse ?? [],
-      registry: INSTALL_ACTIONS as unknown as Record<string, ActionDefinition>,
+      registry: INSTALL_ACTIONS,
     },
   ];
   for (const list of stepLists) {
@@ -260,7 +260,7 @@ function checkWholesaleOverrideConfig(
     if (declared.includes("wholesale-override-config")) return;
     problems.push({
       field: `${field}[${i}].constraint`,
-      message: `this override row carries a \`config:\` key, which replaces the base row's whole config object; the override must restate every default it wants to keep. Declare \`constraint: wholesale-override-config\` to record that obligation${step.constraint === undefined ? "" : ` (this step declares \`${step.constraint}\`, which covers placement only)`}`,
+      message: `this override row carries a \`config:\` key, which replaces the base row's whole config object; the override must restate every default it wants to keep. Declare \`constraint: wholesale-override-config\` to record that obligation${step.constraint === undefined ? "" : ` (this step declares \`${Array.isArray(step.constraint) ? step.constraint.join(", ") : String(step.constraint)}\`, which covers placement only)`}`,
     });
   });
 }

@@ -136,7 +136,7 @@ for (const t of tickets) {
 }
 
 // 4. Cycles.
-const WHITE = 0, GREY = 1, BLACK = 2;
+const WHITE = 0; const GREY = 1; const BLACK = 2;
 const colour = new Map(tickets.map((t) => [t.id, WHITE]));
 const stack = [];
 function visit(id) {

@@ -14,16 +14,25 @@
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "pnpm -r --if-present run test",
     "format": "prettier --write \"**/*.{ts,tsx,css}\"",
-    "lint": "prettier --check \"**/*.{ts,tsx,css}\"",
+    "lint": "prettier --check \"**/*.{ts,tsx,css}\" && eslint . && stylelint \"**/*.css\"",
     "check:plan": "node scripts/check-plan.mjs PLAN.md",
-    "check": "pnpm run build && pnpm run typecheck && pnpm run test && pnpm run lint && pnpm run check:plan",
-    "build:plugins": "pnpm --filter @trythursday/build run build:all"
+    "check": "pnpm run build && pnpm run typecheck && pnpm run test && pnpm run lint && pnpm run check:plan"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
     "esbuild": "^0.28.2",
     "prettier": "^3.9.6",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.0"
+    "typescript": "^6.0.2",
+    "vitest": "^5.0.0",
+    "eslint": "^9.30.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-n": "^17.23.1",
+    "eslint-plugin-promise": "^7.2.1",
+    "typescript-eslint": "^8.30.0",
+    "stylelint": "^17.4.0",
+    "stylelint-config-gds": "^3.0.0",
+    "@eslint/eslintrc": "^3.3.1"
   }
 }

@@ -27,3 +27,4 @@ ignoreWorkspaceRootCheck: true
 # ERR_PNPM_UNEXPECTED_STORE against the node_modules already linked here. A
 # repo-local store keeps install self-contained. .pnpm-store is gitignored.
 storeDir: .pnpm-store
+

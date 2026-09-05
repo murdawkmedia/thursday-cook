@@ -138,6 +138,7 @@ pre {
   gap: var(--web-space-2);
   align-items: center;
   padding: 0.125rem var(--web-space-2);
+
   /* A chip is a control whose only edge is its border. */
   border: var(--web-hairline) solid var(--th-border-strong);
   border-radius: var(--th-radius-control);
@@ -193,6 +194,7 @@ kbd {
 .tabs__list {
   display: flex;
   gap: var(--web-space-1);
+
   /* The rail is chrome under the tabs, never a tab's own edge. */
   border-bottom: var(--web-hairline) solid var(--th-border);
 }
@@ -242,6 +244,7 @@ kbd {
 .field__control {
   min-height: 1.875rem;
   padding: 0 var(--web-space-2);
+
   /* An input is identified by its box: border-strong. */
   border: var(--web-hairline) solid var(--th-border-strong);
   border-radius: var(--th-radius-control);

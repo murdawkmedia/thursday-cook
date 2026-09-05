@@ -6,6 +6,10 @@
 > contributor should be able to write a contribution from this document alone,
 > without reading Thursday's source.
 
+Copy is not specified here. Every string this contract admits — tab and row
+labels, panel titles, hints, table captions, and the registration errors the
+schemas throw — obeys [voice.md](voice.md).
+
 ## The central decision
 
 **Every extension point is data-in. Thursday renders; plugins never do.**

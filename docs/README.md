@@ -10,6 +10,7 @@ and none of them exists yet.
 | `aidos-decomposition.md` | A8          | The aidos plugin boundaries and their service contracts.                 |
 | `dsh-home.md`            | C1          | The Thursday home layout and what owns each path.                        |
 | `platforms.md`           | V4          | The supported systems, and the Windows decision with its reasoning.      |
+| `voice.md`               | TH11        | The copy standard: positioning, banned constructions, the offer form.    |
 | `branding.md`            | B1          | Which dsh manifest values can be overridden per home.                    |
 | `architecture.md`        | DOC2        | The host and agent planes, the block model, and how the presets compose. |
 | `contributing.md`        | DOC3        | How to add a plugin, a skill, a preset row, or a block.                  |

@@ -138,6 +138,12 @@ See the aidos board for the full structure and the reasoning. In short:
 the two presets; `skills/` and `wizards/` hold the agent-facing material;
 `website/` and `demo/` hold the public face; `install/` holds the bootstrapper.
 
+## Copy standard
+
+Every string Thursday ships obeys [docs/voice.md](docs/voice.md): this file,
+the website, the docs, and everything an agent reads or emits. It fixes the
+positioning, the banned constructions, and the one sanctioned offer form.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

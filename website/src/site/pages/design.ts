@@ -2,7 +2,7 @@
  * The design-system page.
  *
  * Every swatch, name, value and comment on it is read out of
- * `@thursday/tokens` at build time, so the page cannot describe a token set
+ * `@trythursday/tokens` at build time, so the page cannot describe a token set
  * that no longer exists: add a token upstream and it appears here; change a
  * value and the number under the swatch changes with it. Nothing on this page
  * is transcribed by hand.
@@ -18,7 +18,7 @@ import {
   relativeLuminance,
   tokens,
   type TokenName,
-} from "@thursday/tokens";
+} from "@trythursday/tokens";
 
 import { badge, button, callout, chip, field, kbd, panel, table, tabs } from "../components";
 import { html, join, type Html } from "../html";
@@ -105,7 +105,7 @@ const SHAPE_TOKENS = TOKEN_NAMES.filter((name) => name.startsWith("radius-"));
 
 function tokenTable(): Html {
   return table({
-    caption: "Read from @thursday/tokens at build time, comments included.",
+    caption: "Read from @trythursday/tokens at build time, comments included.",
     head: ["Token", "Value", "Intended use"],
     rows: TOKEN_NAMES.map((name) => {
       const definition = TOKENS[name];
@@ -143,7 +143,7 @@ export function designPage(): string {
         <h1>The pieces a Thursday page is built from</h1>
         <p class="section__note">
           Every colour, radius and border below resolves to a token in
-          <code>@thursday/tokens</code>. This stylesheet contains no colour literals; this page is
+          <code>@trythursday/tokens</code>. This stylesheet contains no colour literals; this page is
           generated from the token table itself.
         </p>
       </header>
@@ -271,7 +271,7 @@ export function designPage(): string {
             title: "code",
             aside: badge("code token"),
             body: html`<pre><code>pnpm -r --if-present run build
-pnpm --filter @thursday/website run build</code></pre>`,
+pnpm --filter @trythursday/website run build</code></pre>`,
           })}
         </div>
       </section>
@@ -333,7 +333,7 @@ pnpm --filter @thursday/website run build</code></pre>`,
   return renderPage({
     title: "Design system",
     description:
-      "The Thursday site's type scale, surfaces, radii, borders and controls, generated from the @thursday/tokens package.",
+      "The Thursday site's type scale, surfaces, radii, borders and controls, generated from the @trythursday/tokens package.",
     current: "/design/",
     body,
   });

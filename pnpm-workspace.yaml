@@ -6,7 +6,7 @@ packages:
   - "packages/plugins/*"
   # The marketing site. It is not a package of the product, so it sits beside
   # packages/ rather than inside it, but it is a workspace project so that it
-  # can depend on @thursday/tokens and be picked up by the root recursive
+  # can depend on @trythursday/tokens and be picked up by the root recursive
   # build, typecheck and test scripts.
   - "website"
 

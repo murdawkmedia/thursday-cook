@@ -1,9 +1,9 @@
 {
-  "name": "@thursday/website",
+  "name": "@trythursday/website",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The trythursday.org static site: design system scaffold wired to @thursday/tokens.",
+  "description": "The trythursday.org static site: design system scaffold wired to @trythursday/tokens.",
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -11,6 +11,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@thursday/tokens": "workspace:*"
+    "@trythursday/tokens": "workspace:*"
   }
 }

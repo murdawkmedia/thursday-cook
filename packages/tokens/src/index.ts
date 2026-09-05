@@ -1,5 +1,5 @@
 /**
- * `@thursday/tokens` -- the semantic design token system.
+ * `@trythursday/tokens` -- the semantic design token system.
  *
  * One source (`tokens.ts`), two emitted artifacts:
  *   - `dist/tokens.css`, a `:root` block of CSS custom properties, produced by
@@ -78,7 +78,7 @@ export function renderCss(): string {
     " *",
     " * GENERATED FILE -- DO NOT EDIT.",
     " * Source of truth: packages/tokens/src/tokens.ts",
-    " * Regenerate with: pnpm --filter @thursday/tokens run build",
+    " * Regenerate with: pnpm --filter @trythursday/tokens run build",
     " */",
     "",
     ":root {",

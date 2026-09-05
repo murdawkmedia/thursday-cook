@@ -152,7 +152,7 @@ export interface WebPatchOptions {
 }
 
 const DEFAULT_FILE = "profiles/web/cordis.patch.yml";
-const DEFAULT_GENERATOR = "generateWebPatch() in @thursday/install";
+const DEFAULT_GENERATOR = "generateWebPatch() in @trythursday/install";
 const COMMENT_WIDTH = 74;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

@@ -13,7 +13,7 @@
  *
  * Three steps, in order:
  *   1. bundle the TypeScript generator to build/generate.mjs and run it;
- *   2. bundle src/styles/site.css, which pulls @thursday/tokens/tokens.css in
+ *   2. bundle src/styles/site.css, which pulls @trythursday/tokens/tokens.css in
  *      through esbuild's package resolution, to dist/assets/site.css;
  *   3. bundle src/client/enhance.ts to dist/assets/enhance.js;
  *   4. run the emitted HTML through the workspace's own prettier, which tidies
@@ -103,7 +103,7 @@ function listFiles(dir, base = dir) {
 const emitted = listFiles(distDir);
 const total = emitted.reduce((sum, [, size]) => sum + size, 0);
 const urls = generator.PAGES.map((page) => page.url).join(", ");
-console.log(`@thursday/website: ${generator.PAGES.length} pages (${urls}) -> dist/`);
+console.log(`@trythursday/website: ${generator.PAGES.length} pages (${urls}) -> dist/`);
 for (const [file, size] of emitted) {
   console.log(`  ${String(size).padStart(6)}  ${file}`);
 }

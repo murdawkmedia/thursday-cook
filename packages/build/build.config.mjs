@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { defineBuild } from "./lib/index.js";
 
 export default defineBuild({
-  name: "@thursday/build fixtures",
+  name: "@trythursday/build fixtures",
   root: dirname(fileURLToPath(import.meta.url)),
   logLevel: "warning",
   host: [

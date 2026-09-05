@@ -3,7 +3,7 @@
 // This script calls esbuild directly instead of using the module it is
 // building, because the module cannot compile itself before it exists. It is
 // intentionally the only place in the workspace that talks to esbuild without
-// going through @thursday/build.
+// going through @trythursday/build.
 //
 // Transpile, not bundle: every internal import already carries a `.js`
 // specifier, so a one-to-one src/*.ts -> lib/*.js emit keeps the ESM graph

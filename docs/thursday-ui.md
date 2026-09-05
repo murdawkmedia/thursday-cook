@@ -385,7 +385,7 @@ Worked example (the site-test pattern, applied to contributions):
 ```ts
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { TOKEN_NAMES } from "@thursday/tokens";
+import { TOKEN_NAMES } from "@trythursday/tokens";
 import { describe, expect, it } from "vitest";
 
 import { contributions } from "../src/contributions";   // every registered

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Build @thursday/tokens.
+ * Build @trythursday/tokens.
  *
  * One source (src/tokens.ts) becomes three artifacts in dist/:
  *   index.js    -- the typed object and the CSS renderer, bundled by esbuild
@@ -64,5 +64,5 @@ execFileSync(findBin("tsc"), ["-p", join(packageDir, "tsconfig.build.json")], {
 
 const count = Object.keys(built.tokens).length;
 console.log(
-  `@thursday/tokens: ${count} tokens -> dist/index.js, dist/tokens.css, dist/tokens.json, dist/contrast-report.txt`,
+  `@trythursday/tokens: ${count} tokens -> dist/index.js, dist/tokens.css, dist/tokens.json, dist/contrast-report.txt`,
 );

@@ -18,7 +18,7 @@ this package is the implementation of its schema half. Real blocks live in
 | `src/errors.ts`      | `BlockError`, which names every bad field at once.                   |
 
 ```ts
-import { loadBlockFile } from "@thursday/install";
+import { loadBlockFile } from "@trythursday/install";
 
 const block = loadBlockFile("packages/blocks/llm-pi-ai.md");
 block.frontmatter.steps; // typed per action, defaults applied

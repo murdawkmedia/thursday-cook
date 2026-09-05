@@ -1,4 +1,4 @@
-# @thursday/build
+# @trythursday/build
 
 The shared esbuild pipeline for dsh plugin host and client halves.
 
@@ -13,7 +13,7 @@ Drop a `build.config.mjs` in the package directory:
 ```js
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineBuild } from "@thursday/build";
+import { defineBuild } from "@trythursday/build";
 
 export default defineBuild({
   name: "mcp-servers",

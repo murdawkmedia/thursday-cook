@@ -39,7 +39,7 @@ importers:
 
   website:
     dependencies:
-      '@thursday/tokens':
+      '@trythursday/tokens':
         specifier: workspace:*
         version: link:../packages/tokens
 

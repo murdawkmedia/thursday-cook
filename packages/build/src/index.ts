@@ -1,5 +1,5 @@
 /**
- * @thursday/build — the shared esbuild pipeline for dsh plugin halves.
+ * @trythursday/build — the shared esbuild pipeline for dsh plugin halves.
  *
  * Extracted from dotfiles-ai/build.mjs, which hard-coded ~25 entry points in
  * one array. Here a package declares its own build (`build.config.mjs`

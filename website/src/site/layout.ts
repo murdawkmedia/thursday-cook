@@ -77,7 +77,7 @@ export function renderPage(options: PageOptions): string {
               <p>Thursday — built on DeepSeek Harness. MIT licensed.</p>
               <p>
                 Colour and shape from
-                <code>@thursday/tokens</code>
+                <code>@trythursday/tokens</code>
               </p>
             </div>
           </footer>

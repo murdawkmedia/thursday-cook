@@ -1,6 +1,6 @@
 # website
 
-The trythursday.org site: static HTML and CSS, wired to `@thursday/tokens`.
+The trythursday.org site: static HTML and CSS, wired to `@trythursday/tokens`.
 
 This package is the **scaffold and the design system**. The landing page copy
 is a later ticket's job; every section on `/` is a real section with a `slot()`
@@ -9,9 +9,9 @@ naming what belongs in it, so that ticket writes words rather than layout.
 ## Build
 
 ```
-pnpm --filter @thursday/website run build    # -> dist/, plain static files
-pnpm --filter @thursday/website run typecheck
-pnpm --filter @thursday/website run test
+pnpm --filter @trythursday/website run build    # -> dist/, plain static files
+pnpm --filter @trythursday/website run typecheck
+pnpm --filter @trythursday/website run test
 ```
 
 `dist/` is a directory of files. There is no server-side runtime, no client
@@ -26,14 +26,14 @@ TypeScript, prettier and vitest that the workspace root already installs for
 every package. It is also the pattern the repository already uses:
 `packages/tokens` builds itself the same way. **New third-party dependencies
 for this package: none.** The only dependency is the workspace's own
-`@thursday/tokens`.
+`@trythursday/tokens`.
 
 The build does four things:
 
 1. bundles `src/site/build.ts` to `build/generate.mjs` and runs it, writing one
    `index.html` per page;
 2. bundles `src/styles/site.css`, whose first line is
-   `@import "@thursday/tokens/tokens.css"` — esbuild resolves that through the
+   `@import "@trythursday/tokens/tokens.css"` — esbuild resolves that through the
    workspace package's `exports` map, so the site's `:root` block **is** the
    token package's emitted artifact rather than a copy of it;
 3. bundles `src/client/enhance.ts` to one ES module;
@@ -95,7 +95,7 @@ the test counts `outline: none` occurrences and requires exactly the one
 
 `/design/` is the working design system — type scale, surface ladder, both
 radii, both borders, the full palette with measured contrast, and the control
-set. It is generated from `@thursday/tokens` at build time, so it cannot
+set. It is generated from `@trythursday/tokens` at build time, so it cannot
 describe a token set that no longer exists.
 
 Compose pages from `src/site/components.ts`. If something genuinely new is

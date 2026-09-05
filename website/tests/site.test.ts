@@ -12,7 +12,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { TOKEN_NAMES } from "@thursday/tokens";
+import { TOKEN_NAMES } from "@trythursday/tokens";
 import { describe, expect, it } from "vitest";
 
 import { designPage } from "../src/site/pages/design";

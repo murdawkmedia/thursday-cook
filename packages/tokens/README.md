@@ -23,14 +23,14 @@ yields exactly the typed object.
 ## Using it
 
 ```ts
-import { tokens, cssVar } from "@thursday/tokens";
+import { tokens, cssVar } from "@trythursday/tokens";
 
 tokens.background; // "#101010"  — literal, for canvas, terminals, image output
 cssVar("background"); // "var(--th-background)" — for anything with a cascade
 ```
 
 ```ts
-import "@thursday/tokens/tokens.css"; // declares every --th-* on :root
+import "@trythursday/tokens/tokens.css"; // declares every --th-* on :root
 ```
 
 Prefer `cssVar()`/`var(--th-*)` in stylesheets. Reach for the literal `tokens`
@@ -128,7 +128,7 @@ which is tested for exactly that.
 
 ## Verification
 
-`pnpm --filter @thursday/tokens run build` regenerates
+`pnpm --filter @trythursday/tokens run build` regenerates
 [`dist/contrast-report.txt`](dist/contrast-report.txt) with every figure below
 computed from the tokens, so the numbers cannot go stale. Highlights:
 
@@ -141,4 +141,4 @@ computed from the tokens, so the numbers cannot go stale. Highlights:
 - `selection`, composited, leaves text at 12.74 / 11.10 / 9.58:1.
 - Warm hues: `error` 0.0°, `accent` 31.1°, `warning` 47.7°.
 
-`pnpm --filter @thursday/tokens run test` asserts all of it.
+`pnpm --filter @trythursday/tokens run test` asserts all of it.

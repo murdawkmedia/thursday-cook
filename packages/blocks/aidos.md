@@ -59,3 +59,21 @@ An aidos that installs but does nothing usually means its postinstall never
 ran, which means the allowBuilds entry did not match. The key is
 `<repo-basename>@https://codeload.github.com/<owner>/<repo>/tar.gz/<ref>`, and
 pnpm compares it verbatim.
+
+## What must be true before swapping to workspace packages
+
+This pin is v0.1 scaffolding, not a permanent arrangement, and the swap stays
+a one-line source change to the `pnpm-add` spec only if all of these hold
+first:
+
+- the migrated workspace packages exist under `packages/` in this repository
+  and build clean from a fresh clone, with no `file:` overrides hidden in a
+  lockfile
+- the migrated package's gate semantics are compatible with boards created by
+  the pinned version: a board mid-plan must survive the swap without evidence
+  or gate-state loss, verified on a copy before a real home is touched
+- the pinned commit's skills and the migrated skills no longer diverge, so
+  `skills/aidos` needs no separate reconciliation step at swap time
+- nothing else in the bundle depends on a pinned-version defect: if a block
+  works around a pinned-version bug, the workaround is listed here so the
+  swap removes it in the same change

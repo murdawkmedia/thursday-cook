@@ -19,7 +19,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "execa": "^10.0.1",
     "yaml": "^2.9.0",
     "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "memfs": "^4.71.0"
   }
 }

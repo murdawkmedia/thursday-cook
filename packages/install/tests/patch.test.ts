@@ -119,7 +119,7 @@ steps:
         windowMs: 900000
       files:
         roots:
-          - /tmp/dsh
+          - /tmp/thursday
 detect:
   - action: row-present
     id: remote
@@ -424,7 +424,7 @@ steps:
         windowMs: 900000
       files:
         roots:
-          - /tmp/dsh
+          - /tmp/thursday
   - action: patch-row
     id: alpha
     name: some-package
@@ -542,7 +542,7 @@ describe("the heredoc's comments now live in the generated file", () => {
     expect(comments).toContain("Assigned wholesale over @xgone/dsh-remote's row");
     expect(comments).toContain("config.session.secure = true (was false)");
     expect(comments).toContain('config.debug = true (added)');
-    expect(comments).toContain('config.files.roots = ["/tmp/dsh"] (added)');
+    expect(comments).toContain('config.files.roots = ["/tmp/thursday"] (added)');
   });
 
   it("keeps the MCP-server and alwaysDeny reasoning beside their rows", () => {

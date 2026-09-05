@@ -55,7 +55,7 @@ steps:
         windowMs: 900000
       files:
         roots:
-          - /tmp/dsh
+          - /tmp/thursday
     why: >
       Every key the plugin's own patch sets is repeated here because the
       override is assigned wholesale, not merged: a key left out is not

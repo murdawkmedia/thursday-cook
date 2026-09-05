@@ -106,5 +106,5 @@
       windowMs: 900000
     files:
       roots:
-        - /tmp/dsh
+        - /tmp/thursday
 

@@ -1,13 +1,13 @@
 ---
 id: spill-root
-title: Spill store root under /tmp/dsh
+title: Spill store root under /tmp/thursday
 version: 1
 rationale: >
-  Pins the spill store's root under /tmp/dsh. The default root is a private
+  Pins the spill store's root under /tmp/thursday. The default root is a private
   mkdtemp directory under the OS tmpdir, which sits outside the sandbox's
   writable roots, so a spilled tool result lands where the agent cannot
   follow: every read of the spilled path fails under the default workspace
-  policy. /tmp/dsh is the sanctioned scratch root the sandbox already allows
+  policy. /tmp/thursday is the sanctioned scratch root the sandbox already allows
   and the file panel already exposes, so the spill root is pinned under it.
 dependsOn: [dsh-runtime]
 dshConfig:
@@ -30,12 +30,12 @@ steps:
     placement: override
     constraint: wholesale-override-config
     config:
-      root: /tmp/dsh/spill
+      root: /tmp/thursday/spill
     why: >
       The spilled path is only useful if the agent can read it back. The
       private mkdtemp default defeats that: the write succeeds, the read
       fails, and the failure surfaces as an unreadable tool result rather
-      than as a spill misconfiguration. /tmp/dsh/spill is under the root the
+      than as a spill misconfiguration. /tmp/thursday/spill is under the root the
       fs sandbox already permits and the remote file panel lists
       (files.roots in the remote block), so write and read both work.
 detect:

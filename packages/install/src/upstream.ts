@@ -84,7 +84,7 @@ export const UPSTREAM_ROWS = {
     owner: "@deepseek-ai/dsh-web-app",
     defaults: {},
     origin: "sync.sh step_write_web_patch (top-level override; the id carries a name: key set by the override itself)",
-    note: "Points dsh-web-app's spill root at /tmp/dsh/spill. An override of a row the bundle does not declare as an insert, so it is recorded here so the generator's ownership check accepts it.",
+    note: "Points dsh-web-app's spill root at /tmp/thursday/spill. An override of a row the bundle does not declare as an insert, so it is recorded here so the generator's ownership check accepts it.",
   },
   "ui-jobs": {
     id: "ui-jobs",

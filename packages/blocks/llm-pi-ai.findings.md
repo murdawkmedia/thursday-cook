@@ -109,3 +109,26 @@ Note that `tests/sync-facts.test.ts` asserts against this example by index —
 `["dshConfig[1]", "steps[2]"]`. The replacement block preserves both positions,
 so the test passes unchanged. Verified: `dshConfig[1]` is the override row and
 the surfaced constraint locations are exactly `dshConfig[1]` and `steps[2]`.
+
+## Known format gaps, recorded and deferred
+
+The pilot surfaced four gaps beyond the ones closed above. None is fixed in
+the schema; all four are recorded here so the pilot's honesty is complete and
+the follow-up work has a list:
+
+1. **Cross-package denial expression.** The schema has no field for one
+   package denying a tool another package in the same bundle registers
+   (the dsh-toolkit monorepo hazard). Today it lives as prose in the block,
+   which nothing checks.
+2. **Pin-weakness declaration.** A pin that names a moving ref (a branch, or
+   `main`) cannot be flagged in frontmatter; at-file is the live example.
+   The schema treats every spec as equally pinned.
+3. **Roster trust metadata.** No frontmatter field carries trust tier or
+   last-reviewed date, which I14's supply-chain lens will want per block
+   rather than per roster entry.
+4. **Copy-file action.** Single-file copies abuse `copy-tree`; a `copy-file`
+   action with content-compare idempotence (the tree action's, minus the
+   recursion) is the shape. agents-md.md's step wishes aloud for it.
+
+Each becomes a real ticket when a second block needs it; until then this
+section is their home.

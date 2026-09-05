@@ -7,8 +7,9 @@ It exists because the answer to a weak model should not always be a bigger one.
 Planning, bounded tasks, persistent state, and real tool orchestration get more
 out of the model you already have.
 
-**Status: pre-alpha.** Nothing here installs yet. [PLAN.md](PLAN.md) holds the
-implementation plan, and the aidos board holds the live version of it.
+**Status: pre-alpha.** Nothing here installs yet. The aidos board is the plan
+and the sole source of truth for it — there is no separate plan document to
+keep in sync.
 
 ## What it is for
 
@@ -62,8 +63,8 @@ either.
 Done when a stranger with no dsh installed runs one command, completes one real
 aidos ticket, and can remove Thursday without a trace.
 
-One line per item. Keep it that way: if an item needs a paragraph, it belongs in
-[PLAN.md](PLAN.md), not here.
+One line per item. Keep it that way: if an item needs a paragraph, it belongs on
+the aidos board, not here.
 
 ### Install
 
@@ -132,7 +133,7 @@ ticket instead.
 
 ## Repository layout
 
-See [PLAN.md](PLAN.md) for the full structure and the reasoning. In short:
+See the aidos board for the full structure and the reasoning. In short:
 `packages/` holds aidos, the install engine, and the plugins; `profiles/` holds
 the two presets; `skills/` and `wizards/` hold the agent-facing material;
 `website/` and `demo/` hold the public face; `install/` holds the bootstrapper.

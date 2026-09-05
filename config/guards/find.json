@@ -1,0 +1,7 @@
+{
+  "commands": ["find"],
+  "verdict": "deny",
+  "readOnly": true,
+  "reason": "find is translated to fd and the fd form is what runs. Write fd yourself to avoid the substitution. When the translator cannot map a call it is denied instead, which happens when the command sits inside a wrapper such as sh -c, when an argument is an unquoted glob, or when an argument depends on a shell expansion.",
+  "translate": "find"
+}

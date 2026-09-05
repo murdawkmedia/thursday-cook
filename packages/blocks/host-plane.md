@@ -17,7 +17,7 @@ installs:
     from: packages/plugins/host-plane
     what: the eleven host-plane plugin files
   - path: plugins/guards
-    from: guards
+    from: config/guards
     what: the bash-guard rule files, which the guard re-reads at runtime
 dshConfig:
   - file: profiles/web/cordis.patch.yml

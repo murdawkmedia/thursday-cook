@@ -79,6 +79,13 @@ export const UPSTREAM_ROWS = {
     origin: "@deepseek-ai/dsh-base@0.1.0-rc.8/cordis.patch.yml:218 (insert list)",
     note: "The builtin background-jobs tool, disabled again by @deepseek-ai/dsh-web-app (cordis.patch.yml:331). A replacement mounts under its own id.",
   },
+  "spill-local": {
+    id: "spill-local",
+    owner: "@deepseek-ai/dsh-web-app",
+    defaults: {},
+    origin: "sync.sh step_write_web_patch (top-level override; the id carries a name: key set by the override itself)",
+    note: "Points dsh-web-app's spill root at /tmp/dsh/spill. An override of a row the bundle does not declare as an insert, so it is recorded here so the generator's ownership check accepts it.",
+  },
   "ui-jobs": {
     id: "ui-jobs",
     owner: "@deepseek-ai/dsh-web-app",

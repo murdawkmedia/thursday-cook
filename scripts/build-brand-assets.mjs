@@ -33,8 +33,20 @@ const SOURCE = argValue("--source", defaultSource);
 const OUT = argValue("--out", defaultOut);
 
 // Brand tokens (mirrors packages/tokens/src/tokens.ts; the SVG's own stops).
-const BRAND_BLUE = "#0a5cff";
-const BRAND_ORANGE = "#ff8400";
+// Brand colours come from the token source -- this script must not carry its
+// own copy, or the day a token changes the plates and wordmark drift. The
+// repo-wide hex scan in packages/tokens enforces exactly that.
+function tokenValue(name) {
+  const src = readFileSync(
+    new URL("../packages/tokens/src/tokens.ts", import.meta.url),
+    "utf8",
+  );
+  const m = src.match(new RegExp(`"${name}":\\s*{\\s*value:\\s*"#([0-9a-fA-F]{6})"`));
+  if (!m) throw new Error(`token ${name} not found in packages/tokens/src/tokens.ts`);
+  return `#${m[1]}`;
+}
+const BRAND_BLUE = tokenValue("brand-blue");
+const BRAND_ORANGE = tokenValue("brand-orange");
 
 // ---- helpers ------------------------------------------------------------ //
 function run(cmd, args) {

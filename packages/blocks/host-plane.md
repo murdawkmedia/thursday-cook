@@ -13,9 +13,17 @@ rationale: >
   file.
 dependsOn: [dsh-runtime]
 installs:
-  - path: plugins
-    from: packages/plugins/host-plane
-    what: the eleven host-plane plugin files
+  - path: plugins/host
+    from: packages/plugins
+    what: >
+      the eleven host-plane plugin bundles, one per package under
+      packages/plugins: log-exporter, bash-guard, manifest-guard, package-tool,
+      skill-gate, see, tmp-dsh-shared, grant, ask-interrupt, profiles, and
+      resume-command. The migration map gives each plugin its own package
+      directory; each one's built bundle merges into the flat plugins/host
+      directory dsh reads. Until the plugin migration lands, this source is a
+      forward declaration and the step cannot run — recorded here rather than
+      papered over.
   - path: plugins/guards
     from: config/guards
     what: the bash-guard rule files, which the guard re-reads at runtime

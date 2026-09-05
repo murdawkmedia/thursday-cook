@@ -8,8 +8,12 @@ rationale: >
 dependsOn: [dsh-runtime]
 installs:
   - path: skills/aidos
-    from: packages/aidos/skills
-    what: the aidos skills, synced from the pinned commit
+    from: "github:xyzshantaram/aidos#fc435af68e384963a8575abd1ddac08e54daaa49"
+    what: >
+      the aidos skills, copied from the pinned package's own install at
+      profiles/web/node_modules/aidos/skills — the package ships its skills,
+      and sourcing them from the installed package keeps the pin the single
+      source of identity, with no separate clone to drift
 modifies:
   - file: profiles/web/pnpm-workspace.yaml
     key: allowBuilds
@@ -38,8 +42,14 @@ steps:
     id: aidos
     name: "@xyzshantaram/aidos"
   - action: copy-tree
-    from: packages/aidos/skills
+    from: profiles/web/node_modules/aidos/skills
     to: skills/aidos
+    why: >
+      The skills come from the pinned package's own install, not a repo
+      directory and not a separate clone: the pin is the single source of
+      identity, and the installed package is exactly that commit. This step
+      must run after the pnpm-add step, and it fails loudly if the package
+      landed without its skills rather than silently installing nothing.
 detect:
   - action: package-installed
     name: "@xyzshantaram/aidos"

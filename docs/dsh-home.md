@@ -584,7 +584,7 @@ entire class of "I kept my notes in there".
 | 9 | `step_install_plugins` | ~30 pinned specs + local packages | `$DSH_HOME/profiles/web/node_modules/` + `package.json`, installed by `runtime/`'s dsh with `DSH_HOME` set, store in `$THURSDAY_HOME/cache/pnpm-store` | dsh, on Thursday's behalf |
 | 10 | `step_report_extra_plugins` | nothing written | becomes `thursday status` (I6) | — |
 | 11 | `step_install_aidos` | the pinned `aidos` package | `$DSH_HOME/profiles/web/node_modules/aidos/` (E5) | dsh |
-| 12 | `step_sync_aidos_skills` | aidos `skills/` at the pinned commit | clone into `$THURSDAY_HOME/cache/tmp/`, copy to `$DSH_HOME/skills/` | Thursday |
+| 12 | `step_sync_aidos_skills` | aidos `skills/` at the pinned commit | copied from the pinned package's own install at `$DSH_HOME/profiles/web/node_modules/aidos/skills/` — the package ships its skills, so the pin stays the single source of identity and no separate clone exists to drift | Thursday |
 | 13 | `step_patch_standard_preset_tool_subagent` | **edited the dsh package tree** | **eliminated** — `agentOptions` authored into `$DSH_HOME/.agent-presets/thursday/agent.cordis.yml` | Thursday |
 | 14 | `step_patch_standard_preset_tool_presentation` | **edited the dsh package tree** | **eliminated** — `tool-presentation` row authored into Thursday's preset | Thursday |
 | 15 | `step_disable_preset_builtin_tools` | **edited the dsh package tree** | **eliminated** — `tool-bash` and `tool-goal` are simply not rows in Thursday's presets | Thursday |

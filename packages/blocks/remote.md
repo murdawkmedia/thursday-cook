@@ -61,8 +61,10 @@ steps:
       override is assigned wholesale, not merged: a key left out is not
       inherited, it is deleted. secure is true because the proxy terminates
       TLS, so the cookie may carry Secure. debug registers a trace endpoint
-      that writes client trace lines to the server journal; keep it false
-      unless a remote-mode fault is being debugged.
+      that writes client trace lines to the server journal; it ships true in
+      this composition because dotfiles-ai ran remote mode that way, and the
+      value deserves revisiting — a remote install not being actively debugged
+      probably wants it false.
 detect:
   - action: package-installed
     name: "@xgone/dsh-remote"
@@ -83,17 +85,18 @@ override. It does not deep-merge. An override that supplies `config:` therefore
 replaces the plugin's entire `config:` block — so a config override that sets
 one field and omits the rest does not set one field, it deletes six.
 
-Two values here differ from the plugin's own defaults: `session.secure` and
-`debug`. Everything else in the block is the plugin's default, restated so it
-survives. The generator checks that restatement against the plugin's own patch
-file and refuses to write a composition that drops one.
+One value here differs from the plugin's own defaults: `session.secure` is
+hardened from `false` to `true`. Everything else in the block is the plugin's
+default, restated so it survives. The generator checks that restatement against
+the plugin's own patch file and refuses to write a composition that drops one.
 
 ## Two additions
 
 `debug` and `files` are not defaults at all: the plugin's patch has neither, so
 this composition adds them. The generated file says which of the two it is for
 every value, because "differs from the default" and "the plugin has no such
-default" fail in different ways when the plugin changes.
+default" fail in different ways when the plugin changes. Three deltas, then:
+one hardening, two additions.
 
 ## What to check when it goes wrong
 

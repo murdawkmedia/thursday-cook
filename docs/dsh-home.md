@@ -8,10 +8,11 @@ The central requirement, stated once and load-bearing everywhere below:
 
 > **Thursday must not read or write anything inside the user's own dsh
 > installation** — not `~/.dsh`, and not the dsh package tree. Today's
-> `sync.sh` fails this by design: three of its twenty steps edit the shipped
-> `standard` agent preset in place, and two more edit installed packages'
-> own files inside `node_modules` (`dsh-web-app`'s `cordis.patch.yml` and
-> `dsh-paste-to-path`'s `client.js`). Everything in this layout exists to
+> `sync.sh` fails this by design: four of its twenty steps edit the shipped
+> `standard` agent preset in place — one of those four also edits
+> `dsh-web-app`'s own `cordis.patch.yml` inside `node_modules` — and a fifth
+> edits `dsh-paste-to-path`'s `client.js`, also inside `node_modules`.
+> Everything in this layout exists to
 > make those five edits unnecessary or Thursday-internal rather than edits
 > to the user's tree.
 
@@ -256,7 +257,7 @@ is dsh's, everything beside it is Thursday's.
 
 Second, I7's criterion that a user file inside the home is named rather than
 silently deleted requires computing "unexpected path". That computation is
-tractable against four known top-level directories and intractable against a
+tractable against the five known top-level directories and intractable against a
 directory dsh is also writing into. The Thursday-owned top-level set is the
 five from Q7: `app/`, `runtime/`, `dsh/`, `state/`, `cache/`.
 

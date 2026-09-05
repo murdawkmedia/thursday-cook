@@ -51,8 +51,14 @@ dshConfig:
       registrars for one server name would register each tool twice.
 steps:
   - action: copy-tree
-    from: packages/plugins/host-plane
-    to: plugins
+    from: packages/plugins
+    to: plugins/host
+    why: >
+      The migration map gives each host plugin its own package directory under
+      packages/plugins; each one's built bundle merges into the flat
+      plugins/host directory dsh reads. Until that migration lands, this
+      source does not exist and the step cannot run — a forward declaration,
+      stated here so the gap is visible rather than discovered at install.
   - action: copy-tree
     from: guards
     to: plugins/guards

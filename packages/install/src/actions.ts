@@ -195,6 +195,77 @@ export const INSTALL_ACTIONS = {
     },
   }),
 
+  "write-file": defineAction({
+    name: "write-file",
+    kind: "install",
+    summary: "Write content to a file, creating parent directories if needed.",
+    idempotence:
+      "Compares current content byte-for-byte; file is untouched if content matches.",
+    honours: [],
+    shape: {
+      /** The file path, relative to the Thursday home. */
+      path: z.string().min(1),
+      /** The full content to write to the file. */
+      content: z.string().min(1),
+    },
+  }),
+
+  "pnpm-install": defineAction({
+    name: "pnpm-install",
+    kind: "install",
+    summary: "Run pnpm install with store-dir pointing to Thursday's cache.",
+    idempotence:
+      "pnpm converges on the locked dependencies; re-running produces the same node_modules.",
+    honours: [],
+    shape: {
+      /** Working directory for pnpm install, relative to Thursday home. */
+      cwd: z.string().min(1),
+      /** The pnpm store directory, relative to Thursday home. Defaults to cache/pnpm-store. */
+      storeDir: z.string().min(1).default("cache/pnpm-store"),
+    },
+  }),
+
+  /**
+   * Apply exact-string replacements to a file with full guards:
+   * - resolve the file, failing loudly if not found
+   * - realpath and refuse unless under $THURSDAY_HOME
+   * - break hardlinks before writing
+   * - store original before first write
+   * - apply guarded exact-string replacements
+   *
+   * This action exists because no simpler action can express "resolve + guard + patch + store-orig".
+   * It is used by the dsh-runtime block to apply A6's fs-sandbox exemption, and designed to
+   * handle any similar exact-string patching with structural guarantees.
+   */
+  "patch-file-exact": defineAction({
+    name: "patch-file-exact",
+    kind: "install",
+    summary:
+      "Apply exact-string replacements to a file with full guards (resolve, realpath, break links, orig-storage).",
+    idempotence:
+      "Idempotent via exact-string match: if both replacements are already present, the step is a no-op. If one match fails, the step fails loudly rather than applying a half-patch.",
+    honours: [],
+    shape: {
+      /** The file to patch, relative to Thursday home. Path resolution is exact: missing file fails loudly. */
+      target: z.string().min(1),
+      /** A storage key for the original file backup, e.g. 'dsh-sandbox'. Stored at state/<key>.orig. */
+      storageKey: z.string().min(1),
+      /**
+       * Array of {find, replace} replacements. Every find text must match exactly or the
+       * step fails. Order matters: replacements are applied in order, and a later replacement
+       * can depend on an earlier one. All replacements use literal string matching, not regex.
+       */
+      replacements: z.array(
+        z.object({
+          /** The exact text to find. Must appear exactly once or the step fails. */
+          find: z.string().min(1),
+          /** The text to replace it with. */
+          replace: z.string().min(1),
+        })
+      ).min(1),
+    },
+  }),
+
   run: defineAction({
     name: "run",
     kind: "install",
@@ -294,6 +365,20 @@ export const DETECT_ACTIONS = {
       key: z.string().min(1),
       /** The value it must already have. */
       value: z.unknown(),
+    },
+  }),
+
+  "file-contains": defineAction({
+    name: "file-contains",
+    kind: "detect",
+    summary: "A file exists and contains specific text.",
+    idempotence: "Read-only.",
+    honours: [],
+    shape: {
+      /** The file to check, relative to Thursday home. */
+      file: z.string().min(1),
+      /** The text that must appear in the file. */
+      text: z.string().min(1),
     },
   }),
 } as const;

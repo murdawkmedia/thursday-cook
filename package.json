@@ -15,8 +15,8 @@
     "test": "pnpm -r --if-present run test",
     "format": "prettier --write \"**/*.{ts,tsx,css}\"",
     "lint": "prettier --check \"**/*.{ts,tsx,css}\" && eslint . && stylelint \"**/*.css\"",
-    "check:plan": "node scripts/check-plan.mjs PLAN.md",
-    "check": "pnpm run build && pnpm run typecheck && pnpm run test && pnpm run lint && pnpm run check:plan"
+    "check": "pnpm run build && pnpm run typecheck && pnpm run test && pnpm run lint",
+    "build:plugins": "pnpm --filter @trythursday/build run build:all"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",

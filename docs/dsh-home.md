@@ -8,10 +8,12 @@ The central requirement, stated once and load-bearing everywhere below:
 
 > **Thursday must not read or write anything inside the user's own dsh
 > installation** — not `~/.dsh`, and not the dsh package tree. Today's
-> `sync.sh` fails this by design: three of its nineteen steps edit the shipped
-> `standard` agent preset in place, and a fourth edits `dsh-web-app`'s own
-> `cordis.patch.yml` inside `node_modules`. Everything in this layout exists to
-> make those four edits unnecessary rather than merely reversible.
+> `sync.sh` fails this by design: three of its twenty steps edit the shipped
+> `standard` agent preset in place, and two more edit installed packages'
+> own files inside `node_modules` (`dsh-web-app`'s `cordis.patch.yml` and
+> `dsh-paste-to-path`'s `client.js`). Everything in this layout exists to
+> make those five edits unnecessary or Thursday-internal rather than edits
+> to the user's tree.
 
 E6 proves it by checksumming the user's dsh home, the dsh package tree and the
 shell profile files before install and after uninstall, and requiring byte
@@ -255,7 +257,8 @@ is dsh's, everything beside it is Thursday's.
 Second, I7's criterion that a user file inside the home is named rather than
 silently deleted requires computing "unexpected path". That computation is
 tractable against four known top-level directories and intractable against a
-directory dsh is also writing into.
+directory dsh is also writing into. The Thursday-owned top-level set is the
+five from Q7: `app/`, `runtime/`, `dsh/`, `state/`, `cache/`.
 
 The cost is one extra level in every path, and `$DSH_HOME` no longer being the
 thing the user thinks of as "the Thursday home". Both are acceptable.
@@ -341,8 +344,9 @@ the override does not apply is a double-registered jobs UI, which is visible
 immediately.
 
 Thursday's presets are also, as a consequence, immune to the tripwire problem
-`sync.sh` documents four times: "a dsh reinstall that re-extracts the preset
-would silently revert this; rerun sync to restore". Nothing Thursday installs
+`sync.sh` returns to again and again wherever it patches an installed file:
+"a dsh reinstall that re-extracts the preset would silently revert this; rerun
+sync to restore". Nothing Thursday installs
 lives in a tree that a dsh reinstall rewrites, so
 `step_verify_preset_tool_disabled` has no successor. `thursday status` (I6)
 reports drift, but drift is now a hand edit rather than an expected consequence
@@ -585,9 +589,10 @@ entire class of "I kept my notes in there".
 | 14 | `step_patch_standard_preset_tool_presentation` | **edited the dsh package tree** | **eliminated** — `tool-presentation` row authored into Thursday's preset | Thursday |
 | 15 | `step_disable_preset_builtin_tools` | **edited the dsh package tree** | **eliminated** — `tool-bash` and `tool-goal` are simply not rows in Thursday's presets | Thursday |
 | 16 | `step_disable_replaced_jobs_rows` | **edited the dsh package tree**, incl. `dsh-web-app/cordis.patch.yml` | **eliminated** — `tool-jobs` absent from the preset; `ui-jobs` disabled by a top-level override row in `$DSH_HOME/profiles/web/cordis.patch.yml` | Thursday |
-| 17 | `step_register_aidos_preset` | `.agent-presets/aidos/` + `aidos-loader.js` + `preset.yml` | folded into `$DSH_HOME/.agent-presets/thursday/` (C2), with the loader shim beside it | Thursday |
-| 18 | `step_verify_preset_tool_disabled` | the tripwire | **no successor needed** — nothing Thursday installs is in a tree a dsh reinstall rewrites; I6 reports hand-edit drift instead | — |
-| 19 | `step_set_defaults` | `home/settings.yaml`, `profile.active` preserved | `$DSH_HOME/settings.yaml` (C5) | Thursday, except `profile.active` |
+| 17 | `step_relocate_attach_button` | **edited an installed package's file in place** — a regex rewrite of `dsh-paste-to-path/client.js`, moving the attach button from the `conversation.input.left` slot to `conversation.input.right` | **relocated, not eliminated** — the button placement is a real UX requirement, so the edit survives, but it now lands inside `$THURSDAY_HOME`'s own profile tree. The paste-to-path block owns it: a pinned fork whose client half needs a local modification is a hazard the block must carry, and the block's prose says so. It is a fifth in-place package edit in `sync.sh`, and the reason this table is twenty rows, not nineteen. | Thursday |
+| 18 | `step_register_aidos_preset` | `.agent-presets/aidos/` + `aidos-loader.js` + `preset.yml` | folded into `$DSH_HOME/.agent-presets/thursday/` (C2), with the loader shim beside it | Thursday |
+| 19 | `step_verify_preset_tool_disabled` | the tripwire | **no successor needed** — nothing Thursday installs is in a tree a dsh reinstall rewrites; I6 reports hand-edit drift instead | — |
+| 20 | `step_set_defaults` | `home/settings.yaml`, `profile.active` preserved | `$DSH_HOME/settings.yaml` (C5) | Thursday, except `profile.active` |
 
 Artifacts `sync.sh` touches outside its step table:
 
@@ -601,9 +606,11 @@ Artifacts `sync.sh` touches outside its step table:
 | launcher, desktop entry, icons | outside the home — the reversal surface (Q6) | Thursday |
 | the AI scratch directory and the tour workspace | outside the home — the user's (Q7) | user |
 
-Nineteen steps in, four out: the four that edited the user's dsh installation.
-Every one of them is replaced by authoring a file Thursday owns instead of
-patching a file it does not.
+Twenty steps in. Four are eliminated by authoring files Thursday owns
+instead of patching files it does not, and a fifth — the attach-button
+rewrite — is relocated from the user's tree into Thursday's own profile
+tree, where the paste-to-path block owns it explicitly. No step remains
+that edits anything outside `$THURSDAY_HOME`.
 
 ---
 

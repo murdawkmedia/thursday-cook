@@ -35,6 +35,18 @@ detect:
 Third-party, pinned to a full sha, never read. It writes files into the
 workspace on a paste, so it holds a write path triggered by ordinary UI input.
 
+## The pinned fork needs a local modification
+
+The stock client registers its paste picker in the `conversation.input.left`
+slot; dotfiles-ai's `sync.sh` regex-rewrites the installed `client.js` to move
+it to `conversation.input.right` (order -100). That edit survives in Thursday
+— the button placement is a real requirement — but it now patches this
+profile's own copy inside the Thursday home, so it belongs to this block, not
+to a shell step. The block must apply the same rewrite after `pnpm-add`, and
+`thursday status` must treat a client.js that still says
+`conversation.input.left` as drift. If the fork ever lands the placement
+upstream, drop the rewrite and record that here.
+
 ## Do not install dsh-paste-input alongside it
 
 This plugin supersedes `dsh-paste-input`, the earlier take on the same

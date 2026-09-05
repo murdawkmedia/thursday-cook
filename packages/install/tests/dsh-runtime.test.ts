@@ -37,9 +37,15 @@ describe("dsh-runtime block", () => {
       expect((writeFileStep as any).content).toContain('"@deepseek-ai/dsh": "0.1.0-rc.7"');
     });
 
-    it("uses the same version in the install prose", () => {
+    it("the installs prose points at the pin instead of restating it", () => {
+      // I10 wants the version in ONE place: the runtime/package.json write-file
+      // step. This assertion used to demand a SECOND copy of the literal here,
+      // in installs[0].from, which is the duplication the criterion forbids.
       const block = loadBlockFile(example("dsh-runtime.md"));
-      expect(block.frontmatter.installs[0].from).toContain("0.1.0-rc.7");
+      const from = block.frontmatter.installs[0].from ?? "";
+      expect(from).not.toContain("0.1.0-rc.7");
+      expect(from).toContain("@deepseek-ai/dsh");
+      expect(from).toContain("package.json");
     });
 
     it("version appears in exactly one place in steps (no duplication)", () => {
@@ -63,17 +69,34 @@ describe("dsh-runtime block", () => {
       expect(patch.replacements.length).toBeGreaterThan(0);
     });
 
+    it("no replacement's find is a substring of its replace (re-run is a no-op)", () => {
+      // B3: when `find` is contained in `replace`, the second run still sees a
+      // match and patches the already-patched text. Every replacement here must
+      // fail to match once it has been applied.
+      const block = loadBlockFile(example("dsh-runtime.md"));
+      const patchStep = block.frontmatter.steps.find((s) => s.action === "patch-file-exact") as any;
+      expect(patchStep.replacements.length).toBeGreaterThan(0);
+      for (const replacement of patchStep.replacements) {
+        expect(replacement.replace).not.toContain(replacement.find);
+      }
+    });
+
     it("includes the correct --wrapper in the fs-sandbox patch replacement", () => {
       const block = loadBlockFile(example("dsh-runtime.md"));
       const patchStep = block.frontmatter.steps.find((s) => s.action === "patch-file-exact") as any;
       const replacements = patchStep.replacements;
-      const alidosReplacement = replacements.find((r: any) =>
-        r.find.includes("/aidos/scratch/")
+      // The scratch root is what the patch ADDS, so it belongs to `replace`.
+      // Looking for it in `find` (as this assertion used to) only matched while
+      // the find was a substring of the replace — the exact non-idempotence the
+      // review caught, so searching `find` here would re-enshrine that bug.
+      const aidosReplacement = replacements.find((r: any) =>
+        r.replace.includes("/aidos/scratch/")
       );
-      expect(alidosReplacement).toBeDefined();
+      expect(aidosReplacement).toBeDefined();
+      expect(aidosReplacement.find).not.toContain("/aidos/scratch/");
       // The correct replacement includes --wrapper
-      expect(alidosReplacement.replace).toContain("--");
-      expect(alidosReplacement.replace).toContain("readable");
+      expect(aidosReplacement.replace).toContain("--");
+      expect(aidosReplacement.replace).toContain("readable");
     });
   });
 

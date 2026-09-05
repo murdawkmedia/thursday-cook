@@ -12,7 +12,7 @@ rationale: >
 dependsOn: []
 installs:
   - path: runtime/
-    from: "package.json at @deepseek-ai/dsh version 0.1.0-rc.7"
+    from: "@deepseek-ai/dsh, at the exact version pinned by the runtime/package.json write-file step below"
     what: >
       the pinned dsh runtime, a private pnpm install under $THURSDAY_HOME/runtime/
       with @deepseek-ai/dsh at an exact version. The launcher execs
@@ -46,18 +46,24 @@ steps:
     target: "runtime/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-sandbox/lib/index.js"
     storageKey: "dsh-sandbox"
     replacements:
-      - find: "import { homedir } from \"node:os\";"
-        replace: "import { homedir } from \"node:os\";\nimport { scratchRootForWorkspace } from './scratch-root.js';"
-      - find: "  return home + \"/aidos/scratch/\" + readable;"
-        replace: "  return home + \"/aidos/scratch/--\" + readable + \"--\";"
+      - find: "import { tmpdir } from \"node:os\";"
+        replace: "import { homedir, tmpdir } from \"node:os\";"
+      - find: "function writableRoots(policy) {\n\tif (policy.mode !== \"workspace-write\") return [];\n\treturn [...new Set([\n\t\tpolicy.workspaceRoot,\n\t\t\"/tmp\",\n\t\ttmpdir()\n\t].map(canonicalPath))];\n}"
+        replace: "function writableRoots(policy) {\n\tif (policy.mode !== \"workspace-write\") return [];\n\treturn [...new Set([\n\t\tpolicy.workspaceRoot,\n\t\t\"/tmp\",\n\t\ttmpdir(),\n\t\tscratchRootForWorkspace(policy.workspaceRoot)\n\t].map(canonicalPath))];\n}\n/**\n * The aidos durable scratch root for one workspace: the harness policy says\n * scratch writes are allowed in every phase, and the aidos write boundary\n * already exempts the root - the sandbox was the one layer missing it\n * (aidos ticket #60). The mangling mirrors workspaceKeyFromPath.\n */\nfunction scratchRootForWorkspace(workspaceRoot) {\n\tif (!workspaceRoot) return null;\n\tconst home = process.env.DSH_HOME || homedir() + \"/.dsh\";\n\tlet readable = \"\";\n\tlet previousWasSeparator = false;\n\tfor (const character of String(workspaceRoot)) {\n\t\tif (character === \"/\" || character === \"\\\\\" || character === \":\") {\n\t\t\tif (!previousWasSeparator) readable += \"-\";\n\t\t\tpreviousWasSeparator = true;\n\t\t\tcontinue;\n\t\t}\n\t\tpreviousWasSeparator = false;\n\t\tif (character !== \"~\" && /[A-Za-z0-9._-]/.test(character)) {\n\t\t\treadable += character;\n\t\t\tcontinue;\n\t\t}\n\t\treadable += \"~\" + character.codePointAt(0).toString(16).toUpperCase().padStart(4, \"0000\");\n\t}\n\treadable = readable.replace(/^-+/, \"\");\n\tif (readable === \"\") readable = \"root\";\n\treturn home + \"/aidos/scratch/--\" + readable + \"--\";\n}"
     why: >
       The fs-sandbox patch to allow writes to the aidos durable scratch root.
-      The replacement text includes the --wrapper that aidos's workspaceKeyFromPath produces.
+      Replacement 1 makes homedir available by adding it to the tmpdir import
+      (idempotent: the find is the old import without homedir). Replacement 2
+      extends writableRoots to include the aidos scratch root and inlines the
+      scratchRootForWorkspace helper that computes it, using the --wrapper
+      that aidos's workspaceKeyFromPath produces.
 detect:
   - action: path-exists
     path: runtime/package.json
+    base: home
   - action: path-exists
     path: runtime/node_modules/.bin/dsh
+    base: home
   - action: file-contains
     file: "runtime/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-sandbox/lib/index.js"
     text: "return home + \"/aidos/scratch/--\" + readable + \"--\";"
@@ -98,15 +104,15 @@ Q5 of `docs/dsh-home.md` records the full argument. Summarized:
 
 ## The version pin
 
-The version `0.1.0-rc.7` is pinned in exactly one place: `runtime/package.json`,
-as the dependency on `@deepseek-ai/dsh`. This is how the pin was determined
-(from the development machine at the time I10 was built):
+The version is pinned in exactly one place: `runtime/package.json` in the
+write-file step above, as the dependency on `@deepseek-ai/dsh`. This is how the
+pin was determined (from the development machine at the time I10 was built):
 
 ```
 cat /home/sid/.local/share/fnm/node-versions/v24.15.0/installation/lib/node_modules/@deepseek-ai/dsh/package.json | jq '.version'
 ```
 
-Result: `"0.1.0-rc.7"`
+Result: the version pinned in the package.json step (see line 32 above).
 
 Any other file that mentions this version is a violation of I10's single-source
 criterion and must be caught by a test.

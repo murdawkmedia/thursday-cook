@@ -15,11 +15,19 @@ import {
   type FilesystemAPI,
   type ExecutionPlan,
 } from "../src/install";
+import type { Step } from "../src/actions";
 import { parseBlock } from "../src/loader";
 
 /**
  * Create a memfs-based filesystem API for testing.
  * Uses `any` casting to work around memfs type incompatibilities with Node.js fs.
+ *
+ * Every member is bound to the real memfs implementation, never stubbed. The
+ * `patch-file-exact` guards are built out of `realpathSync` (symlink escape),
+ * `renameSync` (hardlink break) and `unlinkSync` (temp-file cleanup on a failed
+ * patch); a fake that answered those calls with a no-op would make the guard
+ * tests assert nothing. memfs implements all five against its in-memory volume,
+ * including symlink resolution, so the guards are exercised for real here.
  */
 function createMemfsAPI(): FilesystemAPI {
   const mfs = memfsFs as any;
@@ -28,6 +36,11 @@ function createMemfsAPI(): FilesystemAPI {
     readFileSync: mfs.readFileSync.bind(mfs),
     writeFileSync: mfs.writeFileSync.bind(mfs),
     mkdirSync: mfs.mkdirSync.bind(mfs),
+    realpathSync: mfs.realpathSync.bind(mfs),
+    renameSync: mfs.renameSync.bind(mfs),
+    unlinkSync: mfs.unlinkSync.bind(mfs),
+    readdirSync: mfs.readdirSync.bind(mfs),
+    statSync: mfs.statSync.bind(mfs),
     promises: {
       readFile: mfs.promises.readFile.bind(mfs.promises),
       writeFile: mfs.promises.writeFile.bind(mfs.promises),
@@ -126,7 +139,7 @@ describe("Detection with memfs fake filesystem", () => {
       fs.writeFileSync(filePath, "{}");
 
       const result = runDetectStep(
-        { action: "path-exists", path: "profiles/web/package.json" },
+        { action: "path-exists", path: "profiles/web/package.json", base: "dsh" },
         "/thursday/dsh",
         "/thursday",
         fs
@@ -136,7 +149,7 @@ describe("Detection with memfs fake filesystem", () => {
 
     it("path-exists: returns false when path does not exist", () => {
       const result = runDetectStep(
-        { action: "path-exists", path: "missing/file.txt" },
+        { action: "path-exists", path: "missing/file.txt", base: "dsh" },
         "/thursday/dsh",
         "/thursday",
         fs
@@ -335,6 +348,79 @@ test body
   });
 });
 
+describe("the memfs fake really implements what the guards call", () => {
+  let fs: FilesystemAPI;
+
+  beforeEach(() => {
+    vol.reset();
+    fs = createMemfsAPI();
+  });
+
+  /**
+   * `patch-file-exact` is built out of realpathSync (symlink escape),
+   * renameSync (hardlink break) and unlinkSync (temp cleanup). Stubbing those
+   * on the fake would make every guard test in this repo vacuous, so this case
+   * drives them through the real executor: it fails if any of the three is
+   * replaced by a no-op.
+   */
+  const patchStep = {
+    action: "patch-file-exact",
+    target: "runtime/lib/index.js",
+    storageKey: "demo",
+    base: "home",
+    replacements: [{ find: "const a = 1;", replace: "const a = 2;" }],
+  } as const;
+
+  const plannedPatch = {
+    blockId: "demo",
+    blockRationale: "demo",
+    index: 0,
+    step: patchStep as unknown as Step,
+    dryRun: false,
+  };
+
+  it("renameSync and realpathSync carry a real patch through", async () => {
+    fs.mkdirSync("/thursday/runtime/lib", { recursive: true });
+    fs.writeFileSync("/thursday/runtime/lib/index.js", "const a = 1;\n", "utf8");
+
+    const result = await executeInstall(
+      { steps: [plannedPatch], problems: [] },
+      "/thursday/dsh",
+      "/thursday",
+      { quiet: true, fs }
+    );
+
+    expect(result.problems).toEqual([]);
+    expect(result.steps[0].changed).toBe(true);
+    // renameSync moved the temp file over the target, and unlinkSync had
+    // nothing to clean up because the write succeeded
+    expect(fs.readFileSync("/thursday/runtime/lib/index.js", "utf8").toString()).toBe(
+      "const a = 2;\n"
+    );
+    expect(fs.existsSync("/thursday/runtime/lib/index.js.thursday-patch-tmp")).toBe(false);
+    expect(fs.readFileSync("/thursday/state/demo.orig", "utf8").toString()).toBe("const a = 1;\n");
+  });
+
+  it("realpathSync resolves a symlink, so the escape guard sees the real target", async () => {
+    fs.mkdirSync("/thursday/runtime/lib", { recursive: true });
+    fs.mkdirSync("/elsewhere", { recursive: true });
+    fs.writeFileSync("/elsewhere/index.js", "const a = 1;\n", "utf8");
+    (memfsFs as any).symlinkSync("/elsewhere/index.js", "/thursday/runtime/lib/index.js");
+
+    const result = await executeInstall(
+      { steps: [plannedPatch], problems: [] },
+      "/thursday/dsh",
+      "/thursday",
+      { quiet: true, fs }
+    );
+
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0].message).toMatch(/outside THURSDAY_HOME/);
+    // the file outside the home is untouched
+    expect(fs.readFileSync("/elsewhere/index.js", "utf8").toString()).toBe("const a = 1;\n");
+  });
+});
+
 describe("Dry-run produces same plan as real run", () => {
   let fs: FilesystemAPI;
 
@@ -344,7 +430,7 @@ describe("Dry-run produces same plan as real run", () => {
     fs.mkdirSync("/thursday/dsh", { recursive: true });
   });
 
-  it("dry-run plan matches real run plan", async () => {
+  it("dry-run reports same changed/output as apply", async () => {
     const block = parseBlock(`---
 id: test-block
 version: 1
@@ -355,29 +441,100 @@ steps:
     key: profile.active
     value: web
 detect:
-  - action: path-exists
-    path: settings.yaml
+  - action: settings-key-equals
+    file: settings.yaml
+    key: profile.active
+    value: web
 ---
 test body
 `);
 
     const plan = planInstall([block], "/thursday/dsh", "/thursday", fs);
+    expect(plan.steps.length).toBeGreaterThan(0);
 
     const dryRunResult = await executeInstall(plan, "/thursday/dsh", "/thursday", {
       dryRun: true,
       quiet: true,
       fs,
     });
-    const dryRunSteps = dryRunResult.steps.length;
+
+    // A dry run must not have written anything, so the file it would create is
+    // still absent. Reading it here (as an earlier revision of this test did)
+    // only passed while dry-run wrote for real.
+    expect(fs.existsSync("/thursday/dsh/settings.yaml")).toBe(false);
 
     const realRunResult = await executeInstall(plan, "/thursday/dsh", "/thursday", {
       dryRun: false,
       quiet: true,
       fs,
     });
-    const realRunSteps = realRunResult.steps.length;
 
-    expect(dryRunSteps).toBe(realRunSteps);
+    // Verify same number of steps
+    expect(dryRunResult.steps.length).toBe(realRunResult.steps.length);
+
+    // Verify same changed flags
+    for (let i = 0; i < dryRunResult.steps.length; i++) {
+      expect(dryRunResult.steps[i].changed).toBe(realRunResult.steps[i].changed);
+      // Output should be identical between dry-run and apply
+      expect(dryRunResult.steps[i].output).toBe(realRunResult.steps[i].output);
+    }
+
+    // Verify anyChanged matches
+    expect(dryRunResult.anyChanged).toBe(realRunResult.anyChanged);
+  });
+
+  it("dry-run leaves filesystem unchanged", async () => {
+    const block = parseBlock(`---
+id: test-block
+version: 1
+rationale: test block
+steps:
+  - action: write-file
+    path: newfile.txt
+    content: "brand new content"
+detect:
+  - action: path-exists
+    path: newfile.txt
+---
+test body
+`);
+
+    const plan = planInstall([block], "/thursday/dsh", "/thursday", fs);
+    expect(plan.steps.length).toBeGreaterThan(0);
+
+    // `write-file` resolves `path` against `base`, which defaults to "home" —
+    // the Thursday home, not the dsh home under it. So this step's target is
+    // /thursday/newfile.txt. Asserting the dsh-home path instead would make the
+    // test pass for the wrong reason once and fail the moment the write works.
+    const target = "/thursday/newfile.txt";
+
+    // Verify file doesn't exist before dry run
+    expect(fs.existsSync(target)).toBe(false);
+
+    // Run dry run
+    const dryRunResult = await executeInstall(plan, "/thursday/dsh", "/thursday", {
+      dryRun: true,
+      quiet: true,
+      fs,
+    });
+    expect(dryRunResult.anyChanged).toBe(true);
+
+    // Verify file still doesn't exist after dry run
+    expect(fs.existsSync(target)).toBe(false);
+
+    // Now run for real
+    const realResult = await executeInstall(plan, "/thursday/dsh", "/thursday", {
+      dryRun: false,
+      quiet: true,
+      fs,
+    });
+    expect(realResult.anyChanged).toBe(true);
+
+    // Now file should exist, with the content the step asked for
+    expect(fs.existsSync(target)).toBe(true);
+    expect(fs.readFileSync(target, "utf8").toString()).toBe("brand new content");
+    // ...and nothing was written under the dsh home, which is a different root
+    expect(fs.existsSync("/thursday/dsh/newfile.txt")).toBe(false);
   });
 
   it("third run after real run produces no changes", async () => {

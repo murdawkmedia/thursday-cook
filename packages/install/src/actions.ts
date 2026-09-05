@@ -4,6 +4,23 @@ import { constraintNameSchema, type ConstraintName } from "./constraints";
 import type { BlockProblem } from "./errors";
 
 /**
+ * Where an action resolves its relative paths from.
+ *
+ * `home` is `$THURSDAY_HOME` itself; `dsh` is `$THURSDAY_HOME/dsh`, the dsh
+ * home the launcher exports as `DSH_HOME`. Both roots exist and neither is a
+ * safe default for every action: the dsh composition, its profiles and its
+ * settings live under `dsh/`, while the pinned runtime (`runtime/`) and
+ * Thursday's own state (`state/`) are siblings of it. Each action below
+ * therefore states its own default in the field's doc comment rather than
+ * inheriting one global answer, and a block that wants the other root says so
+ * in one word.
+ */
+export const pathBaseSchema = z.enum(["home", "dsh"]);
+
+/** Where an action's relative paths are resolved from. */
+export type PathBase = z.infer<typeof pathBaseSchema>;
+
+/**
  * Keys every step may carry, whatever its action.
  *
  * `constraint` attaches one named constraint to this step, and `why` records
@@ -203,10 +220,16 @@ export const INSTALL_ACTIONS = {
       "Compares current content byte-for-byte; file is untouched if content matches.",
     honours: [],
     shape: {
-      /** The file path, relative to the Thursday home. */
+      /** The file path, relative to `base`. */
       path: z.string().min(1),
       /** The full content to write to the file. */
       content: z.string().min(1),
+      /**
+       * Which root `path` is relative to. Defaults to the Thursday home,
+       * because the files this action writes — `runtime/package.json` above
+       * all — are siblings of the dsh home rather than members of it.
+       */
+      base: pathBaseSchema.default("home"),
     },
   }),
 
@@ -215,27 +238,40 @@ export const INSTALL_ACTIONS = {
     kind: "install",
     summary: "Run pnpm install with store-dir pointing to Thursday's cache.",
     idempotence:
-      "pnpm converges on the locked dependencies; re-running produces the same node_modules.",
+      "Decided by the presence of `node_modules` in the working directory: an install that already has one is reported as unchanged and pnpm is not run. The same signal is read by a dry run, so a dry run and an apply agree.",
     honours: [],
     shape: {
-      /** Working directory for pnpm install, relative to Thursday home. */
+      /** Working directory for pnpm install, relative to `base`. */
       cwd: z.string().min(1),
-      /** The pnpm store directory, relative to Thursday home. Defaults to cache/pnpm-store. */
+      /** The pnpm store directory, relative to the Thursday home. Defaults to cache/pnpm-store. */
       storeDir: z.string().min(1).default("cache/pnpm-store"),
+      /** Which root `cwd` is relative to. Defaults to the Thursday home. */
+      base: pathBaseSchema.default("home"),
     },
   }),
 
   /**
-   * Apply exact-string replacements to a file with full guards:
-   * - resolve the file, failing loudly if not found
-   * - realpath and refuse unless under $THURSDAY_HOME
-   * - break hardlinks before writing
-   * - store original before first write
-   * - apply guarded exact-string replacements
+   * Apply exact-string replacements to a file with full guards. Every item on
+   * this list is implemented by `executeStep`'s `patch-file-exact` case in
+   * `install.ts`, and each has a test in `tests/patch-file-exact.test.ts` that
+   * fails when the guard is removed:
    *
-   * This action exists because no simpler action can express "resolve + guard + patch + store-orig".
-   * It is used by the dsh-runtime block to apply A6's fs-sandbox exemption, and designed to
-   * handle any similar exact-string patching with structural guarantees.
+   * 1. resolve the target and fail loudly when it is absent — a missing file
+   *    means the install that was supposed to create it did not finish, and
+   *    "nothing to patch, exit 0" is the aidos-script defect `docs/fs-sandbox.md`
+   *    tells Thursday not to inherit;
+   * 2. `realpath` the resolved file and refuse unless the result is under
+   *    `$THURSDAY_HOME` — the guard that stops a symlink planted in the runtime
+   *    tree from redirecting a patch onto an arbitrary file;
+   * 3. break hardlinks before writing (write a temp file beside the target and
+   *    rename it over), so patching Thursday's copy cannot mutate a file another
+   *    install shares through a hardlinked pnpm store;
+   * 4. store the original once, before the first write, at `state/<storageKey>.orig`,
+   *    and never overwrite an existing one on a later run.
+   *
+   * This action exists because no simpler action can express "resolve + guard +
+   * patch + store-orig". The dsh-runtime block uses it for A6's fs-sandbox
+   * exemption, and it is designed for any similar exact-string patching.
    */
   "patch-file-exact": defineAction({
     name: "patch-file-exact",
@@ -243,26 +279,39 @@ export const INSTALL_ACTIONS = {
     summary:
       "Apply exact-string replacements to a file with full guards (resolve, realpath, break links, orig-storage).",
     idempotence:
-      "Idempotent via exact-string match: if both replacements are already present, the step is a no-op. If one match fails, the step fails loudly rather than applying a half-patch.",
+      "Idempotent via exact-string match: a replacement whose `replace` text is already present is counted as applied and skipped, so a second run writes nothing. Every remaining replacement must match its `find` exactly once; if any one does not, the step fails having written nothing at all, rather than leaving a half-patched file.",
     honours: [],
     shape: {
-      /** The file to patch, relative to Thursday home. Path resolution is exact: missing file fails loudly. */
+      /** The file to patch, relative to `base`. Resolution is exact: a missing file fails loudly. */
       target: z.string().min(1),
-      /** A storage key for the original file backup, e.g. 'dsh-sandbox'. Stored at state/<key>.orig. */
+      /** A storage key for the original file backup, e.g. 'dsh-sandbox'. Stored at `state/<key>.orig` under the Thursday home. */
       storageKey: z.string().min(1),
       /**
-       * Array of {find, replace} replacements. Every find text must match exactly or the
-       * step fails. Order matters: replacements are applied in order, and a later replacement
-       * can depend on an earlier one. All replacements use literal string matching, not regex.
+       * Array of {find, replace} replacements. Every replacement must either
+       * already be applied or match its `find` exactly once; anything else
+       * fails the step before a single byte is written. Order matters: they are
+       * applied in order and a later one may depend on an earlier one. Matching
+       * is literal string matching, never regex.
+       *
+       * Write `find` so that it cannot survive its own replacement — a `find`
+       * that is a substring of its `replace` re-matches for ever, which is how
+       * a patch step ends up appending its own text on every run.
        */
       replacements: z.array(
         z.object({
-          /** The exact text to find. Must appear exactly once or the step fails. */
+          /** The exact text to find. Must appear exactly once, or already be replaced. */
           find: z.string().min(1),
-          /** The text to replace it with. */
+          /** The text to replace it with. Its presence is what marks the replacement as applied. */
           replace: z.string().min(1),
         })
       ).min(1),
+      /**
+       * Which root `target` is relative to. Defaults to the Thursday home: the
+       * file this action was written for lives under `runtime/`, outside the
+       * dsh home. `state/<storageKey>.orig` is always under the Thursday home,
+       * whatever `base` says, because the backup is Thursday's own bookkeeping.
+       */
+      base: pathBaseSchema.default("home"),
     },
   }),
 
@@ -330,8 +379,16 @@ export const DETECT_ACTIONS = {
     idempotence: "Read-only.",
     honours: [],
     shape: {
-      /** The path, relative to the Thursday home. */
+      /** The path, relative to `base`. */
       path: z.string().min(1),
+      /**
+       * Which root `path` is relative to. Defaults to the dsh home, because
+       * every path this predicate was written against — `skills`,
+       * `plugins/bash-guard.js`, `skills/aidos` — is a path some `copy-tree`
+       * or `patch-row` step wrote under `dsh/`. A block checking for something
+       * outside it, such as `runtime/`, sets `base: home`.
+       */
+      base: pathBaseSchema.default("dsh"),
     },
   }),
 
@@ -375,10 +432,15 @@ export const DETECT_ACTIONS = {
     idempotence: "Read-only.",
     honours: [],
     shape: {
-      /** The file to check, relative to Thursday home. */
+      /** The file to check, relative to `base`. */
       file: z.string().min(1),
-      /** The text that must appear in the file. */
+      /** The text that must appear in the file. Literal, never a regex. */
       text: z.string().min(1),
+      /**
+       * Which root `file` is relative to. Defaults to the Thursday home, to
+       * match the actions that write the files this predicate checks.
+       */
+      base: pathBaseSchema.default("home"),
     },
   }),
 } as const;

@@ -282,7 +282,9 @@ install must work on a stranger's machine, and the author must be able to
 dogfood it. Moved: green item 10 added, green item 12 (the demo) deleted.
 
 **The demo.** Out. Moved: E8, DM1-DM4, W4 and RM1 to Not in v0.1.0; RM2 kept for
-a different reason.
+a different reason. SUPERSEDED IN PART later the same day: E8 came back into
+scope as V9's container image, though the demo itself stays cut. See the
+Platform line above.
 
 **First run.** The full wizard and tour, not a reduced version. Moved: E1, E2,
 E3 and E4 all stay, and they are the largest unstarted block in the release.

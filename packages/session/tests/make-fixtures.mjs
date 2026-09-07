@@ -51,6 +51,8 @@ function encodeFrames(lines, perFrame = 8) {
  */
 export async function makeFixtures(source, outDir) {
   fs.mkdirSync(outDir, { recursive: true });
+  const { loadSessionModel } = await import("../src/runtime.mjs");
+  const model = await loadSessionModel();
   const art = await readArtifact(source);
   const lines = art.plaintext.split("\n").filter((l) => l.length > 0);
   const made = [];
@@ -118,6 +120,48 @@ export async function makeFixtures(source, outDir) {
       badLine: badIndex + 1,
       goodRecords: lines.length - 1,
     });
+  }
+
+  // --- 3b. unparsable CHUNK ROW: cut a record that holds MANY events.
+  //
+  // Why this fixture exists, and it is not a variation for its own sake. dsh
+  // packs text-chunks, reasoning-chunks and tool-call-chunks rows, so ONE
+  // storage line can expand to many events. When such a line is unreadable, the
+  // hole it leaves is that many seqs wide, and a repair that substitutes a
+  // single record leaves a gap dsh refuses.
+  //
+  // Fixture 3 above cannot catch that: the line it corrupts happens to hold
+  // exactly one event, so forcing the substitute width to a constant 1 leaves
+  // the whole suite green. An independent review found precisely that by
+  // mutation, and the commit that introduced the width calculation claimed it
+  // was proven when it was not. This fixture is the proof.
+  {
+    let multiIndex = -1;
+    let multiCount = 0;
+    for (let i = 1; i < lines.length; i += 1) {
+      try {
+        const n = model.decodeStorageRecord(JSON.parse(lines[i])).length;
+        if (n > multiCount) {
+          multiCount = n;
+          multiIndex = i;
+        }
+      } catch {
+        // not parseable; skip
+      }
+    }
+
+    if (multiIndex > 0 && multiCount > 1) {
+      const copy = [...lines];
+      copy[multiIndex] = copy[multiIndex].slice(0, Math.floor(copy[multiIndex].length / 2));
+      write("unparsable-chunk-row", encodeFrames(copy), {
+        defect: "unparsable-line",
+        expectCodes: ["unparsable-line", "seq-gap"],
+        badLine: multiIndex + 1,
+        eventsInBadLine: multiCount,
+        goodRecords: lines.length - 1,
+        why: "the corrupted line holds " + multiCount + " events, so the substitute must be that wide",
+      });
+    }
   }
 
   // --- 4. torn-frame: truncate the container inside its last frame.

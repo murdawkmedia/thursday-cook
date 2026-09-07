@@ -195,7 +195,7 @@ log("## 5. repair writes a COPY, keeps the original, and preserves good data");
   // seq-gap is deliberately absent from this loop. Its repair is REFUSED, so no
   // repaired file exists that dsh could open, and asserting otherwise asserts
   // something the design forbids. Its real contract is checked below.
-  for (const name of ["duplicate-seq", "unparsable-line", "torn-frame", "open-turn"]) {
+  for (const name of ["duplicate-seq", "unparsable-line", "unparsable-chunk-row", "torn-frame", "open-turn"]) {
     const d = diagnosed.get(name);
     if (!d) continue;
     const src = made.find((m) => m.name === name).file;

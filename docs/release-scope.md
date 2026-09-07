@@ -15,7 +15,8 @@ passes. Each is pass or fail, with no judgement call.
 
 1. On a machine with no dsh and no Thursday, one public command installs
    Thursday.
-2. The wizard finishes with a free provider and no paid account.
+2. The wizard finishes with no paid account, by either of two zero-setup paths:
+   a free provider, or an existing Claude subscription reached through meridian.
 3. `thursday` with no arguments prints help, and `thursday serve` starts the
    server and opens a session in the Thursday preset.
 4. The Quick preset is offered in the app's preset picker and a session opens in
@@ -70,10 +71,10 @@ First run: E1, E2, E3, E4, E6.
 Plugins: P5.
 Website: W1, W3, WS1, WS2, WS4, WS5, PUB.
 Look: B1, B2, TH1, TH2, TH3, TH4.
-Dogfooding: RM2, N8.
+Dogfooding: RM2, N8, TH10.
 Process: REL1, REL2.
 
-That is 48 tickets. PUB is new on 2026-09-07: publishing the repository is a
+That is 49 tickets. PUB is new on 2026-09-07: publishing the repository is a
 release task with an owner, because green items 1 and 9 are unsatisfiable while
 the repository is private.
 
@@ -81,6 +82,15 @@ A10 stays in scope on the user's call and is the user's own work, upstream in
 aidos rather than on a Thursday front. It moves the board off dsh session
 projections onto an append-only SQLite store; the board outliving its session is
 the difference between a demo and a tool.
+
+TH10 is in scope on the user's call of 2026-09-07, and the reason is
+onboarding rather than repair. Colleagues who already pay for Claude reach it
+through meridian, so meridian is the path by which someone else's machine runs
+Thursday with no setup at all -- no key to obtain, no account to create. That
+makes a meridian fault a first-run failure for the people most likely to try
+this, and the backlog fault is one those users cannot diagnose or recover from
+on their own. A provider Thursday recommends is a provider whose known failure
+Thursday must handle.
 
 RM2 stays in scope for a changed reason. With the demo cut it is no longer about
 public exposure; it is about the filesystem-sandbox faults that bite the author
@@ -90,7 +100,7 @@ in real remote sessions, and item 10 makes those faults a release concern.
 
 Everything else on the board: A1-A5, A7-A9, B3, B4, DM1-DM5, DOC1-DOC4, E8, E9,
 G1, I3, I5, I6, I9, I13, I14, I15, MP1, MP2, N1-N7, P1-P4, P6, P7, P8, RM1, RM3,
-S1, S2, S3, T1, T2, T3, TH5, TH6, TH7, TH8, TH9, TH10, TH11, V1-V8, W2, W4,
+S1, S2, S3, T1, T2, T3, TH5, TH6, TH7, TH8, TH9, TH11, V1-V8, W2, W4,
 WK1-WK6, X1-X4.
 
 SEC1, PR1-PR9, AL1-AL4 and AN1-AN4 are also out. They come from the
@@ -127,8 +137,8 @@ most of the context in the planning phase. They are cut anyway, because
 retooling the workshop during the build is how a deadline is missed. Do them
 first after v0.1.0.
 
-TH10 and TH11 are cut but already built: TH11 landed, and TH10 ships when its
-front closes. A cut ticket that is finished is not a scope change either.
+TH11 is cut but already built and landed. A cut ticket that is finished is not
+a scope change either.
 
 **N8 ships with a defect open against it.** Its package is committed on `main`
 today, and it writes session artifacts dsh cannot open
@@ -162,7 +172,7 @@ bottleneck.
 
 ## The risk, and the cut order
 
-The arithmetic on 2026-09-07: of 48 in-scope tickets, about 19 are landed or
+The arithmetic on 2026-09-07: of 49 in-scope tickets, about 19 are landed or
 waiting on verification and about 28 are unstarted, against three days. Six
 fronts landing one ticket each per day is 18. The gap is real, so the cut order
 is stated in advance rather than improvised on Wednesday night.

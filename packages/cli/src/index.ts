@@ -115,12 +115,35 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  const home = resolveThursdayHome();
-  const validationError = validateThursdayHome(home);
-  
-  if (validationError) {
-    process.stderr.write(`${validationError}\n`);
+  // Dispatch decides BEFORE the home is validated, for two reasons that are both
+  // criteria of this ticket.
+  //
+  // `install` must not require the Thursday home: it is the command that creates
+  // it, and on a machine with no Thursday the earlier ordering answered
+  // `thursday install` with "run 'thursday install' first". That is circular, and
+  // it is the first command a new user runs -- green item 1 is an install on a
+  // machine that has never had Thursday.
+  //
+  // An unknown command must reach the default branch and print help. Validating
+  // first made that branch unreachable on exactly the machines where a typo is
+  // most likely.
+  const KNOWN_COMMANDS = new Set(['serve', 'session', 'install', 'uninstall', 'status', 'update']);
+  const COMMANDS_NEEDING_HOME = new Set(['serve', 'session', 'uninstall', 'status', 'update']);
+
+  if (!KNOWN_COMMANDS.has(command)) {
+    process.stderr.write(`Error: unknown command '${command}'\n\n`);
+    printHelp();
     process.exit(1);
+  }
+
+  const home = resolveThursdayHome();
+
+  if (COMMANDS_NEEDING_HOME.has(command)) {
+    const validationError = validateThursdayHome(home);
+    if (validationError) {
+      process.stderr.write(`${validationError}\n`);
+      process.exit(1);
+    }
   }
 
   switch (command) {

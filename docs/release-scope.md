@@ -3,7 +3,50 @@
 REL1. This document is the cut. A ticket is in v0.1.0 or it is not, and every
 ticket on the board is on exactly one of the two lists below.
 
-The release date is **Thursday 2026-09-10**, set on 2026-09-07. Every earlier
+The release date is **Thursday 2026-09-10**, set on 2026-09-07.
+
+## Who it is for
+
+Stated on 2026-09-07, and it changes how several items below should be read.
+
+v0.1.0 goes to COWORKERS AND FRIENDS. It is not a Hacker News launch; that comes
+later, when the harness is more proven and much more polished. This release
+exists to get people excited about what Thursday does and what is coming, and to
+collect feedback and data from people who will actually tell you what happened.
+
+Two consequences, and both cut against instincts the rest of this document
+already encodes.
+
+FIRST, THE SPECTACLE IS PART OF THE PRODUCT, not decoration to be cut when time
+runs short. The skin, the mark, the thinking phrases and the tour's second
+chapter are what make a colleague say "what is that". A release that installs
+cleanly and looks like stock dsh has failed at its actual purpose, even with
+every green item passing.
+
+SECOND, COLLECTING FEEDBACK IS A GOAL, and a goal needs a mechanism. Nothing in
+the cut currently provides one: there is no route by which a friend who hits a
+bug or loves a feature tells you so. That gap is named here rather than assumed
+away.
+
+What does NOT change: the install must work on someone else's machine, and it
+must not disturb an existing dsh. A release that breaks a colleague's setup
+collects a different kind of feedback.
+
+## The quality bar
+
+Stated 2026-09-07, and it is a bar rather than an aspiration: v0.1.0 is already
+polished and easy to use, and setting it up feels good rather than like homework.
+
+The benchmark is concrete. AIDOS on its own took thirty minutes to explain to a
+person. Using the harness must not feel like that. The tour introduces each
+concept at the moment it becomes necessary rather than lecturing first, and a
+user who finishes it is fully equipped to use aidos on their own work without
+anyone explaining anything further.
+
+That reframes the tour from a demonstration into the thing that replaces the
+thirty-minute conversation. It also raises what "allowed to be ugly" below can
+mean: terse error messages are acceptable, an onboarding that leaves the user
+needing a phone call is not. Every earlier
 "weekend" or "before Monday" reference in the plan predates that reset. The cut
 below was resolved with the user by grill on 2026-09-07; the rulings and their
 consequences are recorded at the end of this document.

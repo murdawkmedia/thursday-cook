@@ -129,12 +129,12 @@ Composition: C1, C2, C3, C4, C5, C6, A10.
 Platform: V9, E8.
 First run: E1, E2, E3, E4, E6.
 Plugins: P5.
-Website: W1, W3, WS1, WS2, WS4, WS5, PUB.
+Website: WS1, WS2, WS4, WS5, PUB.
 Look: B1, B2, TH1, TH2, TH3, TH4.
 Dogfooding: RM2, N8, TH10.
 Process: REL1, REL2, M3.
 
-That is 51 tickets. PUB is new on 2026-09-07: publishing the repository is a
+That is 49 tickets. PUB is new on 2026-09-07: publishing the repository is a
 release task with an owner, because green items 1 and 9 are unsatisfiable while
 the repository is private.
 
@@ -167,16 +167,24 @@ binding constraint is unchanged — the first-run chain — and V9 does not sit 
 it, so this is not automatically fatal. But three days did not get longer. If
 the cut order has to be used, it will be used sooner.
 
-RM2 stays in scope for a changed reason. With the demo cut it is no longer about
-public exposure; it is about the filesystem-sandbox faults that bite the author
-in real remote sessions, and item 10 makes those faults a release concern.
+RM2 stays in scope, and its reason changed again on 2026-09-07. It is no longer
+about public exposure, nor mainly about the faults that bite the author: the
+`dsh-remote` FILE VIEWER is a candidate for the tour. If a colleague is going to
+be shown it during onboarding, odd filesystem behaviour stops being an
+inconvenience someone works around and becomes a defect in front of exactly the
+audience this release is for. That is why RM2 survived a cut that took W1 and W3.
+
+Its scope may move, though. The fork has changed since the faults were reported,
+so the work begins by establishing what it does NOW rather than by reproducing a
+stale list. If the faults are gone, that is a fast and welcome finding.
 
 ## Not in v0.1.0
 
 Everything else on the board: A1-A5, A7-A9, A11, B3, B4, DM1-DM5, DOC1-DOC4, E9,
 G1, G2, I3, I5, I6, I9, I13, I14, I15, M1, M2, M4, MP1, MP2, N1-N7, N9, N10, N11,
-N12, P1-P4, P6, P7, P8, RM1, RM3, S1, S2, S3, S4, S5, S6, T1, T2, T3, TH5, TH6,
-TH7, TH8, TH9, TH11, TH13, TH14, TH15, V1-V8, W2, W4, WK1-WK6, X1-X4.
+N12, P1-P4, P6, P7, P8, RM1, RM3, S1, S2, S3, S4, S5, S6, T1, T2, T3, T4, TH5, TH6,
+TH7, TH8, TH9, TH11, TH13, TH14, TH15, V1-V8, W1, W2, W3, W4, W6, WK1-WK6,
+X1-X4.
 
 Fourteen of those were written on 2026-09-07 and are listed here the day they
 were created, because the alternative is what an independent review caught twice
@@ -252,7 +260,7 @@ Six fronts carry the rest, and they share nothing that forces a wait:
 | first run | E1, E2, E3, E4, then E6 |
 | look | TH1, TH2, TH3, TH4 |
 | composition | C2, C3, C6 |
-| website | WS4, WS5, W1, W3, PUB |
+| website | WS4, WS5, PUB |
 | install finish | I11, E5, E7, A6 |
 | session tooling | the N8 defect, then N8's remaining verification |
 | process | REL2, and the meridian breaker already in flight |
@@ -267,8 +275,8 @@ tickets belong to no front:
 
 - Landed or awaiting verification, needing only the author's check: R1, R2, R5,
   D1, C1, C4, C5, I1, I2, I4, I7, I8, I10, I12, B1, B2, WS1, WS2, TH10, N8.
-- In scope, unstarted, and held by nobody: R3, R4, P5, I11, E5, E7, A6, W1,
-  W3, WS4, WS5, PUB, RM2, REL1, REL2, M3, E8.
+- In scope, unstarted, and held by nobody: R3, R4, P5, I11, E5, E7, A6,
+  WS4, WS5, PUB, RM2, REL1, REL2, M3.
 - In scope and just opened: V9, the container path for macOS and Windows.
 
 The second list is the honest measure of what is left, and every item on it
@@ -276,7 +284,7 @@ either finds a front, gets cut, or moves the date.
 
 ## The risk, and the cut order
 
-The arithmetic on 2026-09-07: of 51 in-scope tickets, about 20 are landed or
+The arithmetic on 2026-09-07: of 49 in-scope tickets, about 20 are landed or
 waiting on verification and about 16 are unstarted and held by nobody, against
 three days. Six fronts landing one ticket each per day is 18, which looks
 sufficient and is not, because the first-run chain cannot parallelise with
@@ -310,8 +318,12 @@ Cut in this order, one at a time, and only when a day ends behind:
 3. E3's first-boot behaviour. The launcher opens the tour workspace by setting
    its working directory, which is one line; if even that slips, the tour is
    reached by typing `/teach-me-thursday` and E3 becomes documentation.
-4. W3 and PUB automation: deploy the site and publish the repository by hand.
-   The green items care that the command works, not that a wizard ran it.
+4. ~~W1 and W3.~~ ALREADY CUT on 2026-09-07 to make room for the tutorial
+   plugin. The Cloudflare setup and the first deploy are done BY HAND. Note what
+   this does not cut: the site still has to be deployed, because green item 9
+   requires the install command on trythursday.org to be the one that was
+   tested. Cutting the deploy WIZARD is not cutting the deploy, and PUB carries
+   the manual step.
 5. TH3, the thinking phrases, and then the rest of the skin.
 6. Last: the tour down to the wizard alone. If it goes, the release is an
    installer and a landing page, which is still a release.

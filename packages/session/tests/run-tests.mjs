@@ -1,3 +1,4 @@
+import zlib from "node:zlib";
 /**
  * The whole proof, in one command.
  *
@@ -204,6 +205,11 @@ log("## 5. repair writes a COPY, keeps the original, and preserves good data");
     check(`${name}: original untouched by the repair`, before === after);
     check(`${name}: every surviving record is byte-identical`, v.allGoodDataSurvived,
       `${v.byteIdenticalSurvivors}/${v.expectedSurvivors} survivors, ${v.droppedRecords} dropped, ${v.appendedRecords} appended`);
+    // TEST A (D1/D2b/c): writer framing + dsh can open the repaired file
+    check(`${name}: repaired file physical framing is valid`, v.framingOk,
+      `framing: ${v.framingOk}, dsh can open: ${v.dshCanOpen}`);
+    check(`${name}: dsh's own loader can open the repaired file`, v.dshCanOpen,
+      `problems: [${v.problems.filter((p) => p.startsWith("dsh:")).slice(0, 1).join(", ")}]`);
   }
 
   // seq-gap must be REFUSED, not silently "fixed".
@@ -249,6 +255,51 @@ log("## 5. repair writes a COPY, keeps the original, and preserves good data");
   check("an undo command is provided", typeof promoted.undo === "string" && promoted.undo.startsWith("mv "));
 }
 log("");
+
+// ---------------------------------------------------------------------------
+log("## 6. diagnose detects the header-frame defect; verifyRepair reports framing");
+{
+  // TEST B (D2a): diagnose must report "header-frame-not-lone" on old-writer framing.
+  // Build an old-writer file inline (header + 7 records in frame 0).
+  const oldWriterEncode = (lines) => {
+    const frames = [];
+    for (let i = 0; i < lines.length; i += 8) {
+      const chunk = lines.slice(i, i + 8).map((l) => l + "\n").join("");
+      frames.push(zlib.zstdCompressSync(Buffer.from(chunk, "utf8")));
+    }
+    return Buffer.concat(frames);
+  };
+  
+  // Use real session lines and re-encode with old-writer framing
+  const badFramedFile = path.join(outDir, "bad-framing.jsonl.zstd");
+  const realSource = await openSessionFile(source, model);
+  const realLines = realSource.artifacts?.plaintext?.split("\n").filter((l) => l.length > 0) ||
+                    diagnosed.get("pristine")?.opened?.artifact?.plaintext?.split("\n").filter((l) => l.length > 0) || [];
+  if (realLines.length > 0) {
+    fs.writeFileSync(badFramedFile, oldWriterEncode(realLines));
+    const badOpened = await openSessionFile(badFramedFile, model);
+    const badDiag = runDiagnostics(badOpened, model, fork);
+    const hasBadFramingFinding = badDiag.findings.some((f) => f.code === "header-frame-not-lone");
+    check("diagnose detects header-frame-not-lone on old-writer file", hasBadFramingFinding,
+      `findings: [${badDiag.findings.map((f) => f.code).join(", ")}]`);
+
+    // TEST C (D2b/c): verifyRepair must reject the old-writer framing
+    const dummyRepairDest = path.join(outDir, "dummy-repaired.jsonl.zstd");
+    fs.copyFileSync(badFramedFile, dummyRepairDest);
+    try {
+      const vBadFraming = await verifyRepair(badFramedFile, badFramedFile, []);
+      check("verifyRepair rejects old-writer framing: framingOk is false", vBadFraming.framingOk === false);
+      check("verifyRepair rejects old-writer framing: dshCanOpen is false", vBadFraming.dshCanOpen === false);
+      check("verifyRepair rejects old-writer framing: ok is false", vBadFraming.ok === false);
+    } catch (e) {
+      log(`        verifyRepair threw: ${e.message}`);
+    }
+  }
+}
+log("");
+
+// ---------------------------------------------------------------------------
+log("=".repeat(78));log("");
 
 // ---------------------------------------------------------------------------
 log("=".repeat(78));

@@ -51,6 +51,31 @@ export function checksumFile(file) {
 }
 
 /**
+ * Byte-exact restatement of dsh's assertZstdHeaderFrame assertion.
+ * 
+ * dsh-session-persistence-jsonl lib/index.js:741-743 (the loader path):
+ *   if (plaintext.length === 0 || plaintext.indexOf(10) !== plaintext.length - 1)
+ *     throw new Error("corrupt Zstandard session log: first frame is not exactly one header line");
+ * 
+ * This helper returns true iff the frame plaintext contains EXACTLY one line:
+ * non-empty AND the FIRST (only) occurrence of byte 0x0A (newline) is at the END.
+ * 
+ * The check is brittle to dsh changes: if dsh's constant (10) or logic ever diverges,
+ * a canary test must catch it (see run-tests.mjs, the drift battery).
+ * 
+ * @param {Buffer|string} plaintext Frame plaintext (string or Buffer)
+ * @returns {boolean}
+ */
+export function isLoneHeaderLine(plaintext) {
+  // Buffer.indexOf(10) and String.indexOf('\n') — both work; in UTF-8 both find the same position.
+  if (typeof plaintext === 'string') {
+    return plaintext.length > 0 && plaintext.indexOf('\n') === plaintext.length - 1;
+  }
+  return plaintext.length > 0 && plaintext.indexOf(10) === plaintext.length - 1;
+}
+
+
+/**
  * Decompress ONE zstd frame from `buf` at offset 0, reporting how many input
  * bytes that frame occupied.
  *
@@ -145,10 +170,19 @@ export async function decodeZstdContainer(bytes) {
       );
       break;
     }
+    // Count newlines in this frame and whether it ends with one.
+    // For frame 0, also keep the plaintext for framing verification.
+    let lineCount = 0;
+    for (let i = 0; i < frame.out.length; i++) if (frame.out[i] === 0x0a) lineCount++;
+    const endsWithNewline = frame.out.length > 0 && frame.out[frame.out.length - 1] === 0x0a;
     frames.push({
       start: offset,
       end: offset + frame.consumed,
       plaintextBytes: frame.out.length,
+      lineCount,
+      endsWithNewline,
+      // Frame 0's plaintext is needed to verify framing (D2b: dsh's assertZstdHeaderFrame invariant).
+      ...(frames.length === 0 ? { firstFramePlaintext: frame.out } : {}),
     });
     parts.push(frame.out);
     offset += frame.consumed;

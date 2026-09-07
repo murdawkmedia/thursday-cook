@@ -14,23 +14,31 @@ keep in sync.
 ## What it is for
 
 Thursday has four goals, and every design decision answers to one of them.
+Each is stated as the mechanism that delivers it. The four sentences in bold
+are canonical and the website reproduces them word for word; the source is
+[docs/voice.md](docs/voice.md).
 
-**Make cheap models useful.** Compensate for a weaker model at the system level
-— through planning, context management, persistent state, task decomposition,
-validation, and reusable skills — rather than by reaching for a larger model.
+**A wrong tool call is rewritten, not refused.** The guard layer translates a
+`find` or `grep` call into the `fd` or `rg` form and runs that, instead of
+returning an error the model has to recover from. The approach generalises:
+compensate for a weaker model at the system level — planning, context
+management, persistent state, task decomposition, validation, reusable
+skills — rather than by reaching for a larger model.
 
-**Get more useful work per token.** Treat tokens as a constrained resource and
-cut the waste: repeated context, redundant exploration, poor task boundaries,
-premature implementation, lost state. Never at the cost of correctness. The
-metric is useful work per token, not fewest tokens.
+**Delegated work returns a result, not the exploration that produced it.** A
+delegated ticket gets a written brief and a context of its own. Yours pays for
+the brief and the result, not for the reading in between. Correctness is not
+the thing traded: the metric is useful work per token, not fewest tokens.
 
-**Front-load planning.** Plan before expensive execution, when the task earns
-it. A plan becomes aidos tickets, and a ticket is a bounded task an agent can
-finish on its own.
+**The plan is written and edited before it becomes tickets.** Planning happens
+before expensive execution, when the task earns it. The plan imports to an
+aidos board, and a ticket is a bounded task an agent can finish on its own,
+carrying its own acceptance criteria and the list of files it may write.
 
-**Keep the user in control.** Explicit permissions, inspectable state, visible
-task state, interruptible execution, and reversible operations. Not an opaque
-autonomous system.
+**The agent cannot sign off a ticket, and it cannot mark one done.** Those
+tools are not in its tool set, so this is not a rule it is asked to follow.
+Before signoff it holds no write tool and no command tool. After signoff, a
+write outside the ticket's file allowlist is refused.
 
 ## Thursday and Quick
 
@@ -137,6 +145,12 @@ See the aidos board for the full structure and the reasoning. In short:
 `packages/` holds aidos, the install engine, and the plugins; `profiles/` holds
 the two presets; `skills/` and `wizards/` hold the agent-facing material;
 `website/` and `demo/` hold the public face; `install/` holds the bootstrapper.
+
+## Copy standard
+
+Every string Thursday ships obeys [docs/voice.md](docs/voice.md): this file,
+the website, the docs, and everything an agent reads or emits. It fixes the
+positioning, the banned constructions, and the one sanctioned offer form.
 
 ## License
 

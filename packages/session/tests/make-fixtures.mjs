@@ -28,10 +28,17 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { readArtifact } from "../src/read.mjs";
 
-/** Compress each line group as its own zstd frame, the way dsh writes batches. */
+/** Compress each line group as its own zstd frame, matching dsh's actual layout:
+ * frame 0 = header line ALONE (dsh's assertZstdHeaderFrame requirement);
+ * remaining records packed in perFrame groups.
+ */
 function encodeFrames(lines, perFrame = 8) {
+  if (lines.length === 0) return Buffer.alloc(0);
   const frames = [];
-  for (let i = 0; i < lines.length; i += perFrame) {
+  // Frame 0 MUST be the header line alone (matches dsh's actual writer).
+  frames.push(zlib.zstdCompressSync(Buffer.from(lines[0] + "\n", "utf8")));
+  // Remaining records in perFrame groups.
+  for (let i = 1; i < lines.length; i += perFrame) {
     const chunk = lines.slice(i, i + perFrame).join("\n") + "\n";
     frames.push(zlib.zstdCompressSync(Buffer.from(chunk, "utf8")));
   }

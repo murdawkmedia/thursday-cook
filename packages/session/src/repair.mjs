@@ -26,7 +26,8 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import { createHash } from "node:crypto";
-import { readArtifact } from "./read.mjs";
+import { readArtifact, isLoneHeaderLine } from "./read.mjs";
+import { proveDshCanOpen } from "./dshoracle.mjs";
 
 /** One described repair operation. Pure data; describes, does not do. */
 export class RepairOp {
@@ -149,8 +150,17 @@ export function planRepair(diagnosis, choices = {}) {
 function encodeContainer(lines, compression, perFrame = 64) {
   const text = lines.map((l) => l + "\n").join("");
   if (compression === "none") return Buffer.from(text, "utf8");
+  if (lines.length === 0) return Buffer.alloc(0);
+  
+  // D1 FIX: dsh's loader asserts the first zstd frame is the header line ALONE.
+  // @deepseek-ai/dsh-session-persistence-jsonl lib/index.js:741-743:
+  //   if (plaintext.length === 0 || plaintext.indexOf(10) !== plaintext.length - 1)
+  //     throw new Error("corrupt Zstandard session log: first frame is not exactly one header line");
+  // Violation causes: readFirstZstdLine crash (the incident), readPrefix rejection, listArtifacts dies.
   const frames = [];
-  for (let i = 0; i < lines.length; i += perFrame) {
+  frames.push(zlib.zstdCompressSync(Buffer.from(lines[0] + "\n", "utf8")));
+  // All remaining records packed in 64-line frames.
+  for (let i = 1; i < lines.length; i += perFrame) {
     const chunk = lines.slice(i, i + perFrame).map((l) => l + "\n").join("");
     frames.push(zlib.zstdCompressSync(Buffer.from(chunk, "utf8")));
   }
@@ -247,7 +257,7 @@ export async function applyRepair(sourceFile, plan, destination, opts = {}) {
  * @param {string} repairedFile the copy
  * @param {number[]} droppedLines 1-based line numbers the plan removed
  */
-export async function verifyRepair(sourceFile, repairedFile, droppedLines) {
+export async function verifyRepair(sourceFile, repairedFile, droppedLines, opts = {}) {
   const a = await readArtifact(sourceFile);
   const b = await readArtifact(repairedFile);
   const dropped = new Set(droppedLines);
@@ -273,6 +283,44 @@ export async function verifyRepair(sourceFile, repairedFile, droppedLines) {
   }
   const extra = repairedLines.length - expectedSurvivors.length;
 
+  // D2(b): verify physical framing of the repaired container.
+  // D2(c): proof from dsh's own loader, not our reader.
+  const framingProblems = [];
+  let dshOpen = { ok: false, problems: ["dsh oracle not run"] };
+  let firstFrameOk = true;
+  if (b.compression === "zstd") {
+    if (b.frames.length === 0) {
+      framingProblems.push("no complete zstd frames in the repaired file");
+      firstFrameOk = false;
+    } else {
+      // Frame 0 must be the header line alone (dsh's assertZstdHeaderFrame).
+      if (!isLoneHeaderLine(b.frames[0]?.firstFramePlaintext ?? Buffer.alloc(0))) {
+        framingProblems.push(
+          `frame 0 holds ${b.frames[0].lineCount} line(s); dsh requires the header line ALONE`
+        );
+        firstFrameOk = false;
+      }
+      // Every complete frame must end at a record boundary (newline).
+      for (let i = 0; i < b.frames.length; i++) {
+        if (!b.frames[i].endsWithNewline) {
+          framingProblems.push(`frame ${i} ends mid-record (no trailing newline)`);
+        }
+      }
+    }
+  }
+
+  // D2(c): the authoritative proof is dsh's own loader, not this package's reader.
+  try {
+    dshOpen = await proveDshCanOpen(repairedFile);
+  } catch (e) {
+    dshOpen = {
+      ok: false,
+      problems: [`dsh oracle threw: ${e.message}`],
+    };
+  }
+
+  const allProblems = [...problems, ...framingProblems, ...dshOpen.problems.map((p) => `dsh: ${p}`)];
+
   return {
     originalRecords: originalLines.length,
     droppedRecords: dropped.size,
@@ -281,7 +329,10 @@ export async function verifyRepair(sourceFile, repairedFile, droppedLines) {
     byteIdenticalSurvivors: identical,
     appendedRecords: extra > 0 ? extra : 0,
     allGoodDataSurvived: problems.length === 0 && identical === expectedSurvivors.length,
-    problems: problems.slice(0, 20),
+    framingOk: framingProblems.length === 0,
+    dshCanOpen: dshOpen.ok,
+    ok: problems.length === 0 && framingProblems.length === 0 && dshOpen.ok,
+    problems: allProblems.slice(0, 20),
   };
 }
 
@@ -318,16 +369,51 @@ export function confirmRepair(applied, opts) {
   if (!fs.existsSync(applied.destination)) {
     throw new Error(`refusing to promote: the repaired copy ${applied.destination} no longer exists.`);
   }
+
+  // D3 FIX: atomic promotion via rename, not copy. A crash between a non-atomic
+  // copy leaves the live path missing or truncated. Rename is atomic on same FS.
+  // Detect cross-filesystem attempts and refuse them loudly.
+  const { dev: srcDev } = fs.statSync(applied.source);
+  const { dev: dstDev } = fs.statSync(applied.destination);
+  if (srcDev !== dstDev) {
+    throw new Error(
+      `refusing to promote: the repaired copy is on a different filesystem. ` +
+      `Move it to ${path.dirname(applied.source)} or promote manually with: ` +
+      `mv ${JSON.stringify(applied.destination)} ${JSON.stringify(applied.source)}`,
+    );
+  }
+
   const stamp = new Date().toISOString().replace(/[:.]/gu, "-");
   const superseded = `${applied.source}.superseded-${stamp}`;
-  // Rename, never unlink. The original's bytes remain on disk under a new name.
+  
+  // Atomic: rename original to backup, then move repaired into its place.
+  // Both renames must succeed; if the second fails, the original is at superseded.
   fs.renameSync(applied.source, superseded);
-  fs.copyFileSync(applied.destination, applied.source);
+  try {
+    fs.renameSync(applied.destination, applied.source);
+  } catch (e) {
+    // Attempt recovery by restoring the original.
+    try {
+      fs.renameSync(superseded, applied.source);
+      throw new Error(
+        `promotion failed during rename: ${e.message}. ` +
+        `The original has been restored. Please try again.`,
+      );
+    } catch (restoreErr) {
+      // Restore failed; user must manually recover.
+      throw new Error(
+        `CRITICAL: promotion failed AND recovery failed. ` +
+        `The original is at ${superseded}; the repaired copy is at ${applied.destination}. ` +
+        `Manually restore the original with: mv ${JSON.stringify(superseded)} ${JSON.stringify(applied.source)}. ` +
+        `Promotion error: ${e.message}. Restore error: ${restoreErr.message}`,
+      );
+    }
+  }
+
   return {
     promoted: true,
     originalPreservedAt: superseded,
     liveFile: applied.source,
-    repairedCopyStillAt: applied.destination,
     undo: `mv ${JSON.stringify(superseded)} ${JSON.stringify(applied.source)}`,
   };
 }

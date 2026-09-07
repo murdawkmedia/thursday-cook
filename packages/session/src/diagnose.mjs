@@ -17,6 +17,8 @@
  * recall and search.
  */
 
+import { isLoneHeaderLine } from "./read.mjs";
+
 /** Severity ordering used for exit codes and sorting. */
 export const SEVERITY = Object.freeze({ error: 3, warning: 2, info: 1 });
 
@@ -46,6 +48,25 @@ export class Finding {
 export function checkContainer(opened) {
   const out = [];
   const a = opened.artifact;
+
+  // D2(a): dsh's loader asserts the first frame is the header line ALONE.
+  if (a.compression === "zstd" && a.frames && a.frames.length > 0) {
+    if (!isLoneHeaderLine(a.frames[0]?.firstFramePlaintext ?? Buffer.alloc(0))) {
+      const lineMsg = a.frames[0].lineCount === 1 ? "a header" : a.frames[0].lineCount + " lines";
+      out.push(
+        new Finding("error", "header-frame-not-lone", "Frame 0 is not the header line alone — dsh cannot open this file.", {
+          where: `frame 0 of ${a.frames.length} (bytes ${a.frames[0].start}...${a.frames[0].end}, ${lineMsg})`,
+          why:
+            "dsh's loader asserts the first zstd frame contains EXACTLY one header line (assertZstdHeaderFrame, " +
+            "@deepseek-ai/dsh-session-persistence-jsonl lib/index.js:741-743). This rejects any file with " +
+            "multiple lines in frame 0. The incident: this package's old writer packed 64 records into frame 0, " +
+            "dsh's reader threw 'corrupt Zstandard session log: first frame is not exactly one header line', " +
+            "and listArtifacts crashed.",
+          fix: "thursday session repair re-encodes the container with frame 0 as the header line alone.",
+        }),
+      );
+    }
+  }
   if (a.tornStart !== null) {
     out.push(
       new Finding("warning", "torn-tail", "The log has a torn final frame.", {

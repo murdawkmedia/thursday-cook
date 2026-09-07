@@ -31,9 +31,10 @@ passes. Each is pass or fail, with no judgement call.
    unchanged.
 9. The install command on trythursday.org is the one that was just tested, and
    the repository it fetches is public.
-10. The author's own machine runs Thursday as its daily driver: `thursday
-    install` reproduces the environment `sync.sh` produces today, artifact by
-    artifact, and `sync.sh` is not run again.
+10. The author's own machine runs Thursday as its daily driver: E7's parity
+    check passes, and `sync.sh` has not been run since. E7 owns the comparison
+    and defines what it compares; this line is satisfied by that check being
+    green, not by a judgement about whether the environment feels the same.
 11. Thursday looks like Thursday: the skin, the mark, the fonts, and the
     thinking phrases are live, not stock dsh.
 
@@ -41,13 +42,24 @@ Item 10 is new, and it is the one item the author can fail privately before a
 stranger fails it publicly. It is the composition cutover: the install engine
 reproduces the working environment, and no repository moves to achieve it.
 
+It originally read "artifact by artifact", which an independent review of
+2026-09-07 correctly failed: `sync.sh` is about 1390 lines, "artifact" was
+undefined, and comparing two system states against an undefined checklist is
+not a pass-or-fail line runnable in under an hour. The check now points at E7,
+whose own criterion already fixes the comparison. If E7 slips, this green item
+slips with it rather than becoming a judgement call.
+
 ## What is allowed to be missing or ugly
 
 Stated so nobody polishes the wrong thing at 3am.
 
-- Linux only. macOS and Windows are not attempted, and the installer says so
-  rather than half-working. Docker is a first-class path for development, not a
-  release check.
+- Native support is Linux only. macOS and Windows are reached through a
+  container (V9): a wizard sets Thursday up under Docker or Podman, and the
+  `thursday` command talks to that container so the user never types `docker`.
+  This changed on 2026-09-07; the earlier text said macOS and Windows were not
+  attempted at all. What is still missing natively is a Platform port, and the
+  installer says which mode it is running rather than implying they are the
+  same.
 - **No browser demo.** Cut on 2026-09-07. It was nine unstarted tickets and it
   was the only thing that would have put a remote-access plugin on a public URL,
   which made RM2 release-blocking for a reason unrelated to the product.
@@ -64,17 +76,18 @@ Stated so nobody polishes the wrong thing at 3am.
 
 ## In v0.1.0
 
-Foundation: R1, R2, R3, R4, R5, M1, D1.
+Foundation: R1, R2, R3, R4, R5, D1.
 Install: I1, I2, I4, I7, I8, I10, I11, I12, E5, E7, A6.
 Composition: C1, C2, C3, C4, C5, C6, A10.
+Platform: V9, E8.
 First run: E1, E2, E3, E4, E6.
 Plugins: P5.
 Website: W1, W3, WS1, WS2, WS4, WS5, PUB.
 Look: B1, B2, TH1, TH2, TH3, TH4.
 Dogfooding: RM2, N8, TH10.
-Process: REL1, REL2.
+Process: REL1, REL2, M3.
 
-That is 49 tickets. PUB is new on 2026-09-07: publishing the repository is a
+That is 51 tickets. PUB is new on 2026-09-07: publishing the repository is a
 release task with an owner, because green items 1 and 9 are unsatisfiable while
 the repository is private.
 
@@ -92,13 +105,28 @@ this, and the backlog fault is one those users cannot diagnose or recover from
 on their own. A provider Thursday recommends is a provider whose known failure
 Thursday must handle.
 
+V9 AND E8 CAME BACK IN ON 2026-09-07, after the demo cut had removed E8. The
+reason is reach rather than polish: macOS cannot be containerised the other way
+round, so native support is weeks behind a Platform port that does not exist,
+and without V9 the release tells most of the world to come back later. E8
+returns only as the IMAGE — the substrate V9 installs into. The demo that made
+E8 expensive stays cut: no public exposure, no free-model routing, no
+`dsh-remote` on a public URL.
+
+Say the arithmetic out loud, because this is the third addition since the cut
+was drawn and an independent review had already failed the timeline as written:
+scope has gone 49, then 48 when M1 left, then 51 with M3, V9 and E8. The
+binding constraint is unchanged — the first-run chain — and V9 does not sit on
+it, so this is not automatically fatal. But three days did not get longer. If
+the cut order has to be used, it will be used sooner.
+
 RM2 stays in scope for a changed reason. With the demo cut it is no longer about
 public exposure; it is about the filesystem-sandbox faults that bite the author
 in real remote sessions, and item 10 makes those faults a release concern.
 
 ## Not in v0.1.0
 
-Everything else on the board: A1-A5, A7-A9, B3, B4, DM1-DM5, DOC1-DOC4, E8, E9,
+Everything else on the board: A1-A5, A7-A9, B3, B4, DM1-DM5, DOC1-DOC4, E8, E9, M1, M2,
 G1, I3, I5, I6, I9, I13, I14, I15, MP1, MP2, N1-N7, P1-P4, P6, P7, P8, RM1, RM3,
 S1, S2, S3, T1, T2, T3, TH5, TH6, TH7, TH8, TH9, TH11, V1-V8, W2, W4,
 WK1-WK6, X1-X4.
@@ -122,6 +150,16 @@ bad moment to discover which secrets are in which logs.
 Signoff does not mean in scope. Many of these are signed off and in progress on
 the board so that work can start the moment v0.1.0 ships; that is deliberate and
 it is not a scope change.
+
+M1 and M2 are out on the user's call of 2026-09-07, and the reasoning is worth
+keeping because it looks like a contradiction. M1 builds the EXECUTABLE
+migration map and M2 pilots the vendoring flow on two plugins; both are the
+machinery of a source cutover, and the source cutover is v0.1.1's headline. But
+the map itself must not go stale: the user is actively working in both `aidos`
+and `dotfiles-ai` this week, and work that is not recorded before the cut is
+work that gets rediscovered or lost at cutover. So M3 does one reconciliation
+pass by hand before Thursday, and M1 automates it afterwards. The pass is in
+scope; the machinery is not.
 
 N8 is in scope on the user's call of 2026-09-07, and it is the only N ticket
 that is. It earns its place from green item 10 rather than from tidiness: once
@@ -170,23 +208,60 @@ The author holds A10 upstream and the verification queue. Verification is not a
 front: it is the thing every front waits on, and it is the release's real
 bottleneck.
 
+THE TABLE ABOVE DOES NOT ACCOUNT FOR EVERY IN-SCOPE TICKET, and pretending
+otherwise is how the arithmetic below flatters itself. Roughly twenty in-scope
+tickets belong to no front:
+
+- Landed or awaiting verification, needing only the author's check: R1, R2, R5,
+  D1, C1, C4, C5, I1, I2, I4, I7, I8, I10, I12, B1, B2, WS1, WS2, TH10, N8.
+- In scope, unstarted, and held by nobody: R3, R4, P5, I11, E5, E7, A6, W1,
+  W3, WS4, WS5, PUB, RM2, REL1, REL2, M3, E8.
+- In scope and just opened: V9, the container path for macOS and Windows.
+
+The second list is the honest measure of what is left, and every item on it
+either finds a front, gets cut, or moves the date.
+
 ## The risk, and the cut order
 
-The arithmetic on 2026-09-07: of 49 in-scope tickets, about 19 are landed or
-waiting on verification and about 28 are unstarted, against three days. Six
-fronts landing one ticket each per day is 18. The gap is real, so the cut order
-is stated in advance rather than improvised on Wednesday night.
+The arithmetic on 2026-09-07: of 49 in-scope tickets, about 20 are landed or
+waiting on verification and about 16 are unstarted and held by nobody, against
+three days. Six fronts landing one ticket each per day is 18, which looks
+sufficient and is not, because the first-run chain cannot parallelise with
+itself: E1, then E3, then E6, on one front, is the longest path in the release
+and it is what the date must be measured against. The cut order below is
+ordered by that path rather than by cost.
+
+THE BINDING CONSTRAINT IS THE FIRST-RUN CHAIN, not the total ticket count. E1,
+E3 and E6 run in sequence — the wizard configures what first boot opens, and
+E6 verifies the whole lifecycle after both. An independent review of 2026-09-07
+failed the previous cut order for beginning with TH3 and other cosmetics, which
+sit on no critical path: cutting them frees a front that was never the
+bottleneck and buys zero days. A cut order that does not cut the binding
+constraint is decoration.
+
+So the order below cuts the chain first, and the cosmetic items are last
+because losing them costs appearance rather than time.
 
 Cut in this order, one at a time, and only when a day ends behind:
 
-1. TH3, the thinking phrases. Cosmetic within the skin.
-2. W3 and PUB automation: deploy the site by hand and publish the repository by
-   hand. The green items care that the command works, not that a wizard ran it.
-3. Tour chapter 2, which reduces green item 7 to a documented paragraph.
-4. RM2 to v0.1.1.
-5. The block-model trigger below.
-6. Last: the skin entirely, then the tour down to the wizard alone. If both go,
-   the release is an installer and a landing page, which is still a release.
+1. Tour chapter 2. It reduces green item 7 to a documented paragraph and takes
+   the largest single piece of authoring off E4, which is on the chain.
+2. E6's CI half. Keep the byte-identity check and the one-command script a user
+   can run; drop the CI job and the website's public statement of it until
+   v0.1.1. The guarantee still holds and is still provable; only its
+   advertisement waits.
+3. E3's first-boot behaviour. The launcher opens the tour workspace by setting
+   its working directory, which is one line; if even that slips, the tour is
+   reached by typing `/teach-me-thursday` and E3 becomes documentation.
+4. W3 and PUB automation: deploy the site and publish the repository by hand.
+   The green items care that the command works, not that a wizard ran it.
+5. TH3, the thinking phrases, and then the rest of the skin.
+6. Last: the tour down to the wizard alone. If it goes, the release is an
+   installer and a landing page, which is still a release.
+
+Note what is NOT on this list: E1 and E2. The wizard is the first thing a
+stranger meets and green items 2, 3 and 10 all depend on it. If E1 cannot land,
+the release moves rather than shipping without it.
 
 TRIGGER, unchanged and now dated: if I1, I2 and I4 do not install a working
 composition by end of Tuesday 2026-09-08, drop to a direct `install.ts` that

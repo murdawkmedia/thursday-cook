@@ -93,6 +93,22 @@ G1, I3, I5, I6, I9, I13, I14, I15, MP1, MP2, N1-N7, P1-P4, P6, P7, P8, RM1, RM3,
 S1, S2, S3, T1, T2, T3, TH5, TH6, TH7, TH8, TH9, TH10, TH11, V1-V8, W2, W4,
 WK1-WK6, X1-X4.
 
+SEC1, PR1-PR9, AL1-AL4 and AN1-AN4 are also out. They come from the
+cheap-model failure investigation of 2026-09-07 (`aidos/scratch/.../
+cheap-model-eval/HANDOFF.md`, scratch-only by standing instruction) and they
+build the partner-review gate, the ask ledger, and the remaining analysis. Two
+notes on why they are out despite being the direct answer to a defect class this
+release has already suffered. First, they are four phases of work in aidos and
+dotfiles-ai, not three days of it. Second, the investigation's own economics say
+to judge each fix by how many human interrupts it removes, and none of them
+removes an interrupt before Thursday.
+
+SEC1 is the exception in urgency though not in scope: a credential file was
+printed into a session transcript, and rotation happens now rather than after
+the release. It is in phase 0 for visibility, and it is release-adjacent for one
+concrete reason — PUB makes the repository public, and a public repository is a
+bad moment to discover which secrets are in which logs.
+
 Signoff does not mean in scope. Many of these are signed off and in progress on
 the board so that work can start the moment v0.1.0 ships; that is deliberate and
 it is not a scope change.

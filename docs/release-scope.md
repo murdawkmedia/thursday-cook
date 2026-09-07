@@ -126,7 +126,7 @@ in real remote sessions, and item 10 makes those faults a release concern.
 
 ## Not in v0.1.0
 
-Everything else on the board: A1-A5, A7-A9, B3, B4, DM1-DM5, DOC1-DOC4, E8, E9, M1, M2,
+Everything else on the board: A1-A5, A7-A9, B3, B4, DM1-DM5, DOC1-DOC4, E9, M1, M2,
 G1, I3, I5, I6, I9, I13, I14, I15, MP1, MP2, N1-N7, P1-P4, P6, P7, P8, RM1, RM3,
 S1, S2, S3, T1, T2, T3, TH5, TH6, TH7, TH8, TH9, TH11, V1-V8, W2, W4,
 WK1-WK6, X1-X4.
@@ -223,7 +223,7 @@ either finds a front, gets cut, or moves the date.
 
 ## The risk, and the cut order
 
-The arithmetic on 2026-09-07: of 49 in-scope tickets, about 20 are landed or
+The arithmetic on 2026-09-07: of 51 in-scope tickets, about 20 are landed or
 waiting on verification and about 16 are unstarted and held by nobody, against
 three days. Six fronts landing one ticket each per day is 18, which looks
 sufficient and is not, because the first-run chain cannot parallelise with

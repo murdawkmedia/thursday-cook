@@ -1,6 +1,6 @@
 # The Thursday UI contract
 
-> Status: specification for TH0. This document describes the extension
+> Status: the specification of Thursday's UI extension surface. This document describes the extension
 > surfaces Thursday's UI offers to plugins, the data each accepts, and the
 > check that keeps all of them on one vocabulary. It is a contract: a
 > contributor should be able to write a contribution from this document alone,
@@ -242,7 +242,7 @@ the call is never invisible.
 ## Surface 4 — The sidebar
 
 Plugin-contributed entries in Thursday's sidebar, near the aidos tickets
-button. Future dashboards (N12) mount here; the schema is fixed now so N12
+button. A future dashboards ticket mounts here; the schema is fixed now so those
 arrives as data, not as a new mechanism.
 
 **Schema:**
@@ -499,7 +499,7 @@ Places where no surface existed yet and this document had to invent:
    no plugin-facing registration service exists yet; the names here are the
    proposal.
 3. **Panel ids and the panel router** — sidebar entries, tabs, chips and
-   modals all target a `PanelId`, but no panel registry exists. N12
+   modals all target a `PanelId`, but no panel registry exists. That work
    (dashboards) is assumed to mount as panels here, per the task framing.
 4. **`ActionId` / `SettingId`** — the composer menu's `action` and `toggle`
    fields need a registered-action and registered-setting namespace; neither

@@ -19,6 +19,7 @@ import path from "node:path";
 import os from "node:os";
 
 import { resolveDshPackage, ResolutionError } from "./runtime.mjs";
+import { loadSessionModel } from "./runtime.mjs";
 import { readHeaderOnly } from "./read.mjs";
 
 /**
@@ -155,6 +156,39 @@ export async function proveDshCanOpen(file, opts = {}) {
           `dsh's full load recovered a torn tail at byte ${prefix.tornMarker.truncateTo} ` +
           `— a repaired file must be complete`,
         );
+      }
+      // Path 3: dsh's ACCEPT GATE, which is the layer readPrefix does not reach
+      // and which an earlier version of this file missed entirely.
+      // PersistenceCoordinator.assertEventsSupported
+      // (dsh-session-persistence lib/index.js:1117-1120) runs on prepare(),
+      // load(), readFrom() and readStoredPrefix() -- every path that OPENS a
+      // session, as opposed to merely reading its bytes:
+      //
+      //   if (KNOWN_SESSION_EVENT_TYPES.has(event.type) || event.ignorable === true) continue;
+      //   throw ... "unknown to this harness and not marked ignorable"
+      //
+      // A file can pass readPrefix and still be refused here, which is exactly
+      // how this package produced a "repaired" log that died on resume. The set
+      // below is dsh's own export, so only the one-line predicate is copied.
+      try {
+        const model = await loadSessionModel({ dshPackageRoot: opts.dshPackageRoot });
+        const known = model.KNOWN_SESSION_EVENT_TYPES;
+        if (!(known instanceof Set) || known.size === 0) {
+          problems.push(
+            "dsh's KNOWN_SESSION_EVENT_TYPES could not be read, so the accept gate could not be checked",
+          );
+        } else {
+          for (const ev of prefix.events ?? []) {
+            if (known.has(ev.type) || ev.ignorable === true) continue;
+            problems.push(
+              `dsh's accept gate (assertEventsSupported) REJECTS event type "${ev.type}" ` +
+              `at seq ${ev.seq}: unknown to this harness and not marked ignorable`,
+            );
+            break;
+          }
+        }
+      } catch (e) {
+        problems.push(`dsh's accept gate could not be evaluated: ${e.message}`);
       }
     } catch (e) {
       problems.push(`dsh's full load (readPrefix) REJECTED: ${e.message}`);

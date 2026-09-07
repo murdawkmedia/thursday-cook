@@ -233,37 +233,73 @@ export async function applyRepair(sourceFile, plan, destination, opts = {}) {
     .filter((_, i) => !dropped.has(i + 1));
 
   if (lines.includes(SUBSTITUTE)) {
-    // A substitute's seq is the number of EVENTS decoded before it, which is not
-    // its line index: one storage line can expand to many events, because dsh
-    // packs text-chunks, reasoning-chunks and tool-call-chunks rows. Count with
-    // dsh's own decodeStorageRecord rather than assuming one line is one event.
+    // A substitute's seq is the number of EVENTS before it, which is not its line
+    // index: one storage line can expand to many events, because dsh packs
+    // text-chunks, reasoning-chunks and tool-call-chunks rows. Count with dsh's
+    // own decodeStorageRecord rather than assuming one line is one event.
     const model = await loadSessionModel();
+
+    const seqOfLine = (line) => {
+      try {
+        const events = model.decodeStorageRecord(JSON.parse(line));
+        return events.length > 0 && typeof events[0].seq === "number" ? events[0].seq : undefined;
+      } catch {
+        return undefined;
+      }
+    };
+
+    const out = [lines[0]];
     let nextSeq = 0;
     for (let i = 1; i < lines.length; i += 1) {
-      if (lines[i] === SUBSTITUTE) {
-        lines[i] = JSON.stringify({
-          // An unrecognised type projects to no message: deriveEventMessage's
-          // default arm returns null and its comment calls the union
-          // "merge-extensible", and decodeStorageRecord passes through anything
-          // that is not one of the three chunk-row types. So this record holds
-          // the seq without entering the transcript.
-          type: "session/repair-substitute",
-          seq: nextSeq,
-          time: Date.now(),
-          data: { reason: "unparsable record replaced to preserve seq continuity" },
-        });
-        nextSeq += 1;
+      if (lines[i] !== SUBSTITUTE) {
+        out.push(lines[i]);
+        try {
+          nextSeq += model.decodeStorageRecord(JSON.parse(lines[i])).length;
+        } catch {
+          // Cannot happen: every remaining line parsed during diagnosis. Advancing
+          // by one keeps the count monotonic, and the dsh oracle rejects the result
+          // rather than this silently producing a bad file.
+          nextSeq += 1;
+        }
         continue;
       }
-      try {
-        nextSeq += model.decodeStorageRecord(JSON.parse(lines[i])).length;
-      } catch {
-        // Cannot happen: every remaining line parsed during diagnosis. If it ever
-        // does, advancing by one keeps the count monotonic and the dsh oracle
-        // will reject the result rather than this silently producing a bad file.
-        nextSeq += 1;
+
+      // HOW WIDE IS THE HOLE? The unreadable record's own event count is gone with
+      // it, but it is not unknowable: the next readable line's first seq is the
+      // first seq after the hole, so the hole is exactly that many events wide. A
+      // corrupted text-chunks row holding ten events leaves a ten-seq hole, and
+      // filling it with one substitute would leave a nine-seq gap dsh refuses.
+      let nextKnown;
+      for (let j = i + 1; j < lines.length && nextKnown === undefined; j += 1) {
+        if (lines[j] !== SUBSTITUTE) nextKnown = seqOfLine(lines[j]);
       }
+      const width = nextKnown === undefined ? 1 : Math.max(1, nextKnown - nextSeq);
+
+      for (let k = 0; k < width; k += 1) {
+        out.push(
+          JSON.stringify({
+            // An unrecognised type projects to no message: deriveEventMessage's
+            // default arm returns null and its comment calls the union
+            // "merge-extensible", and decodeStorageRecord passes through anything
+            // that is not one of the three chunk-row types.
+            type: "session/repair-substitute",
+            seq: nextSeq + k,
+            time: Date.now(),
+            // REQUIRED, not decorative. PersistenceCoordinator.assertEventsSupported
+            // (dsh-session-persistence lib/index.js:1117-1120) throws
+            // SessionFormatUnsupportedError for any event whose type it does not
+            // know AND which is not marked ignorable. That gate runs on prepare(),
+            // load(), readFrom() and readStoredPrefix() -- every path that opens a
+            // session. Without this flag the repaired log passes readPrefix and
+            // then kills the session the moment the user resumes it.
+            ignorable: true,
+            data: { reason: "unparsable record replaced to preserve seq continuity" },
+          }),
+        );
+      }
+      nextSeq += width;
     }
+    lines = out;
   }
 
   const appended = [];

@@ -142,6 +142,9 @@ export async function loadSessionModel(opts = {}) {
   const surface = await import(path.join(base, "surface.js"));
   const repair = await import(path.join(base, "repair.js"));
   const chunkRows = await import(path.join(base, "chunk-rows.js"));
+  // dsh's own list of the event types its coordinator will accept. Read rather
+  // than copied, so this package cannot drift from the harness it writes for.
+  const knownTypes = await import(path.join(base, "known-event-types.js"));
 
   let version = "unknown";
   try {
@@ -159,6 +162,7 @@ export async function loadSessionModel(opts = {}) {
     origin: { package: "@deepseek-ai/dsh-session", version, base, how },
     /** THE canonical surface fold. Throws on a structurally invalid surface. */
     foldSurface: surface.foldSurface,
+    KNOWN_SESSION_EVENT_TYPES: knownTypes.KNOWN_SESSION_EVENT_TYPES,
     /** THE per-node projection rule; the callback the fork's duck type wants. */
     deriveEventMessage: surface.deriveEventMessage,
     isSurfaceEvent: surface.isSurfaceEvent,

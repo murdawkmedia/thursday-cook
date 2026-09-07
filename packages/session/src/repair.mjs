@@ -27,6 +27,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { createHash } from "node:crypto";
 import { readArtifact, isLoneHeaderLine } from "./read.mjs";
+import { loadSessionModel } from "./runtime.mjs";
 import { proveDshCanOpen } from "./dshoracle.mjs";
 
 /** One described repair operation. Pure data; describes, does not do. */
@@ -78,6 +79,7 @@ export function planRepair(diagnosis, choices = {}) {
         `Remove ${diagnosis.repairPlan.unparsableLines.length} unparsable line(s): ${diagnosis.repairPlan.unparsableLines.join(", ")}.`,
         {
           lines: diagnosis.repairPlan.unparsableLines,
+          defect: "unparsable",
           why: "A line that will not JSON-parse stores no recoverable events. Every other line is copied through byte-identically.",
           cost: "The events that line stored are gone. They were already unreadable; this only makes the log parse cleanly.",
         },
@@ -96,6 +98,7 @@ export function planRepair(diagnosis, choices = {}) {
         `Remove ${diagnosis.repairPlan.duplicateSeqLines.length} duplicate-seq line(s): ${diagnosis.repairPlan.duplicateSeqLines.join(", ")}.`,
         {
           lines: diagnosis.repairPlan.duplicateSeqLines,
+          defect: "duplicate-seq",
           why: "The FIRST record for a seq is kept; only later records claiming an already-used seq are removed. The fork's recall already returns the first, so removing the later copy changes nothing that was reachable.",
           cost: "If the later copy was the correct one, this keeps the wrong one. Inspect both with `thursday session raw --line N` before choosing.",
         },
@@ -199,16 +202,69 @@ export async function applyRepair(sourceFile, plan, destination, opts = {}) {
   let lines = before.plaintext.split("\n").filter((l) => l.length > 0);
   const originalLineCount = lines.length;
   const dropped = new Set();
+  const substituted = new Set();
 
   for (const op of plan.ops) {
-    if (op.kind === "drop-lines") for (const n of op.lines) dropped.add(n);
+    if (op.kind === "drop-lines") {
+      // An unparsable record is REPLACED, not removed. dsh's scanner requires
+      // every event's seq to equal the number of events read before it
+      // (dsh-session-persistence-jsonl lib/index.js:290), so seqs must be dense
+      // AND in file order. Removing one record shifts every later seq by one and
+      // dsh refuses the whole log -- which is how --drop-unparsable turned a file
+      // with one bad line into a file that would not open at all.
+      //
+      // A duplicate seq is the opposite case: the sequence is dense only once the
+      // later copy is gone, so those really are dropped.
+      const target = op.defect === "unparsable" ? substituted : dropped;
+      for (const n of op.lines) target.add(n);
+    }
     if (op.kind === "truncate") {
       for (let n = op.line + 1; n <= originalLineCount; n += 1) dropped.add(n);
     }
     // drop-torn-frame needs no line work: the torn frame decoded to no
     // complete record, so it contributed no line to `lines` in the first place.
   }
-  lines = lines.filter((_, i) => !dropped.has(i + 1));
+
+  // Mark first, filter second, then number: a substitute's seq is its position in
+  // the FINAL event order, so it must be assigned after any drops have shifted it.
+  const SUBSTITUTE = Symbol("substitute");
+  lines = lines
+    .map((l, i) => (substituted.has(i + 1) ? SUBSTITUTE : l))
+    .filter((_, i) => !dropped.has(i + 1));
+
+  if (lines.includes(SUBSTITUTE)) {
+    // A substitute's seq is the number of EVENTS decoded before it, which is not
+    // its line index: one storage line can expand to many events, because dsh
+    // packs text-chunks, reasoning-chunks and tool-call-chunks rows. Count with
+    // dsh's own decodeStorageRecord rather than assuming one line is one event.
+    const model = await loadSessionModel();
+    let nextSeq = 0;
+    for (let i = 1; i < lines.length; i += 1) {
+      if (lines[i] === SUBSTITUTE) {
+        lines[i] = JSON.stringify({
+          // An unrecognised type projects to no message: deriveEventMessage's
+          // default arm returns null and its comment calls the union
+          // "merge-extensible", and decodeStorageRecord passes through anything
+          // that is not one of the three chunk-row types. So this record holds
+          // the seq without entering the transcript.
+          type: "session/repair-substitute",
+          seq: nextSeq,
+          time: Date.now(),
+          data: { reason: "unparsable record replaced to preserve seq continuity" },
+        });
+        nextSeq += 1;
+        continue;
+      }
+      try {
+        nextSeq += model.decodeStorageRecord(JSON.parse(lines[i])).length;
+      } catch {
+        // Cannot happen: every remaining line parsed during diagnosis. If it ever
+        // does, advancing by one keeps the count monotonic and the dsh oracle
+        // will reject the result rather than this silently producing a bad file.
+        nextSeq += 1;
+      }
+    }
+  }
 
   const appended = [];
   for (const op of plan.ops) {
@@ -237,7 +293,8 @@ export async function applyRepair(sourceFile, plan, destination, opts = {}) {
     originalChecksumAfterRepair: afterChecksum,
     originalUntouched: originalChecksum === afterChecksum,
     originalLineCount,
-    droppedLines: [...dropped].sort((a, b) => a - b),
+    droppedLines: [...dropped, ...substituted].sort((a, b) => a - b),
+    substitutedLines: [...substituted].sort((a, b) => a - b),
     appendedCount: appended.length,
     repairedLineCount: lines.length,
     compression,
@@ -262,7 +319,26 @@ export async function verifyRepair(sourceFile, repairedFile, droppedLines, opts 
   const b = await readArtifact(repairedFile);
   const dropped = new Set(droppedLines);
   const originalLines = a.plaintext.split("\n").filter((l) => l.length > 0);
-  const repairedLines = b.plaintext.split("\n").filter((l) => l.length > 0);
+  // A substitute stands in for a record that decoded to nothing, so it is neither
+  // a survivor nor a drop. Set it aside before the positional comparison, or every
+  // record after it reads as differing when nothing about it changed.
+  const substitutes = [];
+  const repairedLines = b.plaintext
+    .split("\n")
+    .filter((l) => l.length > 0)
+    .filter((l) => {
+      let parsed;
+      try {
+        parsed = JSON.parse(l);
+      } catch {
+        return true;
+      }
+      if (parsed && parsed.type === "session/repair-substitute") {
+        substitutes.push(l);
+        return false;
+      }
+      return true;
+    });
 
   const expectedSurvivors = originalLines.filter((_, i) => !dropped.has(i + 1));
   const problems = [];
@@ -324,6 +400,7 @@ export async function verifyRepair(sourceFile, repairedFile, droppedLines, opts 
   return {
     originalRecords: originalLines.length,
     droppedRecords: dropped.size,
+    substitutedRecords: substitutes.length,
     expectedSurvivors: expectedSurvivors.length,
     repairedRecords: repairedLines.length,
     byteIdenticalSurvivors: identical,

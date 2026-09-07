@@ -192,7 +192,10 @@ log("## 5. repair writes a COPY, keeps the original, and preserves good data");
 {
   const repairDir = path.join(outDir, "repairs");
   fs.mkdirSync(repairDir, { recursive: true });
-  for (const name of ["duplicate-seq", "unparsable-line", "torn-frame", "open-turn", "seq-gap"]) {
+  // seq-gap is deliberately absent from this loop. Its repair is REFUSED, so no
+  // repaired file exists that dsh could open, and asserting otherwise asserts
+  // something the design forbids. Its real contract is checked below.
+  for (const name of ["duplicate-seq", "unparsable-line", "torn-frame", "open-turn"]) {
     const d = diagnosed.get(name);
     if (!d) continue;
     const src = made.find((m) => m.name === name).file;
@@ -217,6 +220,7 @@ log("## 5. repair writes a COPY, keeps the original, and preserves good data");
   const gapPlan = planRepair(gap.diag, { dropUnparsable: true, dropDuplicateSeq: true, closeTurns: true });
   check("seq-gap repair is explicitly REFUSED rather than faked",
     gapPlan.refused.some((r) => /seq-gap CANNOT be repaired/u.test(r)));
+  check("seq-gap refusal attempts no operations at all", gapPlan.ops.length === 0);
 
   // Refusals.
   const dupSrc = made.find((m) => m.name === "duplicate-seq").file;

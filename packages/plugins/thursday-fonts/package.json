@@ -1,0 +1,15 @@
+{
+  "name": "@trythursday/thursday-fonts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "dsh client-plane plugin that loads Thursday's typefaces: Literata (serif body), Inter (sans-serif UI), and Fantasque Sans Mono (code).",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client.tsx"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

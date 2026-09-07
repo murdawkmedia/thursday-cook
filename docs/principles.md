@@ -3,6 +3,45 @@
 Stated because they are decided rather than felt, and because several decisions
 already made are instances of them that nobody had named.
 
+## The goal these serve
+
+**Share the intelligence of your precious, limited frontier model with your cheap
+models.**
+
+The frontier model is scarce — rate-limited, expensive, and capped in ways that
+bite in the middle of real work. Its intelligence, though, is not consumed when
+it is used: a good decomposition, a written criterion, a rule extracted from a
+failure, all keep working after the model that produced them has hit its weekly
+limit.
+
+So the product's job is to CAPTURE that intelligence and hand it to models that
+could not have produced it. Everything below is a way of doing that, and the
+three ways form an order of preference.
+
+**First, convert it into determinism.** The strongest form of sharing, because
+the result costs nothing per use and cannot drift. The knowledge that `find`
+should be `fd` became a guard translation, so every cheap model gets it forever
+without spending a token on the insight. A day spent discovering that a repair
+tool measured its own reader became a test that fails when it happens again.
+Intelligence turned into arithmetic is intelligence that scales to zero cost.
+
+**Second, encode it as structure a cheap model can follow.** Where the thing
+genuinely needs judgment, give the judgment a shape: a plan decomposed into
+bounded tickets, criteria describing what good looks like, a skill written once,
+a catalogue of mutation types to walk rather than invent. Cheap models do
+enumeration well and synthesis badly, so structure is the difference between a
+capable executor and a confused one. The 2026-09-07 investigation measured this:
+asks with a crisp completion signal survive, and judgment calls silently
+evaporate.
+
+**Third, and last, spend the model itself.** Partner review exists because some
+questions cannot be reduced to a check or a checklist — whether a change is
+actually correct, whether a design has a flaw. Reserve the scarce thing for the
+questions that genuinely require it, which is what the partner chain is and why
+it is deliberately expensive.
+
+The two principles below are how that is done in practice.
+
 ## Use a model only where determinism is impossible
 
 An LLM is the most expensive, least repeatable component available. Every

@@ -162,3 +162,64 @@ several interrupts wearing one coat.
 **Idle agents are fine; idle people are waste.** An agent blocked on a human is
 working as designed. A human blocked on an agent means something should have been
 prepared, batched, or backgrounded.
+
+## Never ask for a judgment without supplying the instrument
+
+Where a model must judge, hand it the thing that makes the judgment checkable: a
+criterion, a rubric with thresholds, worked examples of both answers, a list to
+enumerate, or — best — a script that decides and removes the judgment entirely.
+An unaided judgment call is the weakest instruction that can be given, and it is
+the default one.
+
+This is the operational form of the second tier above. "Encode it as structure"
+is the goal; supplying the instrument is what it means on any given day.
+
+**The failure is silent, which is what makes it dangerous.** A model asked to
+judge without a rubric does not answer "I cannot tell". It answers confidently,
+in the shape the question implied, and the answer is unfalsifiable because there
+was never a standard to fail. The 2026-09-07 investigation measured the pattern:
+asks with a crisp completion signal survive in cheap models, judgment calls
+evaporate — and the evaporation leaves no trace. The eight false verification
+reports of the same day were all this: "verify the work" is a judgment; "run this
+command and paste the output" is not.
+
+### The ladder, strongest first
+
+1. **A script that decides.** The judgment stops being one. "Is the bundle too
+   large" becomes a size check in CI.
+2. **An enumeration to walk.** S5 ships eleven mutation types with what each
+   breaks, because selecting from a list is a task cheap models do well and
+   inventing the list is one they do badly. S9 offers five kinds of protective
+   artifact and requires a choice from them.
+3. **A rubric with thresholds.** Not "is this ticket well scoped" but the
+   conditions under which it is not: needs its own sub-checklist, touches more
+   than a few related files, has no decided design.
+4. **Worked examples of both answers, including the boundary.** See below.
+5. **Bare judgment.** Legitimate only where the question genuinely resists all
+   four — and then it goes to the partner chain, which is what that chain is for.
+
+### The corollaries
+
+**Give the negative examples, not only the positive ones.** A rubric that shows
+only what qualifies makes everything qualify, because a model matching against
+one-sided evidence has no way to say no. Name what does not trigger the rule and
+name the case that sits closest to the line, since that is the one that will
+actually be encountered.
+
+**The rubric must be checkable by someone who was not in the conversation.**
+That is the test for whether it is a rubric at all. Criteria that only make sense
+to the person who wrote them are notes, and they will be read by a cheap model
+in a fresh session with none of the context that made them obvious.
+
+**If the rubric cannot be written, the ask is not yet understood.** This is the
+most useful side effect, and it fires before any work is done. An ask that
+resists having criteria written for it is underspecified, and the failure to
+write them is the discovery — not an excuse to proceed on vibes. Every ticket
+carrying explicit criteria is this principle applied to planning; the criteria
+are not documentation of the ticket, they are what makes it dispatchable.
+
+**Prefer the instrument that also runs later.** A script keeps deciding after the
+session ends; a rubric in a prompt decides once. Where both are available at
+similar cost, the durable one is worth more than its marginal accuracy, for the
+same reason the first principle prefers determinism: it is intelligence captured
+rather than intelligence spent.

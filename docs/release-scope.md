@@ -16,8 +16,11 @@ passes. Each is pass or fail, with no judgement call.
 1. On a machine with no dsh and no Thursday, one public command installs
    Thursday.
 2. The wizard finishes with a free provider and no paid account.
-3. `thursday` opens a session in the Thursday preset.
-4. `thursday quick` opens a session in the Quick preset.
+3. `thursday` with no arguments prints help, and `thursday serve` starts the
+   server and opens a session in the Thursday preset.
+4. The Quick preset is offered in the app's preset picker and a session opens in
+   it. There is no `thursday quick`: preset choice is a session choice, made in
+   the app, not a process choice made on the command line.
 5. The tour workspace exists, its plan imports, and the board shows the tickets.
 6. Chapter 1 completes: a ticket goes open to done, with the human half done by
    the human.

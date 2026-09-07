@@ -229,11 +229,7 @@ Thursday places outside the home — that:
    have it silently inherited here);
 3. prepends `$THURSDAY_HOME/runtime/node_modules/.bin` to `PATH`, so `dsh`
    inside a Thursday session means Thursday's pinned dsh (Q5);
-4. records the requested preset for `thursday quick` in
-   `$THURSDAY_HOME/state/launch.json` and/or passes it through — the exact
-   mechanism is C6's to choose; this layout guarantees it a writable,
-   Thursday-owned place to put it;
-5. `exec`s `$THURSDAY_HOME/runtime/node_modules/.bin/dsh --profile web …`.
+4. `exec`s `$THURSDAY_HOME/runtime/node_modules/.bin/dsh --profile web …`.
 
 The same three variables are what the install engine itself exports around
 every `dsh plugin add` and every `pnpm` invocation. The engine must never
@@ -295,8 +291,11 @@ each with an `agent.cordis.yml` and a `preset.yml`. Two presets in one home is
 therefore the *normal* case, not a special one — `~/.dsh/.agent-presets/aidos`
 already demonstrates it. Thursday and Quick are two peers there, both
 discovered, both offered in the preset picker, ordered by their `preset.yml`
-`order:` keys. `thursday quick` is a selection among presets that are always
-both present; it is not a different installation.
+`order:` keys. Choosing Quick is a selection among presets that are always both
+present, made in the app's preset picker; it is not a different installation and
+not a different command. Decided 2026-09-07: there is no `thursday quick`. The
+CLI is ollama-shaped — bare `thursday` prints help, `thursday serve` starts the
+server — and preset choice belongs to the session, not to the process.
 
 C3's requirement that the two presets "share their rows from one source, with
 no copied duplicate" is a *build-time* concern in `app/profiles/`, not a
@@ -432,9 +431,11 @@ actually in the home; I7 reads its outside-the-home list. Neither reads it to
 decide what to delete inside the home, because inside the home the answer is
 "all of it".
 
-`state/launch.json` is the second file here: the launcher-to-session handoff C6
-needs for `thursday quick`. The layout reserves the location; C6 chooses the
-mechanism and the schema.
+`state/launch.json` is the second file here. It was reserved for a
+launcher-to-session preset handoff, which the 2026-09-07 CLI decision removed:
+with preset choice made in the app's picker, the launcher has no preset to pass.
+The location stays reserved for any other launcher-to-session state C6 needs, and
+if C6 needs none, nothing is written and nothing is lost.
 
 ---
 
@@ -621,9 +622,8 @@ that edits anything outside `$THURSDAY_HOME`.
   The layout is unaffected either way: build inputs and outputs both live under
   `$THURSDAY_HOME/app/`, and the installed artifact is
   `$DSH_HOME/plugins/host/*.js` in both cases.
-- **How `thursday quick` names the preset to the session.** C6's. The layout
-  reserves `$THURSDAY_HOME/state/launch.json` and guarantees it is writable and
-  Thursday-owned.
+- ~~**How `thursday quick` names the preset to the session.**~~ Resolved
+  2026-09-07 by removing the command: the preset picker names it, in the app.
 - **Whether the `ui-jobs` top-level override row actually suppresses the row
   `dsh-web-app` inserts.** The mechanism is the same one `sync.sh` already uses
   for `command-compact`, and the layer order (bundle patches -> profile patch ->

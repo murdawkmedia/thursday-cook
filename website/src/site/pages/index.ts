@@ -585,7 +585,7 @@ export function indexPage(release: ReleaseState = RELEASE): string {
       </p>
       <div class="grid">
         ${panel({
-          title: "thursday",
+          title: "Thursday",
           aside: badge("full environment"),
           body: html`<p>
             aidos, planning, ticketing, background execution, persistent state, and every supported
@@ -594,7 +594,7 @@ export function indexPage(release: ReleaseState = RELEASE): string {
           </p>`,
         })}
         ${panel({
-          title: "thursday quick",
+          title: "Quick",
           aside: badge("no ceremony"),
           body: html`<p>
             The same agent without the long-horizon surfaces, for work where ticketing would cost

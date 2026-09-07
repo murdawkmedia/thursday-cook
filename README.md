@@ -106,7 +106,7 @@ the aidos board, not here.
 
 - [ ] Thursday preset: planning, ticketing, background execution
 - [ ] Quick preset: the same system without the ticket overhead
-- [ ] `thursday` and `thursday quick` launch either one
+- [ ] `thursday serve` starts the server; the preset picker chooses between them
 - [ ] The aidos board: tickets, evidence, gates, and the plan
 - [ ] Semantic design tokens shared by the product and the site
 

@@ -126,10 +126,16 @@ in real remote sessions, and item 10 makes those faults a release concern.
 
 ## Not in v0.1.0
 
-Everything else on the board: A1-A5, A7-A9, B3, B4, DM1-DM5, DOC1-DOC4, E9, M1, M2,
-G1, I3, I5, I6, I9, I13, I14, I15, MP1, MP2, N1-N7, P1-P4, P6, P7, P8, RM1, RM3,
-S1, S2, S3, T1, T2, T3, TH5, TH6, TH7, TH8, TH9, TH11, V1-V8, W2, W4,
-WK1-WK6, X1-X4.
+Everything else on the board: A1-A5, A7-A9, A11, B3, B4, DM1-DM5, DOC1-DOC4, E9,
+G1, G2, I3, I5, I6, I9, I13, I14, I15, M1, M2, M4, MP1, MP2, N1-N7, N9, N10, N11,
+N12, P1-P4, P6, P7, P8, RM1, RM3, S1, S2, S3, S4, S5, S6, T1, T2, T3, TH5, TH6,
+TH7, TH8, TH9, TH11, TH13, TH14, TH15, V1-V8, W2, W4, WK1-WK6, X1-X4.
+
+Fourteen of those were written on 2026-09-07 and are listed here the day they
+were created, because the alternative is what an independent review caught twice
+in one afternoon: a ticket on both lists, and a ticket on neither. The board grew
+by more than twenty tickets that day without the release growing at all, which is
+the intended behaviour of a cut — ideas land on the board, not in the release.
 
 SEC1, PR1-PR9, AL1-AL4 and AN1-AN4 are also out. They come from the
 cheap-model failure investigation of 2026-09-07 (`aidos/scratch/.../

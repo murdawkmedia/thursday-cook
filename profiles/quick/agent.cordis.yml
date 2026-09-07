@@ -1,0 +1,100 @@
+# Quick agent preset
+# Lightweight environment without long-horizon workflow surfaces.
+#
+# Quick is the same agent as Thursday without the ceremony: no aidos board,
+# no ticketing, no plan mode, no workflow orchestration. It is for work where
+# that ceremony would cost more than it returns. Quick keeps `tool-subagent`
+# (fire-and-forget delegation) but drops fork, list-agents, control (which make
+# continuable multi-round delegation a long-horizon pattern), workflow, and ralph.
+#
+# Every row is accounted for by the C2 audit verdict table: either in BOTH
+# (this file and Thursday), or THURSDAY-ONLY (in Thursday only), or absent
+# from both.
+#
+# This file is an AGENT-PLANE composition. Every row that publishes a service
+# must sit inside a group carrying an `isolate` realm; without one, the second
+# session mounting this preset collides with the first.
+
+# ── Persona and instructions ────────────────────────────────────────────────
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# ── Filesystem ──────────────────────────────────────────────────────────────
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+# ── Skills ──────────────────────────────────────────────────────────────────
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+# ── Compaction (BOTH: copied whole from standard, not flattened) ──────────────
+# The group realm ensures toolResultPruner is private to this preset. Copy the
+# entire group as-is; flattening silently drops pruning (compaction-basic reads
+# toolResultPruner via ctx.get and fails gracefully if absent, but the pruning
+# capability vanishes rather than failing loudly).
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-tool-result-pruner'
+
+# ── User interaction ────────────────────────────────────────────────────────
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: true
+
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: false
+    searchTimeoutMs: 60000
+
+# ── Code Mode presentation ──────────────────────────────────────────────────
+- id: tool-presentation
+  name: '@deepseek-ai/dsh-agent-tool-presentation'
+  config:
+    mode: both
+
+# ── Delegation: subagent only (BOTH) ────────────────────────────────────────
+# Quick keeps `tool-subagent` with the standard continuable backgroundMode
+# but drops fork, list-agents, control (which manage long-lived children
+# across multiple turns). A continuable subagent without management tools
+# remains available but lower-friction for simple fire-and-forget delegation.
+- id: delegation
+  name: cordis:group
+  group: true
+  isolate:
+    workflowEngine: true
+  config:
+    - id: tool-subagent
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: subagent
+        backgroundMode: continuable

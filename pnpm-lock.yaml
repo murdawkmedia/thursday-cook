@@ -72,6 +72,8 @@ importers:
         specifier: ^4.71.0
         version: 4.71.0
 
+  packages/session: {}
+
   packages/tokens: {}
 
   website:

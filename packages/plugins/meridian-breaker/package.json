@@ -1,0 +1,15 @@
+{
+  "name": "@trythursday/meridian-breaker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "dsh host-plane plugin that turns meridian's \"session transcript ownership backlog is full\" 500 into a process-global pause, one diagnosed prompt, and an ordered stop/wipe/start recovery.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

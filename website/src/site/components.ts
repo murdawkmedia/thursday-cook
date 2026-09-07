@@ -8,7 +8,7 @@
  * control with the hairline `border` token, because the choice was made once,
  * here and in the stylesheet.
  */
-import { html, join, type Html, type Renderable } from "./html";
+import { html, join, raw, type Html, type Renderable } from "./html";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -18,6 +18,30 @@ export interface ButtonOptions {
   /** Render as a link instead of a button when the action is navigation. */
   readonly href?: string;
   readonly disabled?: boolean;
+  readonly id?: string;
+  /**
+   * Ship the control hidden, for a button whose behaviour only exists once
+   * `enhance.ts` has confirmed the browser can perform it. The `hidden`
+   * attribute rather than a CSS class, so the control is unreachable by
+   * keyboard as well as invisible, and stays hidden if the stylesheet never
+   * arrives at all.
+   */
+  readonly hidden?: boolean;
+  /**
+   * `data-*` attributes: how the enhancement script finds a control and learns
+   * what it operates on. Keys are written verbatim -- they are literals in this
+   * source, never user input -- and values are escaped like every other
+   * interpolation.
+   */
+  readonly data?: Readonly<Record<string, string>>;
+}
+
+function dataAttributes(data: Readonly<Record<string, string>> | undefined): Html {
+  if (data === undefined) return html``;
+  return join(
+    Object.entries(data).map(([key, value]) => html`data-${raw(key)}="${value}"`),
+    " ",
+  );
 }
 
 export function button(options: ButtonOptions): Html {
@@ -29,7 +53,10 @@ export function button(options: ButtonOptions): Html {
   return html`<button
     class="${classes}"
     type="button"
+    ${options.id === undefined ? null : html`id="${options.id}"`}
+    ${dataAttributes(options.data)}
     ${options.disabled === true ? html`disabled` : null}
+    ${options.hidden === true ? html`hidden` : null}
   >
     ${options.label}
   </button>`;
@@ -185,4 +212,108 @@ export function slot(label: string, brief: string): Html {
     <p class="slot__label">${label}</p>
     <p class="slot__brief">${brief}</p>
   </div>`;
+}
+
+/**
+ * The attribute `enhance.ts` looks for to attach copy-to-clipboard behaviour.
+ *
+ * Exported because it is a contract between two files that are built
+ * separately -- the generator and the browser script -- and a contract with
+ * one end renamed is a silently dead button. `tests/landing.test.ts` asserts
+ * both ends still agree.
+ */
+export const COPY_ATTRIBUTE = "copy";
+
+export interface CommandOptions {
+  /** Id given to the element holding the text, so the copy button can find it. */
+  readonly id: string;
+  /** The command itself, verbatim. One line: a reader copies one line. */
+  readonly command: string;
+  /** Label for the copy control before it has been used. */
+  readonly copyLabel?: string;
+  /** Label the control shows after a successful copy. */
+  readonly copiedLabel?: string;
+}
+
+/**
+ * A copyable one-line command.
+ *
+ * PROGRESSIVE ENHANCEMENT, AND WHAT IT DEGRADES TO. The command is ordinary
+ * selectable text inside a `<pre>`, which is the whole feature for a reader
+ * with no JavaScript: select, copy, paste. The button ships with the `hidden`
+ * attribute set and is unhidden only by `enhance.ts`, and only once it has
+ * seen a usable clipboard API -- so a reader is never offered a control that
+ * cannot work, and never tabs into an invisible one.
+ */
+export function command(options: CommandOptions): Html {
+  const statusId = `${options.id}-status`;
+  return html`<div class="command">
+    <pre class="command__code"><code id="${options.id}">${options.command}</code></pre>
+    ${button({
+      label: options.copyLabel ?? "Copy",
+      variant: "secondary",
+      hidden: true,
+      data: {
+        [COPY_ATTRIBUTE]: options.id,
+        "copy-status": statusId,
+        "copy-done": options.copiedLabel ?? "Copied",
+      },
+    })}
+    <p class="visually-hidden" id="${statusId}" role="status" aria-live="polite"></p>
+  </div>`;
+}
+
+export interface StatOptions {
+  /** The measured value, or the placeholder text when nothing is measured. */
+  readonly value: string;
+  /** True when `value` is the placeholder, so the cell can announce itself. */
+  readonly unmeasured?: boolean;
+  readonly label: string;
+  readonly note: string;
+  /** The command or query that regenerates the value. */
+  readonly source: string;
+}
+
+/**
+ * One measured number, carrying the thing that produced it.
+ *
+ * The source line is not decoration. A statistic on a marketing page is
+ * unfalsifiable unless the reader is told how to reproduce it, and this page
+ * argues that unfalsifiable claims are the problem.
+ */
+export function stat(options: StatOptions): Html {
+  return html`<div class="stat">
+    <p class="stat__value${options.unmeasured === true ? " stat__value--unmeasured" : ""}">
+      ${options.value}
+    </p>
+    <p class="stat__label">${options.label}</p>
+    <p class="stat__note">${options.note}</p>
+    <p class="stat__source"><code>${options.source}</code></p>
+  </div>`;
+}
+
+export interface FlowStage {
+  readonly label: string;
+  readonly body: string;
+}
+
+/**
+ * An ordered strip of stages, for a sequence whose order is the point.
+ *
+ * An `<ol>` rather than a row of boxes, because the order is semantic: a
+ * screen reader should hear "3 of 3", and the arrows between the stages are
+ * decoration added in CSS rather than characters in the accessible name.
+ */
+export function flow(stages: readonly FlowStage[]): Html {
+  return html`<ol class="flow">
+    ${join(
+      stages.map(
+        (stage) =>
+          html`<li class="flow__stage">
+            <span class="flow__label">${stage.label}</span>
+            <span class="flow__body">${stage.body}</span>
+          </li>`,
+      ),
+    )}
+  </ol>`;
 }

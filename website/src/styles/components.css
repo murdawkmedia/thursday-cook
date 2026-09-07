@@ -445,6 +445,120 @@ kbd {
   border: var(--web-hairline) solid var(--th-border-strong);
 }
 
+/* --- command block ------------------------------------------------------ */
+
+/*
+ * The copyable install command.
+ *
+ * The `<pre>` takes the container radius and the third surface from the shared
+ * `pre` rule above; nothing is restated here except the layout. The copy
+ * control is an ordinary `.btn--secondary`, so it is outlined in
+ * `border-strong` like every other control whose edge is its only identifier.
+ */
+.command {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--web-space-3);
+  align-items: center;
+}
+
+.command__code {
+  flex: 1 1 24rem;
+  min-width: 0;
+}
+
+/*
+ * The accessible-name-only utility, for the copy control's live region.
+ * `clip-path` rather than `display: none`, because a hidden element is not
+ * announced and being announced is the entire purpose of the region.
+ */
+.visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- stats -------------------------------------------------------------- */
+
+.stat {
+  display: grid;
+  gap: var(--web-space-1);
+  padding: var(--web-space-4);
+  border: var(--web-hairline) solid var(--th-border);
+  border-radius: var(--th-radius-container);
+  background: var(--th-background-elevated);
+}
+
+.stat__value {
+  color: var(--th-foreground);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-h2);
+  line-height: var(--web-leading-tight);
+}
+
+/*
+ * An unmeasured cell must not read as a measurement at any speed. It is
+ * warning-coloured, dropped out of the size that signals "this is the
+ * number", and set in the caps this site reserves for labels.
+ */
+.stat__value--unmeasured {
+  color: var(--th-warning);
+  font-size: var(--web-text-small);
+  letter-spacing: 0.08em;
+}
+
+.stat__label {
+  color: var(--th-foreground);
+  font-size: var(--web-text-small);
+  font-weight: 600;
+}
+
+.stat__note {
+  color: var(--th-foreground-muted);
+  font-size: var(--web-text-small);
+}
+
+.stat__source {
+  overflow-wrap: anywhere;
+  color: var(--th-foreground-muted);
+  font-size: var(--web-text-micro);
+}
+
+/* --- flow --------------------------------------------------------------- */
+
+.flow {
+  display: grid;
+  gap: var(--web-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.flow__stage {
+  display: grid;
+  gap: var(--web-space-2);
+  padding: var(--web-space-3) var(--web-space-4);
+  border: var(--web-hairline) solid var(--th-border);
+  border-radius: var(--th-radius-container);
+  background: var(--th-background-elevated);
+}
+
+.flow__label {
+  color: var(--th-accent);
+  font-family: var(--web-font-mono);
+  font-size: var(--web-text-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flow__body {
+  color: var(--th-foreground-muted);
+  font-size: var(--web-text-small);
+}
+
 /* The placeholder blocks the content ticket writes into. */
 .slot {
   display: grid;

@@ -54,9 +54,66 @@ function enhanceTabs(root: Element): void {
   });
 }
 
+/** How long a copy control stays in its "copied" state, in milliseconds. */
+const COPIED_FOR = 2000;
+
+/**
+ * Copy-to-clipboard, attached only when the browser can honour it.
+ *
+ * THE DEGRADATION IS THE DEFAULT, NOT THE FALLBACK. The command is selectable
+ * text in a `<pre>`; that is the whole feature with this file blocked. The
+ * control is rendered with `hidden` set, so the only thing this function adds
+ * is a shortcut -- and it adds it only after finding a real clipboard API,
+ * which is missing outside a secure context. A button that cannot work must
+ * never be offered, and must never be tabbable while invisible.
+ */
+function enhanceCopy(control: HTMLElement): void {
+  const targetId = control.getAttribute("data-copy");
+  if (targetId === null) return;
+  const target = document.getElementById(targetId);
+  if (target === null) return;
+
+  // Widened on purpose: the DOM types declare `clipboard` as always present,
+  // and it is the runtime that disagrees.
+  const clipboard: Clipboard | undefined = navigator.clipboard;
+  if (clipboard === undefined || typeof clipboard.writeText !== "function") return;
+
+  const statusId = control.getAttribute("data-copy-status");
+  const status = statusId === null ? null : document.getElementById(statusId);
+  const doneLabel = control.getAttribute("data-copy-done") ?? "Copied";
+  const idleLabel = (control.textContent ?? "").trim();
+  let revert = 0;
+
+  const announce = (message: string): void => {
+    if (status !== null) status.textContent = message;
+  };
+
+  control.hidden = false;
+  control.addEventListener("click", () => {
+    const text = (target.textContent ?? "").trim();
+    void clipboard.writeText(text).then(
+      () => {
+        control.textContent = doneLabel;
+        announce(`${doneLabel}: ${text}`);
+        window.clearTimeout(revert);
+        revert = window.setTimeout(() => {
+          control.textContent = idleLabel;
+          announce("");
+        }, COPIED_FOR);
+      },
+      () => {
+        // A refused clipboard write is the browser's decision, not a fault to
+        // shout about. The command is still there and still selectable.
+        announce("Copying was blocked. Select the command and copy it.");
+      },
+    );
+  });
+}
+
 function start(): void {
   document.documentElement.setAttribute("data-js", "on");
   document.querySelectorAll("[data-tabs]").forEach(enhanceTabs);
+  document.querySelectorAll<HTMLElement>("[data-copy]").forEach(enhanceCopy);
 }
 
 if (document.readyState === "loading") {

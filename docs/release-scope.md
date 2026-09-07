@@ -67,10 +67,10 @@ First run: E1, E2, E3, E4, E6.
 Plugins: P5.
 Website: W1, W3, WS1, WS2, WS4, WS5, PUB.
 Look: B1, B2, TH1, TH2, TH3, TH4.
-Dogfooding: RM2.
+Dogfooding: RM2, N8.
 Process: REL1, REL2.
 
-That is 47 tickets. PUB is new on 2026-09-07: publishing the repository is a
+That is 48 tickets. PUB is new on 2026-09-07: publishing the repository is a
 release task with an owner, because green items 1 and 9 are unsatisfiable while
 the repository is private.
 
@@ -86,13 +86,20 @@ in real remote sessions, and item 10 makes those faults a release concern.
 ## Not in v0.1.0
 
 Everything else on the board: A1-A5, A7-A9, B3, B4, DM1-DM5, DOC1-DOC4, E8, E9,
-G1, I3, I5, I6, I9, I13, I14, I15, MP1, MP2, N1-N8, P1-P4, P6, P7, P8, RM1, RM3,
+G1, I3, I5, I6, I9, I13, I14, I15, MP1, MP2, N1-N7, P1-P4, P6, P7, P8, RM1, RM3,
 S1, S2, S3, T1, T2, T3, TH5, TH6, TH7, TH8, TH9, TH10, TH11, V1-V8, W2, W4,
 WK1-WK6, X1-X4.
 
 Signoff does not mean in scope. Many of these are signed off and in progress on
 the board so that work can start the moment v0.1.0 ships; that is deliberate and
 it is not a scope change.
+
+N8 is in scope on the user's call of 2026-09-07, and it is the only N ticket
+that is. It earns its place from green item 10 rather than from tidiness: once
+the author's daily driver is Thursday, a session log that will not open is a
+working day lost, and `thursday-doctor` is the difference between a stranger's
+broken install being diagnosable and being a bug report nobody can act on. It
+carries a known defect, below, which must be fixed rather than shipped.
 
 N4 and N5 deserve a note, because they are the only cut items that would make
 the rest of the release cheaper rather than more expensive: N4 removes roughly
@@ -104,13 +111,15 @@ first after v0.1.0.
 TH10 and TH11 are cut but already built: TH11 landed, and TH10 ships when its
 front closes. A cut ticket that is finished is not a scope change either.
 
-**One cut item is release-blocking anyway.** N8 is not in v0.1.0, but its
-package is committed on `main`, and it writes session artifacts dsh cannot open
+**N8 ships with a defect open against it.** Its package is committed on `main`
+today, and it writes session artifacts dsh cannot open
 (the first zstd frame must be the header line alone; `encodeContainer` packs 64
 records into it, and neither `diagnose` nor `verifyRepair` checks the framing).
-Before the release it is fixed or the package is reverted. Shipping a repair
-tool that silently corrupts the thing it repairs is worse than shipping no
-repair tool.
+Before the release it is fixed, or the package is reverted and N8 leaves the
+cut. Shipping a repair tool that silently corrupts the thing it repairs is
+worse than shipping no repair tool, and the incident that found this defect was
+a real one: fifteen live session files re-encoded, and `dsh-web.service` dead at
+`listArtifacts`.
 
 ## Parallel and serial
 
@@ -124,7 +133,8 @@ Six fronts carry the rest, and they share nothing that forces a wait:
 | look | TH1, TH2, TH3, TH4 |
 | composition | C2, C3, C6 |
 | website | WS4, WS5, W1, W3, PUB |
-| install finish | I11, E5, E7, A6, and the N8 defect |
+| install finish | I11, E5, E7, A6 |
+| session tooling | the N8 defect, then N8's remaining verification |
 | process | REL2, and the meridian breaker already in flight |
 
 The author holds A10 upstream and the verification queue. Verification is not a
@@ -133,7 +143,7 @@ bottleneck.
 
 ## The risk, and the cut order
 
-The arithmetic on 2026-09-07: of 47 in-scope tickets, about 19 are landed or
+The arithmetic on 2026-09-07: of 48 in-scope tickets, about 19 are landed or
 waiting on verification and about 28 are unstarted, against three days. Six
 fronts landing one ticket each per day is 18. The gap is real, so the cut order
 is stated in advance rather than improvised on Wednesday night.
@@ -180,6 +190,9 @@ name the public repository explicitly.
 
 **The skin.** All four of TH1-TH4, on the argument that the author looks at it
 every day once item 10 holds, and that the landing page needs a real screenshot.
+
+**N8.** Kept, against the general cut of the N tickets. See the note in the Not
+in v0.1.0 section for the reasoning and the open defect.
 
 **The cutover.** Composition, not source. Thursday becomes the author's daily
 environment by installing it, and the repositories merge in v0.1.1. This

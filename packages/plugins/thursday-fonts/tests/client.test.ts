@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
+import { FONTS_CSS } from '../src/client.tsx';
+
 describe('thursday-fonts client', () => {
   it('exports apply, inject, and name', async () => {
     const mod = await import('../src/client.tsx');

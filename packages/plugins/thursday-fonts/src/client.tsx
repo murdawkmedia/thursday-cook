@@ -35,7 +35,11 @@ const PLUGIN_NAME = "thursday-fonts";
  * the licence files ship beside the fonts in assets/fonts/ and shipping without
  * them is what would make it not permitted.
  */
-const FONTS_CSS = `
+// Exported so the tests can assert on it directly. The three assertions that
+// matter -- no off-origin request, local() before the bundled copy, and a
+// generic at the end of the mono stack -- are properties OF THIS STRING, and
+// they referenced it as a bare global, so all three silently never ran.
+export const FONTS_CSS = `
 @font-face {
   font-family: "Literata";
   src: local("Literata"), url("/assets/fonts/literata-variable.woff2") format("woff2");
@@ -66,7 +70,7 @@ html:root {
   --th-font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   /*
-   * Fantasque Sans Mono for code. The stack ENDS IN THE `monospace` GENERIC,
+   * Fantasque Sans Mono for code. The stack ENDS IN THE "monospace" GENERIC,
    * which dsh's own stack does not: dsh ends at a named font, so a machine
    * missing every name in the list falls through to a proportional face and
    * code stops lining up. The generic makes that impossible.

@@ -1,0 +1,23 @@
+{
+  "name": "@trythursday/session",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "thursday session — inspect, diagnose and repair dsh session logs, reusing dsh's own session model and the pinned dsh-compaction-instant fork.",
+  "license": "MIT",
+  "bin": {
+    "thursday-session": "./bin/thursday-session.mjs"
+  },
+  "exports": {
+    ".": "./src/cli.mjs",
+    "./runtime": "./src/runtime.mjs",
+    "./read": "./src/read.mjs",
+    "./view": "./src/view.mjs",
+    "./diagnose": "./src/diagnose.mjs",
+    "./repair": "./src/repair.mjs",
+    "./doctor": "./src/doctor.mjs"
+  },
+  "scripts": {
+    "test": "node tests/run-tests.mjs"
+  }
+}

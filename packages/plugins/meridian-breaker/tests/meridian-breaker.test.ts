@@ -12,11 +12,24 @@
  * index is unchanged" becomes a real assertion instead of a string comparison.
  */
 
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { extractCandidate, isTranscriptBacklogFailure, BACKLOG_MESSAGE } from "../src/detect";
 import * as latch from "../src/latch";
-import { handleRequestError, unresolvedMessage, type BreakerDeps, type Prompter } from "../src/breaker";
-import { buildPrompt, overclaims, ISSUE_URL, FORBIDDEN_CLAIMS, type Choice, type Prompt } from "../src/prompt";
+import {
+  handleRequestError,
+  unresolvedMessage,
+  type BreakerDeps,
+  type Prompter,
+} from "../src/breaker";
+import {
+  buildPrompt,
+  overclaims,
+  ISSUE_URL,
+  FORBIDDEN_CLAIMS,
+  type Choice,
+  type Prompt,
+} from "../src/prompt";
 import {
   CACHE_FILES,
   CEILING_KEY,
@@ -42,15 +55,18 @@ interface FakeSystem {
   files: FileOps;
 }
 
-function makeSystem(options: {
-  resolved?: ResolvedService | undefined;
-  resolveThrows?: boolean;
-  stopThrows?: boolean;
-  startThrows?: boolean;
-  removeThrows?: string;
-} = {}): FakeSystem {
+function makeSystem(
+  options: {
+    resolved?: ResolvedService | undefined;
+    resolveThrows?: boolean;
+    stopThrows?: boolean;
+    startThrows?: boolean;
+    removeThrows?: string;
+  } = {},
+): FakeSystem {
   const journal: string[] = [];
-  const resolved = "resolved" in options ? options.resolved : { unit: UNIT, description: "Meridian" };
+  const resolved =
+    "resolved" in options ? options.resolved : { unit: UNIT, description: "Meridian" };
 
   const service: ServiceControl = {
     async resolve() {
@@ -146,18 +162,35 @@ describe("acceptance 1 — the trigger matches only the exact triple, parsed as 
 
   it("prefers an adapter-supplied structured status over the rendered prefix", () => {
     expect(extractCandidate({ message: REAL_BODY, code: "SERVER", status: 500 })?.status).toBe(500);
-    expect(isTranscriptBacklogFailure({ message: REAL_BODY, code: "SERVER", status: 500 })).toBe(true);
+    expect(isTranscriptBacklogFailure({ message: REAL_BODY, code: "SERVER", status: 500 })).toBe(
+      true,
+    );
   });
 
   it.each([
     ["status 503 instead of 500", `503 ${REAL_BODY}`],
-    ["status 500 but error.type is rate_limit_error", `500 ${JSON.stringify({ type: "error", error: { type: "rate_limit_error", message: BACKLOG_MESSAGE } })}`],
-    ["status 500, api_error, but a different message", `500 ${JSON.stringify({ type: "error", error: { type: "api_error", message: "session transcript ownership capacity is full" } })}`],
+    [
+      "status 500 but error.type is rate_limit_error",
+      `500 ${JSON.stringify({ type: "error", error: { type: "rate_limit_error", message: BACKLOG_MESSAGE } })}`,
+    ],
+    [
+      "status 500, api_error, but a different message",
+      `500 ${JSON.stringify({ type: "error", error: { type: "api_error", message: "session transcript ownership capacity is full" } })}`,
+    ],
     ["the message merely CONTAINS the phrase", `500 Internal error: ${BACKLOG_MESSAGE}`],
     ["the phrase with trailing junk after valid JSON", `500 ${REAL_BODY} (request-id abc)`],
-    ["error is a string, not an object", `500 ${JSON.stringify({ type: "error", error: BACKLOG_MESSAGE })}`],
-    ["error.message differs by one trailing character", `500 ${JSON.stringify({ type: "error", error: { type: "api_error", message: `${BACKLOG_MESSAGE}.` } })}`],
-    ["error.message differs by case", `500 ${JSON.stringify({ type: "error", error: { type: "api_error", message: "Session transcript ownership backlog is full" } })}`],
+    [
+      "error is a string, not an object",
+      `500 ${JSON.stringify({ type: "error", error: BACKLOG_MESSAGE })}`,
+    ],
+    [
+      "error.message differs by one trailing character",
+      `500 ${JSON.stringify({ type: "error", error: { type: "api_error", message: `${BACKLOG_MESSAGE}.` } })}`,
+    ],
+    [
+      "error.message differs by case",
+      `500 ${JSON.stringify({ type: "error", error: { type: "api_error", message: "Session transcript ownership backlog is full" } })}`,
+    ],
     ["a bare JSON array body", `500 ${JSON.stringify([{ type: "api_error" }])}`],
     ["no status prefix at all", REAL_BODY],
   ])("does NOT match: %s", (_label, message) => {
@@ -184,7 +217,10 @@ describe("acceptance 1 — the trigger matches only the exact triple, parsed as 
 
 describe("acceptance 2 — a different 500 and an unparseable body both fall through", () => {
   it.each([
-    ["a 500 whose body is a different api_error", `500 ${JSON.stringify({ type: "error", error: { type: "api_error", message: "Unknown error" } })}`],
+    [
+      "a 500 whose body is a different api_error",
+      `500 ${JSON.stringify({ type: "error", error: { type: "api_error", message: "Unknown error" } })}`,
+    ],
     ["a 500 whose body is not JSON at all", "500 <html><body>Bad Gateway</body></html>"],
     ["a 500 with truncated JSON", `500 {"type":"error","error":{"type":"api_er`],
     ["a 500 with an empty body", "500 status code (no body)"],
@@ -216,7 +252,7 @@ describe("acceptance 3 — no model call and no agent tool call on any path", ()
         return undefined;
       },
       logger: { info() {}, warn() {}, error() {}, debug() {} },
-      on: vi.fn(() => () => {}),
+      on: vi.fn((_event: string, _listener: unknown, _prepend?: boolean) => () => {}),
       effect: vi.fn(),
     };
 
@@ -233,7 +269,9 @@ describe("acceptance 3 — no model call and no agent tool call on any path", ()
 
     const forbidden = ["llm", "tools", "agents", "subagents", "agent", "toolRegistry"];
     for (const service of forbidden) {
-      expect(requested, `plugin must never reach for the "${service}" service`).not.toContain(service);
+      expect(requested, `plugin must never reach for the "${service}" service`).not.toContain(
+        service,
+      );
     }
     expect(requested).toContain("userQuestions");
     // The only outward call on the whole path is the dialog.
@@ -353,16 +391,29 @@ describe("acceptance 5 — while the latch is set, no retry chain advances", () 
     const gate = new Promise<Choice>((r) => {
       release = r;
     });
-    const prompter: Prompter = { async ask() { return gate; } };
+    const prompter: Prompter = {
+      async ask() {
+        return gate;
+      },
+    };
 
-    const chain = { cursor: 0, levels: ["meridian/opus", "backup/sonnet", "local/qwen"], markedDown: [] as string[] };
+    const chain = {
+      cursor: 0,
+      levels: ["meridian/opus", "backup/sonnet", "local/qwen"],
+      markedDown: [] as string[],
+    };
     const breakerListener: Listener = async (payload, next) => {
-      const decision = await handleRequestError((payload as { failure: unknown }).failure as never, deps(system, prompter));
+      const decision = await handleRequestError(
+        (payload as { failure: unknown }).failure as never,
+        deps(system, prompter),
+      );
       return decision.kind === "retry" ? { kind: "retry" } : next();
     };
 
     const cursorBefore = chain.cursor;
-    const pending = waterfall([breakerListener, makeFailoverListener(chain)], { failure: REAL_FAILURE });
+    const pending = waterfall([breakerListener, makeFailoverListener(chain)], {
+      failure: REAL_FAILURE,
+    });
 
     // Observe the chain repeatedly across a real paused interval.
     for (let i = 0; i < 5; i++) {
@@ -382,7 +433,11 @@ describe("acceptance 5 — while the latch is set, no retry chain advances", () 
   it("control: the same chain DOES advance when the breaker declines to hold it", async () => {
     // Proves the previous test is measuring something real: an untouched
     // fall-through lets profiles.ts advance the rung exactly as it normally would.
-    const chain = { cursor: 0, levels: ["meridian/opus", "backup/sonnet"], markedDown: [] as string[] };
+    const chain = {
+      cursor: 0,
+      levels: ["meridian/opus", "backup/sonnet"],
+      markedDown: [] as string[],
+    };
     const passthrough: Listener = (_p, next) => next();
     await waterfall([passthrough, makeFailoverListener(chain)], { failure: REAL_FAILURE });
     expect(chain.cursor).toBe(1);
@@ -480,7 +535,11 @@ describe("acceptance 7 — an unresolvable service is reported honestly", () => 
   });
 
   it("the prompt drops the repair options when there is no unit to control", () => {
-    const prompt = buildPrompt({ unit: undefined, paths: cachePaths(CACHE_DIR), pausedSessions: 1 });
+    const prompt = buildPrompt({
+      unit: undefined,
+      paths: cachePaths(CACHE_DIR),
+      pausedSessions: 1,
+    });
     expect(prompt.options.map((o) => o.id)).toEqual(["decline"]);
     expect(prompt.body).toContain(`${CACHE_DIR}/session-gc.json`);
     expect(prompt.body).toContain(`${CACHE_DIR}/sessions.json`);
@@ -506,8 +565,14 @@ describe("acceptance 8 — declining clears the latch and lets the normal path p
   it("every joined session is released, none wedged", async () => {
     const system = makeSystem();
     let release!: (c: Choice) => void;
-    const gate = new Promise<Choice>((r) => { release = r; });
-    const prompter: Prompter = { async ask() { return gate; } };
+    const gate = new Promise<Choice>((r) => {
+      release = r;
+    });
+    const prompter: Prompter = {
+      async ask() {
+        return gate;
+      },
+    };
 
     const sessions = Array.from({ length: 4 }, () =>
       handleRequestError(REAL_FAILURE, deps(system, prompter)),
@@ -516,10 +581,12 @@ describe("acceptance 8 — declining clears the latch and lets the normal path p
     expect(latch.waiterCount()).toBe(4);
 
     release("decline");
-    const decisions = await Promise.race([
+    const decisions = (await Promise.race([
       Promise.all(sessions),
-      new Promise((_r, reject) => setTimeout(() => reject(new Error("a session stayed wedged")), 1000)),
-    ]) as { kind: string }[];
+      new Promise((_r, reject) =>
+        setTimeout(() => reject(new Error("a session stayed wedged")), 1000),
+      ),
+    ])) as { kind: string }[];
 
     expect(decisions.every((d) => d.kind === "fall-through")).toBe(true);
     expect(latch.isSet()).toBe(false);
@@ -528,14 +595,23 @@ describe("acceptance 8 — declining clears the latch and lets the normal path p
   it("after a decline the normal failure path really does proceed down the chain", async () => {
     const system = makeSystem();
     const prompter = makePrompter("decline");
-    const chain = { cursor: 0, levels: ["meridian/opus", "backup/sonnet"], markedDown: [] as string[] };
+    const chain = {
+      cursor: 0,
+      levels: ["meridian/opus", "backup/sonnet"],
+      markedDown: [] as string[],
+    };
 
     const breakerListener: Listener = async (payload, next) => {
-      const decision = await handleRequestError((payload as { failure: unknown }).failure as never, deps(system, prompter));
+      const decision = await handleRequestError(
+        (payload as { failure: unknown }).failure as never,
+        deps(system, prompter),
+      );
       return decision.kind === "retry" ? { kind: "retry" } : next();
     };
 
-    const action = await waterfall([breakerListener, makeFailoverListener(chain)], { failure: REAL_FAILURE });
+    const action = await waterfall([breakerListener, makeFailoverListener(chain)], {
+      failure: REAL_FAILURE,
+    });
     // Declining hands control back: the chain advances exactly as it normally would.
     expect(chain.cursor).toBe(1);
     expect(action).toEqual({ kind: "retry" });
@@ -555,7 +631,11 @@ describe("acceptance 8 — declining clears the latch and lets the normal path p
 
   it("a prompter that throws still clears the latch", async () => {
     const system = makeSystem();
-    const prompter: Prompter = { async ask() { throw new Error("UI gone"); } };
+    const prompter: Prompter = {
+      async ask() {
+        throw new Error("UI gone");
+      },
+    };
     const decision = await handleRequestError(REAL_FAILURE, deps(system, prompter));
     expect(decision.kind).toBe("fall-through");
     expect(latch.isSet()).toBe(false);
@@ -640,7 +720,9 @@ describe("acceptance 10 — SESSION_GC_MAX_PENDING is offered separately and hon
     expect(ids.indexOf("wipe")).not.toBe(ids.indexOf("ceiling"));
 
     const wipe = prompt.options.find((o) => o.id === "wipe")!;
-    expect(wipe.detail, "the wipe option must not mention the ceiling variable").not.toContain(CEILING_KEY);
+    expect(wipe.detail, "the wipe option must not mention the ceiling variable").not.toContain(
+      CEILING_KEY,
+    );
   });
 
   it("is described as reducing recurrence, not as a fix", () => {
@@ -736,7 +818,11 @@ describe("acceptance 11 — paused chains resume on their original rung and the 
   it("returns retry, leaves the cursor alone, and the retried request succeeds", async () => {
     const system = makeSystem();
     const prompter = makePrompter("wipe");
-    const chain = { cursor: 0, levels: ["meridian/opus", "backup/sonnet"], markedDown: [] as string[] };
+    const chain = {
+      cursor: 0,
+      levels: ["meridian/opus", "backup/sonnet"],
+      markedDown: [] as string[],
+    };
 
     // A miniature agent loop: request -> on failure run the waterfall ->
     // {kind:'retry'} means loop again, undefined means the turn fails.
@@ -744,7 +830,10 @@ describe("acceptance 11 — paused chains resume on their original rung and the 
     let selectedRungs: string[] = [];
 
     const breakerListener: Listener = async (payload, next) => {
-      const decision = await handleRequestError((payload as { failure: unknown }).failure as never, deps(system, prompter));
+      const decision = await handleRequestError(
+        (payload as { failure: unknown }).failure as never,
+        deps(system, prompter),
+      );
       return decision.kind === "retry" ? { kind: "retry" } : next();
     };
     const listeners = [breakerListener, makeFailoverListener(chain)];
@@ -794,5 +883,127 @@ describe("acceptance 11 — paused chains resume on their original rung and the 
     const decision = await handleRequestError(REAL_FAILURE, deps(system, prompter));
     expect(decision.kind).toBe("fall-through");
     expect(latch.isSet()).toBe(false);
+  });
+});
+
+// ── Ground truth: the failure as it really arrived, from a real session ──
+
+/**
+ * Two records copied verbatim out of a session log in which this fault
+ * actually occurred:
+ *
+ *   ~/.dsh/sessions/--home-sid-repos-thursday--/
+ *     a1224064-7ed7-49d2-8432-67ef08fa41f3/session.jsonl.zstd   (seq 15, 16)
+ *
+ * They are the ONLY thing in this suite that is not constructed. Every other
+ * test builds its input from `REAL_BODY`, a reconstruction argued from three
+ * packages of source. This block exists to prove that reconstruction against
+ * bytes the harness really produced, so a change in any of those three
+ * packages fails here instead of silently disarming the breaker.
+ */
+describe("ground truth — the captured failure from a real backlog incident", () => {
+  const lines = readFileSync(
+    new URL("./fixtures/meridian-backlog-500.jsonl", import.meta.url),
+    "utf8",
+  )
+    .trim()
+    .split("\n");
+  const chunkRecord = JSON.parse(lines[0]) as {
+    type: string;
+    data: { chunk: { reason: { failure: { message: string; code: string } } } };
+  };
+  const retryRecord = JSON.parse(lines[1]) as {
+    type: string;
+    data: {
+      provider: string;
+      maxRetries: number;
+      policyKey: string;
+      failure: { message: string; code: string };
+    };
+  };
+  const captured = chunkRecord.data.chunk.reason.failure;
+
+  it("is the record pair this fault really produced", () => {
+    expect(chunkRecord.type).toBe("assistant/chunk");
+    expect(retryRecord.type).toBe("llm/retry");
+    // The retry layer forwards the same failure it was handed.
+    expect(retryRecord.data.failure).toEqual(captured);
+  });
+
+  /**
+   * The anchor assertion. `REAL_FAILURE` drives most of this suite, and it was
+   * DERIVED by reading @anthropic-ai/sdk, pi-ai and dsh-llm-pi-ai rather than
+   * observed. If this passes, every other test in the file is standing on real
+   * bytes rather than on a plausible story.
+   */
+  it("matches the reconstruction the rest of this suite is built on, byte for byte", () => {
+    expect(captured.message).toBe(REAL_FAILURE.message);
+    expect(captured.code).toBe(REAL_FAILURE.code);
+    expect(captured).toEqual(REAL_FAILURE);
+  });
+
+  it("carries no structured status, so the rendered prefix is the only source", () => {
+    expect(Object.prototype.hasOwnProperty.call(captured, "status")).toBe(false);
+    expect(Object.keys(captured).sort()).toEqual(["code", "message"]);
+    // The prefix fallback in extractCandidate is therefore the live path.
+    const candidate = extractCandidate(captured);
+    expect(candidate?.status).toBe(500);
+    expect(JSON.parse(candidate!.bodyText)).toEqual({
+      type: "error",
+      error: { type: "api_error", message: BACKLOG_MESSAGE },
+    });
+  });
+
+  it("is accepted by the trigger", () => {
+    expect(isTranscriptBacklogFailure(captured)).toBe(true);
+  });
+
+  /**
+   * The captured `code` is "SERVER", which is also the code for every other
+   * 5xx meridian can emit. Keying on it would trip the breaker on unrelated
+   * outages. Asserted in both directions so neither a widening nor a
+   * narrowing of the trigger can pass.
+   */
+  it("does not key on failure.code", () => {
+    expect(captured.code).toBe("SERVER");
+
+    // Same code, different fault: must NOT fire.
+    const otherServerFault = {
+      message: `500 ${JSON.stringify({ type: "error", error: { type: "api_error", message: "upstream connect error" } })}`,
+      code: "SERVER",
+    };
+    expect(isTranscriptBacklogFailure(otherServerFault)).toBe(false);
+
+    // Same fault, different code: must still fire.
+    expect(isTranscriptBacklogFailure({ message: captured.message, code: "UNKNOWN" })).toBe(true);
+  });
+
+  /**
+   * What the incident cost, pinned from the record itself: the serving policy
+   * treats SERVER as retryable with five retries, so without this plugin the
+   * chain burns all five before the failover walker even looks at the fault.
+   * The breaker is prepended, so it decides on the FIRST failure instead.
+   */
+  it("preempts the retry storm the captured policy would otherwise run", async () => {
+    const policy = JSON.parse(retryRecord.data.policyKey) as [
+      string,
+      number,
+      string[],
+      number,
+      number,
+      number,
+    ];
+    expect(policy[0]).toBe("normal");
+    expect(policy[2]).toContain("SERVER");
+    expect(retryRecord.data.maxRetries).toBe(5);
+
+    const system = makeSystem();
+    const prompter = makePrompter("wipe");
+    const decision = await handleRequestError(captured, deps(system, prompter));
+
+    // One decision, on the first failure: no retry budget was consumed.
+    expect(prompter.calls).toHaveLength(1);
+    expect(decision.kind).toBe("retry");
+    expect(system.journal.filter((s) => s.startsWith("stop:"))).toHaveLength(1);
   });
 });

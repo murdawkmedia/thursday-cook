@@ -49,6 +49,10 @@
  */
 
 import type { Context } from "@deepseek-ai/cordis";
+// Importing this type also loads dsh-agent's `declare module
+// '@deepseek-ai/cordis'` block (dsh-agent/lib/types/runtime-types.d.ts:134),
+// which is what puts "agent/request-error" in cordis's Events map.
+import type { RequestErrorAction } from "@deepseek-ai/dsh-agent";
 import z from "@deepseek-ai/schemastery";
 import { handleRequestError, type BreakerDeps, type Prompter } from "./breaker";
 import * as latch from "./latch";
@@ -72,8 +76,27 @@ type BreakerConfig = {
   cacheDir?: string;
 };
 
-/** The waterfall action the agent loop understands. */
-type RequestErrorAction = { kind: "retry" } | undefined;
+/**
+ * The slice of `@deepseek-ai/dsh-user-questions` this plugin uses. Declared
+ * structurally rather than imported so the plugin still loads when no
+ * user-questions provider is mounted; `ask()` is looked up at call time.
+ */
+interface AskAnswerItem {
+  readonly id: string;
+  readonly selected: string[];
+  readonly custom?: string;
+}
+interface UserQuestionsLike {
+  ask(request: {
+    questions: {
+      id: string;
+      header?: string;
+      question: string;
+      detail?: string;
+      options?: { label: string; description?: string }[];
+    }[];
+  }): Promise<{ answers: AskAnswerItem[] }>;
+}
 
 /**
  * Ask through `ctx.userQuestions`.
@@ -85,7 +108,7 @@ type RequestErrorAction = { kind: "retry" } | undefined;
  * the human at the UI rather than to one session's turn.
  */
 function makePrompter(ctx: Context): Prompter | undefined {
-  const questions = ctx.get("userQuestions");
+  const questions = ctx.get("userQuestions") as UserQuestionsLike | undefined;
   if (questions === undefined) return undefined;
   return {
     async ask(prompt: Prompt): Promise<Choice> {
@@ -154,11 +177,14 @@ export function apply(ctx: Context, config: unknown = {}): void {
     true,
   );
 
-  ctx.effect(() => () => {
-    dispose();
-    // Never leave a session parked on a latch this plugin can no longer clear.
-    latch.settle({ kind: "failed", reason: "meridian-breaker disposed" });
-  }, "meridian-breaker: release the pause and drop the listener");
+  ctx.effect(
+    () => () => {
+      dispose();
+      // Never leave a session parked on a latch this plugin can no longer clear.
+      latch.settle({ kind: "failed", reason: "meridian-breaker disposed" });
+    },
+    "meridian-breaker: release the pause and drop the listener",
+  );
 }
 
 export { buildPrompt };

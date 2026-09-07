@@ -1,0 +1,18 @@
+{
+  // Compiler options come from the workspace base. Only the file set is local.
+  //
+  // There are no "paths" for @deepseek-ai/*: scripts/link-dsh-packages.mjs
+  // links the running harness's own copies into this package's (gitignored)
+  // node_modules before typecheck runs, so ordinary node resolution finds
+  // them. That keeps one resolution mechanism for tsc, vitest and node
+  // instead of three, and it resolves the version the harness actually runs
+  // rather than one pinned here.
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    // vitest.config.ts imports the workspace base config, and Vite's config
+    // loader requires that import to carry its real extension. Nothing is
+    // emitted (noEmit), so a .ts specifier is safe. Matches packages/install.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+}

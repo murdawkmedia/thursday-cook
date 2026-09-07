@@ -73,7 +73,11 @@ passes. Each is pass or fail, with no judgement call.
 8. `thursday uninstall` runs, and the byte-identity check reports the dsh tree
    unchanged.
 9. The install command on trythursday.org is the one that was just tested, and
-   the repository it fetches is public.
+   the repository it fetches is PUBLIC. Decided 2026-09-07 against the cheaper
+   option of inviting coworkers to a private repository: a repository that stays
+   private until it is ready accumulates what its authors would rather not show,
+   and going public from the start makes the honesty enforceable instead of
+   aspirational. It also gives S6's sweep for unverified claims a real deadline.
 10. The author's own machine runs Thursday as its daily driver: E7's parity
     check passes, and `sync.sh` has not been run since. E7 owns the comparison
     and defines what it compares; this line is satisfied by that check being
@@ -295,10 +299,14 @@ Cut in this order, one at a time, and only when a day ends behind:
 
 1. Tour chapter 2. It reduces green item 7 to a documented paragraph and takes
    the largest single piece of authoring off E4, which is on the chain.
-2. E6's CI half. Keep the byte-identity check and the one-command script a user
-   can run; drop the CI job and the website's public statement of it until
-   v0.1.1. The guarantee still holds and is still provable; only its
-   advertisement waits.
+2. ~~E6's CI half.~~ ALREADY CUT on 2026-09-07, not held as a contingency. The
+   byte-identity check and the one-command script stay; the CI job and the
+   website's public statement of the guarantee are out of v0.1.0. The reasoning
+   changed rather than the schedule: E6 was written to prove loudly because an
+   unproven product must over-prove its most load-bearing claim, and "does not
+   touch your existing setup" is simply less remarkable in an ecosystem where
+   Nix and its relatives made isolation ordinary. The guarantee still holds and
+   is still provable by anyone who wants to; it no longer needs advertising.
 3. E3's first-boot behaviour. The launcher opens the tour workspace by setting
    its working directory, which is one line; if even that slips, the tour is
    reached by typing `/teach-me-thursday` and E3 becomes documentation.

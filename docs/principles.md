@@ -76,3 +76,50 @@ judging what a person meant — is the product.
 
 It means not spending them on work that arithmetic could do, and never placing
 them where a wrong answer is indistinguishable from a right one.
+
+## The agent waits on the user, never the reverse
+
+Where there is an asymmetry, put the waiting on the machine's side. The scarce
+resource is the person's attention, and the cheap-model investigation of
+2026-09-07 reached this from the economics: cheap tokens are roughly twenty times
+cheaper against a 2.2x surviving-line disadvantage, so what they actually cost is
+human attention. Every mechanism should be judged by how many interrupts it
+removes, not by how many tokens it saves. A change that does not reduce
+interrupts is decoration.
+
+**Restarting dsh is the motivating case.** Applying a plugin or composition
+change requires a restart, because bundle rows are static per boot. Today that
+costs whatever is in flight, so people defer it — the `message-feedback` rows
+were disabled on 2026-09-05 and the restart to apply them still has not happened,
+because the session doing the work is the session that would die. The user is
+waiting on the machine's inability to stop gracefully. `restart-pause` inverts
+it: the machine quiesces, restarts, reconnects and resumes, and the person does
+nothing but decide.
+
+### What it means in practice
+
+**Never ask a person to poll.** Tell them when the thing is ready. Background
+jobs announce completion, subagents deliver a notice, the board digest arrives on
+change, and an approval request returns immediately rather than blocking — the
+agent is steered when the human acts. An agent that polls is also violating this,
+in the other direction, by making itself wait when it could be told.
+
+**Batch what a person must approve, at the start.** REL2 says it plainly:
+someone asked to approve a seventh thing mid-flight becomes the bottleneck the
+parallelism was meant to remove. On 2026-09-07 three fronts sat idle waiting on
+allowlists that could have been requested before any of them was dispatched. The
+work was right; the ordering made a person the critical path.
+
+**Prefer parking to interrupting.** A gate that cannot be evaluated parks the
+ticket rather than raising a question immediately. The work waits, which costs
+nothing, instead of the person being pulled out of what they were doing.
+
+**When a person must decide, make one decision sufficient.** Give them
+everything needed in one place: a dependency proposal shows what becomes
+startable, not a list of arrows; a review nomination says which ticket and why.
+A decision that requires the person to go and gather context first is really
+several interrupts wearing one coat.
+
+**Idle agents are fine; idle people are waste.** An agent blocked on a human is
+working as designed. A human blocked on an agent means something should have been
+prepared, batched, or backgrounded.

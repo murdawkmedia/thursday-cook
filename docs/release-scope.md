@@ -3,6 +3,10 @@
 REL1. This document is the cut. A ticket is in v0.1.0 or it is not, and every
 ticket on the board is on exactly one of the two lists below.
 
+The release date is Thursday 2026-09-10. It was reset to that date on
+2026-09-07; earlier text in this plan that says "weekend" or "before Monday"
+predates the reset and means this date.
+
 ## Green
 
 v0.1.0 is done when one person can run this in under an hour and every line

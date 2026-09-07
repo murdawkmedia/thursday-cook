@@ -1,0 +1,21 @@
+{
+  "name": "@trythursday/thursday-skin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "dsh client-plane plugin that reskins the web UI in Thursday's palette by overriding dsh's own --dsw-* theme variables from a higher-specificity scope, with every value generated from @trythursday/tokens.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client.tsx"
+  },
+  "dependencies": {
+    "@trythursday/tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "@trythursday/build": "workspace:*"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

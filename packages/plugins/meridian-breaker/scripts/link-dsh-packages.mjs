@@ -37,6 +37,33 @@
  * alternative — falling back to a registry copy — is exactly the silent wrong
  * oracle described above, and a skipped suite that reports success is worse
  * than a failure that names its cause.
+ *
+ * ── What this means for CI, stated so it is a decision and not a surprise ──
+ *
+ * A machine with no dsh installation CANNOT run this package's tests or
+ * typecheck. They fail here, loudly, rather than skipping. Whoever configures
+ * CI has to pick one of:
+ *
+ *   1. install dsh in the job — recommended, because it is the thing this
+ *      plugin actually runs inside;
+ *   2. set $THURSDAY_DSH_PACKAGE to an unpacked @deepseek-ai/dsh; or
+ *   3. exclude this package from that job — which is allowed, but must be
+ *      written down, because a green run that quietly skipped this suite is
+ *      the exact failure this file exists to prevent.
+ *
+ * There is deliberately no "skip when missing" mode. A suite that silently
+ * does not run is indistinguishable from a suite that passed.
+ *
+ * ── Why this duplicates the session package's resolver ──────────────────
+ *
+ * `packages/session/src/runtime.mjs:75` already exports `resolveDshPackage`,
+ * and this is the same algorithm rather than a second design. It is COPIED,
+ * not imported, on purpose: importing it would make a host plugin devDepend on
+ * the session CLI package — and add a workspace dependency and lockfile entry
+ * to a package whose entire point is to have neither — for about thirty lines.
+ *
+ * That trade is worth revisiting. If a third caller ever needs this, extract it
+ * into a small shared package instead of copying it a third time.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -59,7 +86,9 @@ function resolveDshPackage() {
   }
 
   try {
-    const which = execFileSync("sh", ["-c", "command -v dsh || true"], { encoding: "utf8" }).trim();
+    const which = execFileSync("sh", ["-c", "command -v dsh || true"], {
+      encoding: "utf8",
+    }).trim();
     if (which) {
       const real = fs.realpathSync(which);
       let dir = path.dirname(real);

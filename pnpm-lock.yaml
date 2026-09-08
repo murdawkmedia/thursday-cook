@@ -88,6 +88,16 @@ importers:
         specifier: workspace:*
         version: link:../../build
 
+  packages/plugins/thursday-thinking:
+    dependencies:
+      '@trythursday/tokens':
+        specifier: workspace:*
+        version: link:../../tokens
+    devDependencies:
+      '@trythursday/build':
+        specifier: workspace:*
+        version: link:../../build
+
   packages/session: {}
 
   packages/tokens: {}

@@ -1,0 +1,1943 @@
+{
+  "fetchedAt": "2026-09-08T04:35:57.999Z",
+  "sources": [
+    {
+      "id": "meain-gist",
+      "url": "https://gist.github.com/meain/6440b706a97d2dd71574769517e7ed32"
+    },
+    {
+      "id": "loadr",
+      "url": "https://github.com/dimitarchristoff/loadr"
+    },
+    {
+      "id": "happy-load",
+      "url": "https://github.com/pagedip/happy-load"
+    }
+  ],
+  "messages": [
+    {
+      "src": "meain-gist",
+      "text": "Reticulating splines..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Generating witty dialog..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Swapping time and space..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Spinning violently around the y-axis..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Tokenizing real life..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Bending the spoon..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Filtering morale..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Don't think of purple hippos..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "We need a new fuse..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Have a good day."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Upgrading Windows, your PC will restart several times. Sit back and relax."
+    },
+    {
+      "src": "meain-gist",
+      "text": "640K ought to be enough for anybody"
+    },
+    {
+      "src": "meain-gist",
+      "text": "The architects are still drafting"
+    },
+    {
+      "src": "meain-gist",
+      "text": "The bits are breeding"
+    },
+    {
+      "src": "meain-gist",
+      "text": "We're building the buildings as fast as we can"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Would you prefer chicken, steak, or tofu?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "(Pay no attention to the man behind the curtain)"
+    },
+    {
+      "src": "meain-gist",
+      "text": "...and enjoy the elevator music..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Please wait while the little elves draw your map"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Don't worry - a few bits tried to escape, but we caught them"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Would you like fries with that?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Checking the gravitational constant in your locale..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Go ahead -- hold your breath!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "...at least you're not on hold..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Hum something loud while others stare"
+    },
+    {
+      "src": "meain-gist",
+      "text": "You're not in Kansas any more"
+    },
+    {
+      "src": "meain-gist",
+      "text": "The server is powered by a lemon and two electrodes."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Please wait while a larger software vendor in Seattle takes over the world"
+    },
+    {
+      "src": "meain-gist",
+      "text": "We're testing your patience"
+    },
+    {
+      "src": "meain-gist",
+      "text": "As if you had any other choice"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Follow the white rabbit"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Why don't you order a sandwich?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "While the satellite moves into position"
+    },
+    {
+      "src": "meain-gist",
+      "text": "keep calm and npm install"
+    },
+    {
+      "src": "meain-gist",
+      "text": "The bits are flowing slowly today"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Dig on the 'X' for buried treasure... ARRR!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "It's still faster than you could draw it"
+    },
+    {
+      "src": "meain-gist",
+      "text": "The last time I tried this the monkey didn't survive. Let's hope it works better this time."
+    },
+    {
+      "src": "meain-gist",
+      "text": "I should have had a V8 this morning."
+    },
+    {
+      "src": "meain-gist",
+      "text": "My other loading screen is much faster."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Testing on Timmy... We're going to need another Timmy."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Reconfoobling energymotron..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "(Insert quarter)"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Are we there yet?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Have you lost weight?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Just count to 10"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Why so serious?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "It's not you. It's me."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Counting backwards from Infinity"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Don't panic..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Embiggening Prototypes"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Do not run! We are your friends!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Do you come here often?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Warning: Don't set yourself on fire."
+    },
+    {
+      "src": "meain-gist",
+      "text": "We're making you a cookie."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Creating time-loop inversion field"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Spinning the wheel of fortune..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Loading the enchanted bunny..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Computing chance of success"
+    },
+    {
+      "src": "meain-gist",
+      "text": "I'm sorry Dave, I can't do that."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Looking for exact change"
+    },
+    {
+      "src": "meain-gist",
+      "text": "All your web browser are belong to us"
+    },
+    {
+      "src": "meain-gist",
+      "text": "All I really need is a kilobit."
+    },
+    {
+      "src": "meain-gist",
+      "text": "I feel like im supposed to be loading something. . ."
+    },
+    {
+      "src": "meain-gist",
+      "text": "What do you call 8 Hobbits? A Hobbyte."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Should have used a compiled language..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Is this Windows?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Adjusting flux capacitor..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Please wait until the sloth starts moving."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Don't break your screen yet!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "I swear it's almost done."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Let's take a mindfulness minute..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Unicorns are at the end of this road, I promise."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Listening for the sound of one hand clapping..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Keeping all the 1's and removing all the 0's..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Putting the icing on the cake. The cake is not a lie..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Cleaning off the cobwebs..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Making sure all the i's have dots..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "We need more dilithium crystals"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Where did all the internets go"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Connecting Neurotoxin Storage Tank..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Granting wishes..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Time flies when you’re having fun."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Get some coffee and come back in ten minutes.."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Spinning the hamster…"
+    },
+    {
+      "src": "meain-gist",
+      "text": "99 bottles of beer on the wall.."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Stay awhile and listen.."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Be careful not to step in the git-gui"
+    },
+    {
+      "src": "meain-gist",
+      "text": "You edhall not pass! yet.."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Load it and they will come"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Convincing AI not to turn evil.."
+    },
+    {
+      "src": "meain-gist",
+      "text": "There is no spoon. Because we are not done loading it"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Your left thumb points to the right and your right thumb points to the left."
+    },
+    {
+      "src": "meain-gist",
+      "text": "How did you get here?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Wait, do you smell something burning?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Computing the secret to life, the universe, and everything."
+    },
+    {
+      "src": "meain-gist",
+      "text": "When nothing is going right, go left!!..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "I love my job only when I'm on vacation..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "i'm not lazy, I'm just relaxed!!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Never steal. The government hates competition...."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Why are they called apartments if they are all stuck together?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Life is Short – Talk Fast!!!!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Optimism – is a lack of information....."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Save water and shower together"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Whenever I find the key to success, someone changes the lock."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Sometimes I think war is God’s way of teaching us geography."
+    },
+    {
+      "src": "meain-gist",
+      "text": "I’ve got problem for your solution….."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Where there’s a will, there’s a relative."
+    },
+    {
+      "src": "meain-gist",
+      "text": "User: the word computer professionals use when they mean !!idiot!!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Adults are just kids with money."
+    },
+    {
+      "src": "meain-gist",
+      "text": "I think I am, therefore, I am. I think."
+    },
+    {
+      "src": "meain-gist",
+      "text": "A kiss is like a fight, with mouths."
+    },
+    {
+      "src": "meain-gist",
+      "text": "You don’t pay taxes—they take taxes."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Coffee, Chocolate, Men. The richer the better!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "I am free of all prejudices. I hate everyone equally."
+    },
+    {
+      "src": "meain-gist",
+      "text": "git happens"
+    },
+    {
+      "src": "meain-gist",
+      "text": "May the forks be with you"
+    },
+    {
+      "src": "meain-gist",
+      "text": "A commit a day keeps the mobs away"
+    },
+    {
+      "src": "meain-gist",
+      "text": "This is not a joke, it's a commit."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Constructing additional pylons..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Roping some seaturtles..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Locating Jebediah Kerman..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "We are not liable for any broken screens as a result of waiting."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Hello IT, have you tried turning it off and on again?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "If you type Google into Google you can break the internet"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Well, this is embarrassing."
+    },
+    {
+      "src": "meain-gist",
+      "text": "What is the airspeed velocity of an unladen swallow?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Hello, IT... Have you tried forcing an unexpected reboot?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "They just toss us away like yesterday's jam."
+    },
+    {
+      "src": "meain-gist",
+      "text": "They're fairly regular, the beatings, yes. I'd say we're on a bi-weekly beating."
+    },
+    {
+      "src": "meain-gist",
+      "text": "The Elders of the Internet would never stand for it."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Space is invisible mind dust, and stars are but wishes."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Didn't know paint dried so quickly."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Everything sounds the same"
+    },
+    {
+      "src": "meain-gist",
+      "text": "I'm going to walk the dog"
+    },
+    {
+      "src": "meain-gist",
+      "text": "I didn't choose the engineering life. The engineering life chose me."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Dividing by zero..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Spawn more Overlord!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "If I’m not back in five minutes, just wait longer."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Some days, you just can’t get rid of a bug!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "We’re going to need a bigger boat."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Chuck Norris never git push. The repo pulls before."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Web developers do it with <style>"
+    },
+    {
+      "src": "meain-gist",
+      "text": "I need to git pull --my-life-together"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Java developers never RIP. They just get Garbage Collected."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Cracking military-grade encryption..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Simulating traveling salesman..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Proving P=NP..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Entangling superstrings..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Twiddling thumbs..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Searching for plot device..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Trying to sort in O(n)..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Laughing at your pictures-i mean, loading..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Sending data to NS-i mean, our servers."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Looking for sense of humour, please hold on."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Please wait while the intern refills his coffee."
+    },
+    {
+      "src": "meain-gist",
+      "text": "A different error message? Finally, some progress!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Hold on while we wrap up our git together...sorry"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Please hold on as we reheat our coffee"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Kindly hold on as we convert this bug to a feature..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Kindly hold on as our intern quits vim..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Winter is coming..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Installing dependencies"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Switching to the latest JS framework..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Distracted by cat gifs"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Finding someone to hold my beer"
+    },
+    {
+      "src": "meain-gist",
+      "text": "BRB, working on my side project"
+    },
+    {
+      "src": "meain-gist",
+      "text": "@todo Insert witty loading message"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Let's hope it's worth the wait"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Aw, snap! Not.."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Ordering 1s and 0s..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Updating dependencies..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Whatever you do, don't look behind you..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Please wait... Consulting the manual..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "It is dark. You're likely to be eaten by a grue."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Loading funny message..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "It's 10:00pm. Do you know where your children are?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Waiting Daenerys say all her titles..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Feel free to spin in your chair"
+    },
+    {
+      "src": "meain-gist",
+      "text": "What the what?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "format C: ..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Forget you saw that password I just typed into the IM ..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "What's under there?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Your computer has a virus, its name is Windows!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Go ahead, hold your breath and do an ironman plank till loading complete"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Bored of slow loading spinner, buy more RAM!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Help, I'm trapped in a loader!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "What is the difference btwn a hippo and a zippo? One is really heavy, the other is a little lighter"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Please wait, while we purge the Decepticons for you. Yes, You can thanks us later!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Chuck Norris once urinated in a semi truck's gas tank as a joke....that truck is now known as Optimus Prime."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Chuck Norris doesn’t wear a watch. HE decides what time it is."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Mining some bitcoins..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Downloading more RAM.."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Updating to Windows Vista..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Deleting System32 folder"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Hiding all ;'s in your code"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Alt-F4 speeds things up."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Initializing the initializer..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "When was the last time you dusted around here?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Optimizing the optimizer..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Last call for the data bus! All aboard!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Running swag sticker detection..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Never let a computer know you're in a hurry."
+    },
+    {
+      "src": "meain-gist",
+      "text": "A computer will do what you tell it to do, but that may be much different from what you had in mind."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Some things man was never meant to know. For everything else, there's Google."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Unix is user-friendly. It's just very selective about who its friends are."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Shovelling coal into the server"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Pushing pixels..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "How about this weather, eh?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Building a wall..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Everything in this universe is either a potato or not a potato"
+    },
+    {
+      "src": "meain-gist",
+      "text": "The severity of your issue is always lower than you expected."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Updating Updater..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Downloading Downloader..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Debugging Debugger..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Reading Terms and Conditions for you."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Digested cookies being baked again."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Live long and prosper."
+    },
+    {
+      "src": "meain-gist",
+      "text": "There is no cow level, but there's a goat one!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Deleting all your hidden porn..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Running with scissors..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Definitely not a virus..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "You may call me Steve."
+    },
+    {
+      "src": "meain-gist",
+      "text": "You seem like a nice person..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Coffee at my place, tommorow at 10A.M. - don't be late!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Work, work..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Patience! This is difficult, you know..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Discovering new ways of making you wait..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Your time is very important to us. Please wait while we ignore you..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Time flies like an arrow; fruit flies like a banana"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Two men walked into a bar; the third ducked..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Sooooo... Have you seen my vacation photos yet?"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Sorry we are busy catching em' all, we're done soon"
+    },
+    {
+      "src": "meain-gist",
+      "text": "TODO: Insert elevator music"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Still faster than Windows update"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Composer hack: Waiting for reqs to be fetched is less frustrating if you add -vvv to your command."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Please wait while the minions do their work"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Grabbing extra minions"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Doing the heavy lifting"
+    },
+    {
+      "src": "meain-gist",
+      "text": "We're working very Hard .... Really"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Waking up the minions"
+    },
+    {
+      "src": "meain-gist",
+      "text": "You are number 2843684714 in the queue"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Please wait while we serve other customers..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Our premium plan is faster"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Feeding unicorns..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Rupturing the subspace barrier"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Creating an anti-time reaction"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Converging tachyon pulses"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Bypassing control of the matter-antimatter integrator"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Adjusting the dilithium crystal converter assembly"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Reversing the shield polarity"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Disrupting warp fields with an inverse graviton burst"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Up, Up, Down, Down, Left, Right, Left, Right, B, A."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Do you like my loading animation? I made it myself"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Whoah, look at it go!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "No, I'm awake. I was just resting my eyes."
+    },
+    {
+      "src": "meain-gist",
+      "text": "One mississippi, two mississippi..."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Don't panic... AHHHHH!"
+    },
+    {
+      "src": "meain-gist",
+      "text": "Ensuring Gnomes are still short."
+    },
+    {
+      "src": "meain-gist",
+      "text": "Baking ice cream..."
+    },
+    {
+      "src": "loadr",
+      "text": "Reticulating Splines"
+    },
+    {
+      "src": "loadr",
+      "text": "Gathering Goblins"
+    },
+    {
+      "src": "loadr",
+      "text": "Lifting Weights"
+    },
+    {
+      "src": "loadr",
+      "text": "Pushing Pixels"
+    },
+    {
+      "src": "loadr",
+      "text": "Formulating Plan"
+    },
+    {
+      "src": "loadr",
+      "text": "Taking Break"
+    },
+    {
+      "src": "loadr",
+      "text": "Herding Ducks"
+    },
+    {
+      "src": "loadr",
+      "text": "Feeding Developers"
+    },
+    {
+      "src": "loadr",
+      "text": "Fishing for Change"
+    },
+    {
+      "src": "loadr",
+      "text": "Searching for Dancers"
+    },
+    {
+      "src": "loadr",
+      "text": "Waking Up Gnomes"
+    },
+    {
+      "src": "loadr",
+      "text": "Playing Chess"
+    },
+    {
+      "src": "loadr",
+      "text": "Building Igloos"
+    },
+    {
+      "src": "loadr",
+      "text": "Converting Celsius"
+    },
+    {
+      "src": "loadr",
+      "text": "Scanning Power Level"
+    },
+    {
+      "src": "loadr",
+      "text": "Delivering Presents"
+    },
+    {
+      "src": "loadr",
+      "text": "Finding Dragon Balls"
+    },
+    {
+      "src": "loadr",
+      "text": "Firing Lasers"
+    },
+    {
+      "src": "loadr",
+      "text": "Party Rocking"
+    },
+    {
+      "src": "loadr",
+      "text": "Walking up to the club"
+    },
+    {
+      "src": "loadr",
+      "text": "Righting wrongs"
+    },
+    {
+      "src": "loadr",
+      "text": "Building Lego"
+    },
+    {
+      "src": "loadr",
+      "text": "Assembling Avengers"
+    },
+    {
+      "src": "loadr",
+      "text": "Turning Down for What"
+    },
+    {
+      "src": "loadr",
+      "text": "Reaching 88mph"
+    },
+    {
+      "src": "loadr",
+      "text": "Pondering Existence"
+    },
+    {
+      "src": "loadr",
+      "text": "Battling Robots"
+    },
+    {
+      "src": "loadr",
+      "text": "Smashing Pots"
+    },
+    {
+      "src": "loadr",
+      "text": "Stomping Goombas"
+    },
+    {
+      "src": "loadr",
+      "text": "Doing Donuts"
+    },
+    {
+      "src": "loadr",
+      "text": "Entering Danger Zone"
+    },
+    {
+      "src": "loadr",
+      "text": "Talking to Mom"
+    },
+    {
+      "src": "loadr",
+      "text": "Chasing Squirrels"
+    },
+    {
+      "src": "loadr",
+      "text": "Setting Phasers to Stun"
+    },
+    {
+      "src": "loadr",
+      "text": "Doing Macarena"
+    },
+    {
+      "src": "loadr",
+      "text": "Dropping Bass"
+    },
+    {
+      "src": "loadr",
+      "text": "Removing Biebers"
+    },
+    {
+      "src": "loadr",
+      "text": "Performing Magic"
+    },
+    {
+      "src": "loadr",
+      "text": "Autotuning Kanye"
+    },
+    {
+      "src": "loadr",
+      "text": "Waxing Legs"
+    },
+    {
+      "src": "loadr",
+      "text": "Invading Space"
+    },
+    {
+      "src": "loadr",
+      "text": "Levelling Up"
+    },
+    {
+      "src": "loadr",
+      "text": "Generating Map"
+    },
+    {
+      "src": "loadr",
+      "text": "Conquering France"
+    },
+    {
+      "src": "loadr",
+      "text": "Piloting Tardis"
+    },
+    {
+      "src": "loadr",
+      "text": "Destroying Deathstar"
+    },
+    {
+      "src": "loadr",
+      "text": "Typing Letters"
+    },
+    {
+      "src": "loadr",
+      "text": "Making Code"
+    },
+    {
+      "src": "loadr",
+      "text": "Running Marathon"
+    },
+    {
+      "src": "loadr",
+      "text": "Shooting Pucks"
+    },
+    {
+      "src": "loadr",
+      "text": "Kicking Field Goals"
+    },
+    {
+      "src": "loadr",
+      "text": "Fighting Bad Guys"
+    },
+    {
+      "src": "loadr",
+      "text": "Driving Batmobile"
+    },
+    {
+      "src": "loadr",
+      "text": "Warming Up Kryptonite"
+    },
+    {
+      "src": "loadr",
+      "text": "Popping Popcorn"
+    },
+    {
+      "src": "loadr",
+      "text": "Creating Hashes"
+    },
+    {
+      "src": "loadr",
+      "text": "Spawning Boss"
+    },
+    {
+      "src": "loadr",
+      "text": "Evaluating Life Choices"
+    },
+    {
+      "src": "loadr",
+      "text": "Eating Ramen"
+    },
+    {
+      "src": "loadr",
+      "text": "Re-heating Leftovers"
+    },
+    {
+      "src": "loadr",
+      "text": "Petting Kittens"
+    },
+    {
+      "src": "loadr",
+      "text": "Walking Puppies"
+    },
+    {
+      "src": "loadr",
+      "text": "Catching Z’s"
+    },
+    {
+      "src": "loadr",
+      "text": "Jumping Rope"
+    },
+    {
+      "src": "loadr",
+      "text": "Declaring Variables"
+    },
+    {
+      "src": "loadr",
+      "text": "Yessing Doge"
+    },
+    {
+      "src": "loadr",
+      "text": "Recycling Memes"
+    },
+    {
+      "src": "loadr",
+      "text": "Tipping Fedora"
+    },
+    {
+      "src": "loadr",
+      "text": "Walking Runway"
+    },
+    {
+      "src": "loadr",
+      "text": "Counting to Ten"
+    },
+    {
+      "src": "loadr",
+      "text": "Booting Native Client"
+    },
+    {
+      "src": "loadr",
+      "text": "Launching App"
+    },
+    {
+      "src": "loadr",
+      "text": "Drawing Icons"
+    },
+    {
+      "src": "loadr",
+      "text": "Reading Instructions"
+    },
+    {
+      "src": "loadr",
+      "text": "Finding Screws"
+    },
+    {
+      "src": "loadr",
+      "text": "Completing Puzzles"
+    },
+    {
+      "src": "loadr",
+      "text": "Generating Volume Slider"
+    },
+    {
+      "src": "loadr",
+      "text": "Brightening Orange"
+    },
+    {
+      "src": "loadr",
+      "text": "Ordering Pizza"
+    },
+    {
+      "src": "loadr",
+      "text": "You Look Good Today"
+    },
+    {
+      "src": "loadr",
+      "text": "Clearing Screen"
+    },
+    {
+      "src": "loadr",
+      "text": "Stirring Pot"
+    },
+    {
+      "src": "loadr",
+      "text": "Mashing Potatoes"
+    },
+    {
+      "src": "loadr",
+      "text": "Banishing Evil"
+    },
+    {
+      "src": "loadr",
+      "text": "Taking Selfies"
+    },
+    {
+      "src": "loadr",
+      "text": "Accelerating Disks"
+    },
+    {
+      "src": "loadr",
+      "text": "Benching Network"
+    },
+    {
+      "src": "loadr",
+      "text": "Rocking Out"
+    },
+    {
+      "src": "loadr",
+      "text": "Grinding Mage"
+    },
+    {
+      "src": "loadr",
+      "text": "Studying Calculus"
+    },
+    {
+      "src": "loadr",
+      "text": "Playing N64"
+    },
+    {
+      "src": "loadr",
+      "text": "Racing GoKarts"
+    },
+    {
+      "src": "loadr",
+      "text": "Defeating Creepers"
+    },
+    {
+      "src": "loadr",
+      "text": "Blowing Game Cartridge"
+    },
+    {
+      "src": "loadr",
+      "text": "Choosing Pikachu"
+    },
+    {
+      "src": "loadr",
+      "text": "Postponing Half Life 3"
+    },
+    {
+      "src": "loadr",
+      "text": "Rushing Zergs"
+    },
+    {
+      "src": "loadr",
+      "text": "Rescuing Hostages"
+    },
+    {
+      "src": "loadr",
+      "text": "Typing Konami Code"
+    },
+    {
+      "src": "loadr",
+      "text": "Building Snowman"
+    },
+    {
+      "src": "loadr",
+      "text": "Letting it Snow"
+    },
+    {
+      "src": "loadr",
+      "text": "Burning HDMI Cords"
+    },
+    {
+      "src": "loadr",
+      "text": "Applying Filters"
+    },
+    {
+      "src": "loadr",
+      "text": "Taking Screenshot"
+    },
+    {
+      "src": "loadr",
+      "text": "Shaving Mustache"
+    },
+    {
+      "src": "loadr",
+      "text": "Growing Beard"
+    },
+    {
+      "src": "loadr",
+      "text": "Baking Muffins"
+    },
+    {
+      "src": "loadr",
+      "text": "Iterating Javascript"
+    },
+    {
+      "src": "loadr",
+      "text": "Attracting Venture Capital"
+    },
+    {
+      "src": "loadr",
+      "text": "Disrupting Industry"
+    },
+    {
+      "src": "loadr",
+      "text": "Tweeting Hashtags"
+    },
+    {
+      "src": "loadr",
+      "text": "Encrypting Lines"
+    },
+    {
+      "src": "loadr",
+      "text": "Obfuscating C"
+    },
+    {
+      "src": "loadr",
+      "text": "Enhancing License Plate"
+    },
+    {
+      "src": "loadr",
+      "text": "Running Diagnostic"
+    },
+    {
+      "src": "loadr",
+      "text": "Warming Hyperdrive"
+    },
+    {
+      "src": "loadr",
+      "text": "Calibrating Positions"
+    },
+    {
+      "src": "loadr",
+      "text": "Calculating Percentages"
+    },
+    {
+      "src": "loadr",
+      "text": "Revoking Licenses"
+    },
+    {
+      "src": "loadr",
+      "text": "Shedding Core"
+    },
+    {
+      "src": "loadr",
+      "text": "Dampening Gravity"
+    },
+    {
+      "src": "loadr",
+      "text": "Increasing Power"
+    },
+    {
+      "src": "loadr",
+      "text": "Checking Sensors"
+    },
+    {
+      "src": "loadr",
+      "text": "Indexing RSS"
+    },
+    {
+      "src": "loadr",
+      "text": "Programming PCI"
+    },
+    {
+      "src": "loadr",
+      "text": "Determining USB Position"
+    },
+    {
+      "src": "loadr",
+      "text": "Connecting to Bus"
+    },
+    {
+      "src": "loadr",
+      "text": "Inverting Ports"
+    },
+    {
+      "src": "loadr",
+      "text": "Bypassing Capacitor"
+    },
+    {
+      "src": "loadr",
+      "text": "Reversing Bandwidth Throttle"
+    },
+    {
+      "src": "loadr",
+      "text": "Testing AI"
+    },
+    {
+      "src": "loadr",
+      "text": "Virtualizing Microchip"
+    },
+    {
+      "src": "loadr",
+      "text": "Emulating Playstation"
+    },
+    {
+      "src": "loadr",
+      "text": "Synthesizing Drivers"
+    },
+    {
+      "src": "loadr",
+      "text": "Structuring Chlorophyll"
+    },
+    {
+      "src": "loadr",
+      "text": "Watering Plants"
+    },
+    {
+      "src": "loadr",
+      "text": "Ingesting Caffeine"
+    },
+    {
+      "src": "loadr",
+      "text": "Chugging Redbull"
+    },
+    {
+      "src": "loadr",
+      "text": "Parsing System"
+    },
+    {
+      "src": "loadr",
+      "text": "Navigating Arrays"
+    },
+    {
+      "src": "loadr",
+      "text": "Searching Google"
+    },
+    {
+      "src": "loadr",
+      "text": "Overflowing Stack"
+    },
+    {
+      "src": "loadr",
+      "text": "Compiling Binaries"
+    },
+    {
+      "src": "loadr",
+      "text": "Answering Emails"
+    },
+    {
+      "src": "loadr",
+      "text": "Migrating CSS"
+    },
+    {
+      "src": "loadr",
+      "text": "Backing Up Primaries"
+    },
+    {
+      "src": "loadr",
+      "text": "Rendering Dialogs"
+    },
+    {
+      "src": "loadr",
+      "text": "Reading RSS"
+    },
+    {
+      "src": "loadr",
+      "text": "Compressing Data"
+    },
+    {
+      "src": "loadr",
+      "text": "Rejecting Cloud"
+    },
+    {
+      "src": "loadr",
+      "text": "Evaluating Weissman Score"
+    },
+    {
+      "src": "loadr",
+      "text": "Purging Local Storage"
+    },
+    {
+      "src": "loadr",
+      "text": "Leaking Memory"
+    },
+    {
+      "src": "loadr",
+      "text": "Scripting Python"
+    },
+    {
+      "src": "loadr",
+      "text": "Grunting Ruby"
+    },
+    {
+      "src": "loadr",
+      "text": "Benching RAM"
+    },
+    {
+      "src": "loadr",
+      "text": "Determining Auxiliaries"
+    },
+    {
+      "src": "loadr",
+      "text": "Jiggling Internet"
+    },
+    {
+      "src": "loadr",
+      "text": "Ejecting Floppy"
+    },
+    {
+      "src": "loadr",
+      "text": "Fluctuating Objects"
+    },
+    {
+      "src": "loadr",
+      "text": "Spiking Reactor Core"
+    },
+    {
+      "src": "loadr",
+      "text": "Firing Bosons"
+    },
+    {
+      "src": "loadr",
+      "text": "Testing Processor"
+    },
+    {
+      "src": "loadr",
+      "text": "Debugging Prompts"
+    },
+    {
+      "src": "loadr",
+      "text": "Connecting Floats"
+    },
+    {
+      "src": "loadr",
+      "text": "Rounding Integers"
+    },
+    {
+      "src": "loadr",
+      "text": "Pronouncing Gigawatt"
+    },
+    {
+      "src": "loadr",
+      "text": "Inverting Transponders"
+    },
+    {
+      "src": "loadr",
+      "text": "Bypassing Silicon"
+    },
+    {
+      "src": "loadr",
+      "text": "Raising Funds"
+    },
+    {
+      "src": "loadr",
+      "text": "Caching Logs"
+    },
+    {
+      "src": "loadr",
+      "text": "Dithering Broadband"
+    },
+    {
+      "src": "loadr",
+      "text": "Eating Poutine"
+    },
+    {
+      "src": "loadr",
+      "text": "Rolling Rims to Win"
+    },
+    {
+      "src": "loadr",
+      "text": "Begging for Change"
+    },
+    {
+      "src": "loadr",
+      "text": "Chasing Waterfalls"
+    },
+    {
+      "src": "loadr",
+      "text": "Pumping Gas"
+    },
+    {
+      "src": "loadr",
+      "text": "Emptying Pipes"
+    },
+    {
+      "src": "loadr",
+      "text": "Hitting Piñata"
+    },
+    {
+      "src": "loadr",
+      "text": "Unleashing Freedom"
+    },
+    {
+      "src": "loadr",
+      "text": "Airbrushing Actors"
+    },
+    {
+      "src": "loadr",
+      "text": "FIling Taxes"
+    },
+    {
+      "src": "loadr",
+      "text": "Powering Mitochondria"
+    },
+    {
+      "src": "loadr",
+      "text": "Calculating Qi charge"
+    },
+    {
+      "src": "loadr",
+      "text": "Completing Geometry"
+    },
+    {
+      "src": "loadr",
+      "text": "Turning in Algebra"
+    },
+    {
+      "src": "loadr",
+      "text": "Solving for X"
+    },
+    {
+      "src": "loadr",
+      "text": "Benching Wattage"
+    },
+    {
+      "src": "loadr",
+      "text": "Kludging Playback Bar"
+    },
+    {
+      "src": "loadr",
+      "text": "Stringifying Json"
+    },
+    {
+      "src": "loadr",
+      "text": "Consuming Spaghetti Code"
+    },
+    {
+      "src": "loadr",
+      "text": "Deleting Comments"
+    },
+    {
+      "src": "loadr",
+      "text": "Transitioning to Django"
+    },
+    {
+      "src": "loadr",
+      "text": "Learning to Code"
+    },
+    {
+      "src": "loadr",
+      "text": "Battling Feature Creep"
+    },
+    {
+      "src": "loadr",
+      "text": "Losing Flappy Bird"
+    },
+    {
+      "src": "loadr",
+      "text": "Celebrating Good Times"
+    },
+    {
+      "src": "loadr",
+      "text": "Sharpening Pencils"
+    },
+    {
+      "src": "loadr",
+      "text": "Automating Processes"
+    },
+    {
+      "src": "loadr",
+      "text": "Attacking Godzilla"
+    },
+    {
+      "src": "loadr",
+      "text": "Carbonating Soda"
+    },
+    {
+      "src": "loadr",
+      "text": "Thinking of Witty Text"
+    },
+    {
+      "src": "happy-load",
+      "text": "Bob Ross is painting the next page..."
+    },
+    {
+      "src": "happy-load",
+      "text": "200 years ago it took Lewis and Clark several months to cross the Country..."
+    },
+    {
+      "src": "happy-load",
+      "text": "Constructing additional pylons..."
+    },
+    {
+      "src": "happy-load",
+      "text": "Our micro-robot technicians are building the next page"
+    },
+    {
+      "src": "happy-load",
+      "text": "Combing John Stamos' Hair..."
+    },
+    {
+      "src": "happy-load",
+      "text": "Like a timid ghost or a 1997 text message"
+    },
+    {
+      "src": "happy-load",
+      "text": "Collecting unicorn tears..."
+    },
+    {
+      "src": "happy-load",
+      "text": "Following the Yellow Brick Road..."
+    },
+    {
+      "src": "happy-load",
+      "text": "The monkeys in your browser are working hard for you."
+    },
+    {
+      "src": "happy-load",
+      "text": "404 Droids Not Found"
+    },
+    {
+      "src": "happy-load",
+      "text": "low·​ding | \\ˈlō-diŋ"
+    },
+    {
+      "src": "happy-load",
+      "text": "Roads? Where you're going you don't need roads."
+    },
+    {
+      "src": "happy-load",
+      "text": "Refueling Thrusters"
+    },
+    {
+      "src": "happy-load",
+      "text": "Dreaming in Robot 🤖💤"
+    },
+    {
+      "src": "happy-load",
+      "text": "Roses are red, Violets are blue."
+    },
+    {
+      "src": "happy-load",
+      "text": "Look into the spinner..."
+    },
+    {
+      "src": "happy-load",
+      "text": "Once upon a time..."
+    },
+    {
+      "src": "happy-load",
+      "text": "Creating a stable time loop..."
+    },
+    {
+      "src": "happy-load",
+      "text": "Unboxing spare computer parts..."
+    }
+  ]
+}

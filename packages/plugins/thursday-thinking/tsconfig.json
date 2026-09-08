@@ -1,0 +1,19 @@
+{
+  // The client half compiles with the classic JSX factory, like every other
+  // dsh client plugin in this workspace -- see tsconfig.client.json for why.
+  //
+  // Like thursday-skin and unlike thursday-fonts this project INCLUDES tests.
+  // TH3's criteria are enforced by the tests, so a type error in a test is a
+  // hole in the enforcement; it must fail `typecheck` rather than hide behind
+  // an `exclude`.
+  //
+  // `resolveJsonModule` is what makes criterion 8 work. The phrase set is a
+  // data file, and both the plugin and the tests reach it by importing that
+  // file -- not by a generated .ts copy that could drift from it. esbuild
+  // bundles JSON natively, so the browser build needs nothing further.
+  "extends": "../../../tsconfig.client.json",
+  "compilerOptions": {
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts"]
+}

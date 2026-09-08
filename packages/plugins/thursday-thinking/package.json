@@ -1,0 +1,22 @@
+{
+  "name": "@trythursday/thursday-thinking",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "dsh client-plane plugin that replaces the \"Deep diving...\" working indicator with a rotating set of phrases in Thursday's voice, a small animated Thursday mark to their left, and a blue-to-orange gradient generated from @trythursday/tokens.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client.tsx",
+    "./data/phrases.json": "./data/phrases.json"
+  },
+  "dependencies": {
+    "@trythursday/tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "@trythursday/build": "workspace:*"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

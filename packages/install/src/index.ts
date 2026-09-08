@@ -31,6 +31,7 @@ export { BlockError, type BlockProblem } from "./errors";
 export {
   constraintsNamed,
   hasConstraint,
+  loadBlockDir,
   loadBlockFile,
   parseBlock,
   type Block,

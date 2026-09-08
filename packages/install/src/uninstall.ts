@@ -23,6 +23,8 @@ import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { createInterface } from "node:readline/promises";
 
+import { resolveThursdayHome as resolveGuardedHome } from "./install";
+
 /**
  * One outside-the-home path or command that uninstall must handle.
  *
@@ -107,16 +109,21 @@ export const KNOWN_THURSDAY_DIRS = ["app", "runtime", "dsh", "state", "cache"] a
 export type UnexpectedFilePolicy = "preserve" | "delete";
 
 /**
- * Resolve THURSDAY_HOME by the rules in docs/dsh-home.md Q1:
- * 1. $THURSDAY_HOME env var if set and non-empty (with ~ expansion)
- * 2. otherwise $HOME/.thursday
+ * Resolve THURSDAY_HOME by the rules in docs/dsh-home.md Q1.
+ *
+ * DELEGATES rather than repeating the rules. These were two independent
+ * implementations of one rule, and the difference was not cosmetic: this one
+ * applied NO GUARDS, so `THURSDAY_HOME=~/.dsh` resolved happily and uninstall
+ * then removed things inside the user's real dsh home. That is the worst place
+ * in the codebase for a rule to be duplicated, because uninstall is the only
+ * command that deletes. The guarded resolver refuses instead, and refusing to
+ * uninstall is always recoverable while deleting the wrong directory is not.
+ *
+ * The `thursday` CLI checks the same guards before dispatch, but the engine is
+ * also a library: E6's guarantee cannot depend on the CLI being its only caller.
  */
 export function resolveThursdayHome(): string {
-  const envValue = process.env.THURSDAY_HOME?.trim();
-  if (envValue) {
-    return expandPath(envValue);
-  }
-  return resolve(homedir(), ".thursday");
+  return resolveGuardedHome().path;
 }
 
 /**

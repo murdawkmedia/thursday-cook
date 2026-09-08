@@ -14,5 +14,9 @@
     "build": "tsc --outDir dist --rootDir src --noEmit false",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@trythursday/install": "workspace:*",
+    "@trythursday/blocks": "workspace:*"
   }
 }

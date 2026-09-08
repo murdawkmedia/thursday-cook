@@ -197,6 +197,98 @@ async function runDsh(home: string, args: string[]): Promise<number> {
   });
 }
 
+/**
+ * `thursday install` — run the composition through the install engine.
+ *
+ * The engine is imported DYNAMICALLY, for one reason worth stating: `serve` and
+ * `session` are the commands a user runs every day, and they must not fail to
+ * start because the install engine or the block set has a problem. A top-level
+ * import would make a broken block file break the launcher.
+ *
+ * This function owns no installation logic. It resolves the composition, calls
+ * `install()`, and renders the result. Every decision about WHAT to install
+ * lives in the blocks, and every decision about HOW lives in the engine — the
+ * CLI is the third place that logic could leak into, so it holds none.
+ */
+async function runInstall(home: string, argv: string[]): Promise<number> {
+  const dryRun = argv.includes("--dry-run");
+  const quiet = argv.includes("--quiet");
+
+  const unknown = argv.filter((a) => a.startsWith("-") && !["--dry-run", "--quiet"].includes(a));
+  if (unknown.length > 0) {
+    process.stderr.write(
+      `Error: unknown option${unknown.length > 1 ? "s" : ""} ${unknown.join(", ")}\n`,
+    );
+    process.stderr.write("Usage: thursday install [--dry-run] [--quiet]\n");
+    return 1;
+  }
+
+  const { blocksDir } = await import("@trythursday/blocks");
+  const { loadBlockDir, install, BlockError } = await import("@trythursday/install");
+
+  let blocks;
+  try {
+    blocks = loadBlockDir(blocksDir);
+  } catch (error) {
+    // A composition that will not load is not a partial install: nothing has
+    // run yet, so report every bad block at once and change nothing.
+    process.stderr.write(`Error: the Thursday composition could not be loaded\n`);
+    if (error instanceof BlockError) {
+      for (const problem of error.problems) {
+        process.stderr.write(`  ${problem.field}: ${problem.message}\n`);
+      }
+    } else {
+      process.stderr.write(`  ${(error as Error).message}\n`);
+    }
+    return 1;
+  }
+
+  if (blocks.length === 0) {
+    process.stderr.write(`Error: no blocks found in ${blocksDir}\n`);
+    return 1;
+  }
+
+  if (!quiet) {
+    process.stdout.write(
+      `${dryRun ? "Planning" : "Installing"} ${blocks.length} block${blocks.length === 1 ? "" : "s"} into ${home}\n\n`,
+    );
+  }
+
+  const result = await install(blocks, { thursdayHome: home, dryRun, quiet });
+
+  if (!quiet) {
+    // One line per step that DID something. Steps that found their work already
+    // done are counted rather than listed: on a re-run almost every step is a
+    // no-op, and a wall of "already installed" buries the few that changed.
+    const changed = result.steps.filter((s) => s.changed);
+    for (const step of changed) {
+      process.stdout.write(`  ${step.step.blockId}  ${step.output || step.step.step.action}\n`);
+    }
+    const unchanged = result.steps.length - changed.length;
+    process.stdout.write(
+      `\n${changed.length} step${changed.length === 1 ? "" : "s"} ${dryRun ? "would change" : "changed"}` +
+        (unchanged > 0 ? `, ${unchanged} already current` : "") +
+        `\n`,
+    );
+  }
+
+  if (result.problems.length > 0) {
+    process.stderr.write(`\n${result.problems.length} problem(s):\n`);
+    for (const problem of result.problems) {
+      const where = problem.block
+        ? `${problem.block}${problem.step !== undefined ? `[${problem.step}]` : ""}: `
+        : "";
+      process.stderr.write(`  ${where}${problem.message}\n`);
+    }
+    return 1;
+  }
+
+  if (!quiet && !dryRun) {
+    process.stdout.write(`\nThursday is installed. Start it with:\n  thursday serve\n`);
+  }
+  return 0;
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
@@ -244,9 +336,7 @@ async function main(): Promise<void> {
       break;
 
     case "install":
-      // Installation is handled by I1/I2/I4 install engine
-      process.stderr.write("Error: install subcommand not yet implemented\n");
-      process.exit(1);
+      process.exit(await runInstall(home, args.slice(1)));
       break;
 
     case "uninstall":

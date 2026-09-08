@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
 
-import { FONTS_CSS } from '../src/client.tsx';
+import { FONTS_CSS } from '../src/client';
 
 describe('thursday-fonts client', () => {
   it('exports apply, inject, and name', async () => {
-    const mod = await import('../src/client.tsx');
+    const mod = await import('../src/client');
     expect(typeof mod.apply).toBe('function');
     expect(Array.isArray(mod.inject)).toBe(true);
     expect(typeof mod.name).toBe('string');
   });
 
   it('name is thursday-fonts', async () => {
-    const mod = await import('../src/client.tsx');
+    const mod = await import('../src/client');
     expect(mod.name).toBe('thursday-fonts');
   });
 });

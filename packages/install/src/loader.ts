@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
 import { parse as parseYaml } from "yaml";
 
@@ -349,4 +350,65 @@ export function constraintsNamed(block: Block, name: ConstraintName): SurfacedCo
 /** True when the block declares the named constraint anywhere. */
 export function hasConstraint(block: Block, name: string): boolean {
   return findConstraint(name) !== undefined && block.constraints.some((c) => c.name === name);
+}
+
+/**
+ * Load every block in a directory.
+ *
+ * The composition is a DIRECTORY OF FILES, not a manifest listing them: adding
+ * a block is adding a file, and there is no second place to forget to update.
+ * That is the same reason the tour's plan is data and the phrase set is data —
+ * a list that must be kept in sync with the thing it lists eventually is not.
+ *
+ * ORDER IS NOT DECIDED HERE. `planInstall` runs `orderBlocks`, which resolves
+ * dependencies; this returns them sorted by filename purely so the RESULT is
+ * deterministic and a diff of two loads is readable. Sorting by name would be a
+ * bug if it were load-bearing, so it deliberately is not.
+ *
+ * EVERY BAD FILE IS REPORTED, not just the first. A loader that stops at the
+ * first failure makes fixing five broken blocks five edit-run cycles, and the
+ * person doing that is usually mid-install with no idea how many remain.
+ *
+ * @param dir - directory holding `*.md` blocks.
+ * @param options.ignore - basenames to skip; defaults to README.md, which is
+ *   documentation living beside the blocks rather than a block.
+ */
+export function loadBlockDir(
+  dir: string,
+  options?: { readonly ignore?: readonly string[] },
+): Block[] {
+  const ignore = new Set(options?.ignore ?? ["README.md"]);
+
+  let entries: string[];
+  try {
+    entries = readdirSync(dir);
+  } catch (error) {
+    throw new BlockError(`cannot read block directory ${dir}`, [
+      { field: dir, message: String((error as Error).message ?? error) },
+    ]);
+  }
+
+  const files = entries
+    .filter((name) => name.endsWith(".md") && !ignore.has(name))
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+
+  const blocks: Block[] = [];
+  const problems: BlockProblem[] = [];
+  for (const name of files) {
+    const path = join(dir, name);
+    try {
+      blocks.push(loadBlockFile(path));
+    } catch (error) {
+      // Keep going: the caller wants every problem in one pass.
+      problems.push({ field: path, message: String((error as Error).message ?? error) });
+    }
+  }
+
+  if (problems.length > 0) {
+    throw new BlockError(
+      `${problems.length} of ${files.length} block file(s) in ${dir} could not be loaded`,
+      problems,
+    );
+  }
+  return blocks;
 }

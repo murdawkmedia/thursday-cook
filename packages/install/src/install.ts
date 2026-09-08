@@ -133,7 +133,7 @@ export function resolveThursdayHome(
   ) {
     throw new Error(
       `THURSDAY_HOME cannot overlap with user's dsh home: ` +
-      `resolved THURSDAY_HOME=${thursdayHome}, user DSH_HOME=${resolvedUserDsh}`
+        `resolved THURSDAY_HOME=${thursdayHome}, user DSH_HOME=${resolvedUserDsh}`,
     );
   }
 
@@ -141,7 +141,7 @@ export function resolveThursdayHome(
   if (thursdayHome.startsWith("/mnt/")) {
     throw new Error(
       `THURSDAY_HOME cannot be under /mnt/ (WSL DrvFs): ` +
-      `resolved THURSDAY_HOME=${thursdayHome}`
+        `resolved THURSDAY_HOME=${thursdayHome}`,
     );
   }
 
@@ -158,6 +158,39 @@ export function resolveThursdayHome(
  */
 export function baseDirFor(base: PathBase, dshPath: string, thursdayHome: string): string {
   return base === "home" ? thursdayHome : dshPath;
+}
+
+/** How many trailing lines of a failed command's stderr to quote. */
+const COMMAND_FAILURE_STDERR_LINES = 8;
+
+/**
+ * Turn a failed command into a message that says WHY, not just that it failed.
+ *
+ * `Command failed with exit code 1` is what execa's own message says, and on
+ * its own it is undiagnosable: it names neither the reason nor anything the
+ * reader can act on. The tool almost always said something useful on stderr
+ * first — "unable to open database file", "ENOTFOUND registry.npmjs.org",
+ * "404 Not Found" — and that line is the whole diagnosis.
+ *
+ * The tail is quoted rather than the head, because build tools print progress
+ * first and the failure last. Blank lines are dropped so a tool that pads its
+ * output does not push the cause out of the window.
+ */
+export function describeCommandFailure(err: unknown): string {
+  const base = err instanceof Error ? err.message : String(err);
+  const stderr = (err as { stderr?: unknown } | null)?.stderr;
+  if (typeof stderr !== "string" || stderr.trim() === "") return base;
+
+  const lines = stderr
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim() !== "");
+  if (lines.length === 0) return base;
+
+  const tail = lines.slice(-COMMAND_FAILURE_STDERR_LINES);
+  const elided = lines.length - tail.length;
+  const prefix = elided > 0 ? `(${elided} earlier stderr line(s) omitted)\n` : "";
+  return `${base}\n${prefix}${tail.map((line) => `    ${line}`).join("\n")}`;
 }
 
 /** Count non-overlapping occurrences of `needle` in `haystack`. */
@@ -251,7 +284,7 @@ export function previewPatchFileExact(
   if (!fs.existsSync(targetPath)) {
     throw new Error(
       `patch target not found: ${targetPath}. patch-file-exact requires the file to exist; ` +
-      `a missing target means the step that installs it did not run to completion.`
+        `a missing target means the step that installs it did not run to completion.`,
     );
   }
 
@@ -265,7 +298,7 @@ export function previewPatchFileExact(
   if (realTarget !== realHome && !realTarget.startsWith(realHome + sep)) {
     throw new Error(
       `refusing to patch ${step.target}: it resolves to ${realTarget}, which is outside ` +
-      `THURSDAY_HOME (${realHome}). Thursday patches its own copy of dsh and nothing else.`
+        `THURSDAY_HOME (${realHome}). Thursday patches its own copy of dsh and nothing else.`,
     );
   }
 
@@ -291,14 +324,14 @@ export function previewPatchFileExact(
       case "ambiguous":
         throw new Error(
           `replacement ${i} matches ${countOccurrences(nextContent, replacement.find)} times in ` +
-          `${step.target}; the find text must appear exactly once. Nothing was written.`
+            `${step.target}; the find text must appear exactly once. Nothing was written.`,
         );
       case "missing":
       default:
         throw new Error(
           `replacement ${i} does not match ${step.target}: neither its find text nor its ` +
-          `replacement is present. This is version skew — the patch must be re-derived against ` +
-          `the installed file. Nothing was written, so the file is exactly as it was.`
+            `replacement is present. This is version skew — the patch must be re-derived against ` +
+            `the installed file. Nothing was written, so the file is exactly as it was.`,
         );
     }
   });
@@ -310,18 +343,18 @@ export function previewPatchFileExact(
   const lines: string[] = [];
   if (!changed) {
     lines.push(
-      `Patch already applied: ${step.target} (${step.replacements.length} replacements present)`
+      `Patch already applied: ${step.target} (${step.replacements.length} replacements present)`,
     );
   } else {
     lines.push(
       `Patched ${step.target}: applied ${pending.length} of ${step.replacements.length} ` +
-      `replacements` +
-      (alreadyApplied.length > 0 ? ` (${alreadyApplied.length} already present)` : "")
+        `replacements` +
+        (alreadyApplied.length > 0 ? ` (${alreadyApplied.length} already present)` : ""),
     );
     lines.push(
       storesOriginal
         ? `Stored the original at state/${step.storageKey}.orig`
-        : `Original already stored at state/${step.storageKey}.orig; left untouched`
+        : `Original already stored at state/${step.storageKey}.orig; left untouched`,
     );
   }
 
@@ -430,15 +463,14 @@ export function runDetectStep(
         let found = false;
 
         if (placement === "insert" && Array.isArray(entries[0]?.insert)) {
-          found = entries[0].insert.some((row: any) =>
-            rowPresentSatisfied(step, row)
-          );
+          found = entries[0].insert.some((row: any) => rowPresentSatisfied(step, row));
         } else if (placement === "override") {
-          found = entries.some((entry: any) =>
-            typeof entry === "object" &&
-            entry !== null &&
-            entry.id === step.id &&
-            rowPresentSatisfied(step, entry)
+          found = entries.some(
+            (entry: any) =>
+              typeof entry === "object" &&
+              entry !== null &&
+              entry.id === step.id &&
+              rowPresentSatisfied(step, entry),
           );
         }
 
@@ -486,7 +518,7 @@ export function detectBlockStatus(
   const blockId = block.frontmatter.id;
 
   const allPass = block.frontmatter.detect.every((step) =>
-    runDetectStep(step, dshPath, thursdayHome, fs)
+    runDetectStep(step, dshPath, thursdayHome, fs),
   );
 
   if (!allPass) {
@@ -629,11 +661,7 @@ export async function executeStep(
             output.push(`Added allowBuilds entry: ${allowBuildsEntry}`);
             if (!dryRun) {
               workspaceDoc.allowBuilds.push(allowBuildsEntry);
-              fs.writeFileSync(
-                workspacePath,
-                stringifyYaml(workspaceDoc),
-                "utf8"
-              );
+              fs.writeFileSync(workspacePath, stringifyYaml(workspaceDoc), "utf8");
             }
           }
         }
@@ -648,21 +676,30 @@ export async function executeStep(
           };
 
           try {
-            // Use execa for better error handling and testability
-            await execa("pnpm", [
-              "add",
-              `--config.store-dir=${storeDir}`,
-              spec,
-              ...(step.as ? [`--save-as=${step.as}`] : []),
-            ], {
-              cwd: profilePath,
-              env,
-              stdio: "inherit",
-            });
-          } catch (err) {
-            throw new Error(
-              `pnpm-add failed for ${spec}: ${err instanceof Error ? err.message : String(err)}`
+            // stdout is INHERITED so a long install shows live progress, but
+            // stderr is CAPTURED so the cause can be put in the thrown error.
+            // With both inherited, the problem summary printed at the end read
+            // "Command failed with exit code 1" and nothing else, while the
+            // real message -- for example pnpm's "unable to open database
+            // file" when its store is unwritable -- had scrolled far above it.
+            // The summary is what gets read in a log or a CI job, so the cause
+            // has to be in the summary.
+            await execa(
+              "pnpm",
+              [
+                "add",
+                `--config.store-dir=${storeDir}`,
+                spec,
+                ...(step.as ? [`--save-as=${step.as}`] : []),
+              ],
+              {
+                cwd: profilePath,
+                env,
+                stdio: ["ignore", "inherit", "pipe"],
+              },
             );
+          } catch (err) {
+            throw new Error(`pnpm-add failed for ${spec}: ${describeCommandFailure(err)}`);
           }
         }
 
@@ -727,7 +764,7 @@ export async function executeStep(
 
         output.push(
           `${exists ? "Rewrote" : "Wrote"} file: ${step.path} ` +
-          `(${Buffer.byteLength(step.content, "utf8")} bytes)`
+            `(${Buffer.byteLength(step.content, "utf8")} bytes)`,
         );
 
         return {
@@ -744,7 +781,7 @@ export async function executeStep(
         if (!fs.existsSync(cwd)) {
           throw new Error(
             `pnpm-install working directory not found: ${cwd}. The step that creates it ` +
-            `(a write-file of its package.json) must run first.`
+              `(a write-file of its package.json) must run first.`,
           );
         }
 
@@ -773,15 +810,14 @@ export async function executeStep(
           };
 
           try {
+            // See the pnpm-add step above for why stderr is captured.
             await execa("pnpm", ["install", `--config.store-dir=${storeDir}`], {
               cwd,
               env,
-              stdio: "inherit",
+              stdio: ["ignore", "inherit", "pipe"],
             });
           } catch (err) {
-            throw new Error(
-              `pnpm install failed in ${cwd}: ${err instanceof Error ? err.message : String(err)}`
-            );
+            throw new Error(`pnpm install failed in ${cwd}: ${describeCommandFailure(err)}`);
           }
         }
 
@@ -885,7 +921,9 @@ export async function executeStep(
             const content = fs.readFileSync(filePath, "utf8");
             doc = parseYaml(content) || {};
           } catch (err) {
-            throw new Error(`failed to parse ${file}: ${err instanceof Error ? err.message : String(err)}`);
+            throw new Error(
+              `failed to parse ${file}: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }
 
@@ -951,7 +989,7 @@ export async function executeStep(
           };
         } catch (err) {
           throw new Error(
-            `command failed: ${step.command}: ${err instanceof Error ? err.message : String(err)}`
+            `command failed: ${step.command}: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
       }
@@ -962,7 +1000,7 @@ export async function executeStep(
   } catch (err) {
     throw new Error(
       `step ${planned.index} (${step.action}) in block ${blockId} failed: ` +
-      `${err instanceof Error ? err.message : String(err)}`
+        `${err instanceof Error ? err.message : String(err)}`,
     );
   }
 }
@@ -984,15 +1022,13 @@ export async function executeInstall(
 
   if (!quiet) {
     console.log(
-      `\nThursday install: ${plan.steps.length} steps to run${dryRun ? " (dry-run)" : ""}`
+      `\nThursday install: ${plan.steps.length} steps to run${dryRun ? " (dry-run)" : ""}`,
     );
   }
 
   for (const planned of plan.steps) {
     if (!quiet) {
-      console.log(
-        `\n[${planned.blockId}] ${planned.step.action} (step ${planned.index})`
-      );
+      console.log(`\n[${planned.blockId}] ${planned.step.action} (step ${planned.index})`);
     }
 
     try {
@@ -1021,7 +1057,7 @@ export async function executeInstall(
   if (!quiet) {
     console.log(
       `\n${dryRun ? "Would install" : "Installed"}: ${results.length} steps, ` +
-      `${results.filter((r) => r.changed).length} changed`
+        `${results.filter((r) => r.changed).length} changed`,
     );
   }
 

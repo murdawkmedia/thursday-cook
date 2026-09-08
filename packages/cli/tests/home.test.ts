@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { checkThursdayHomeSafety, resolveThursdayHome } from "../src/index";
+import {
+  KNOWN_COMMANDS,
+  checkThursdayHomeSafety,
+  preflight,
+  resolveThursdayHome,
+} from "../src/index";
 
 // These two functions decide WHERE EVERY FILE GOES. They are unit-tested rather
 // than exercised only through an end-to-end install because the failures that
@@ -101,5 +106,71 @@ describe("checkThursdayHomeSafety", () => {
 
   it("refuses a WSL drive mount", () => {
     expect(checkThursdayHomeSafety("/mnt/c/Users/tester/thursday", env(), HOME)).toContain("/mnt/");
+  });
+});
+
+describe("preflight", () => {
+  // These exist because a mutation run proved the guards above were NOT
+  // protected. Re-wrapping the safety call in `COMMANDS_NEEDING_HOME.has(...)`
+  // -- reintroducing the exact bug where the command that CREATES the home was
+  // the only one that never checked where -- left the whole suite green. The
+  // guard was tested; its call site was not. Every test in this block asserts
+  // the DISPATCH, not the predicate.
+
+  const allExist = () => true;
+  const noneExist = () => false;
+
+  it("refuses install into a home that overlaps the user's dsh home", () => {
+    // THE SURVIVOR. install is exempt from the existence checks, and was
+    // wrongly exempt from the safety checks with it.
+    const got = preflight("install", { THURSDAY_HOME: "~/.dsh" }, HOME, noneExist);
+    expect(got.ok).toBe(false);
+    expect(got.ok === false && got.message).toContain("overlaps");
+  });
+
+  it("refuses install onto a WSL drive mount", () => {
+    const got = preflight("install", { THURSDAY_HOME: "/mnt/c/thursday" }, HOME, noneExist);
+    expect(got.ok).toBe(false);
+    expect(got.ok === false && got.message).toContain("/mnt/");
+  });
+
+  it("applies the safety guards to EVERY known command, not a chosen few", () => {
+    // Enumerated from the exported set rather than hand-listed, so a command
+    // added later is covered without anyone remembering to add a case here.
+    for (const command of KNOWN_COMMANDS) {
+      const got = preflight(command, { THURSDAY_HOME: "~/.dsh" }, HOME, allExist);
+      expect(got.ok, `${command} must refuse a home overlapping ~/.dsh`).toBe(false);
+      expect(got.ok === false && got.message).toContain("overlaps");
+    }
+  });
+
+  it("still lets install proceed without an existing home", () => {
+    // The other half of the split: install must NOT be blocked by "home does
+    // not exist yet", which is the circular error this ordering was built to
+    // avoid. A guard fix that broke this would be a regression too.
+    const got = preflight("install", { THURSDAY_HOME: "~/thursday-test" }, HOME, noneExist);
+    expect(got.ok).toBe(true);
+    expect(got.ok === true && got.home).toBe("/home/tester/thursday-test");
+  });
+
+  it("blocks commands that need a home when the home is missing", () => {
+    const got = preflight("serve", { THURSDAY_HOME: "~/thursday-test" }, HOME, noneExist);
+    expect(got.ok).toBe(false);
+    expect(got.ok === false && got.message).toContain("run 'thursday install' first");
+  });
+
+  it("blocks commands that need a runtime when only the home exists", () => {
+    const exists = (path: string) => !path.includes("node_modules");
+    const got = preflight("serve", { THURSDAY_HOME: "~/thursday-test" }, HOME, exists);
+    expect(got.ok).toBe(false);
+    expect(got.ok === false && got.message).toContain("runtime not found");
+  });
+
+  it("rejects an unknown command before touching the filesystem", () => {
+    const got = preflight("instal", { THURSDAY_HOME: "~/.dsh" }, HOME, noneExist);
+    expect(got.ok).toBe(false);
+    // A typo must be reported AS a typo, not as whatever the home happens to
+    // be wrong about -- otherwise `thursday instal` complains about ~/.dsh.
+    expect(got.ok === false && got.message).toContain("unknown command");
   });
 });

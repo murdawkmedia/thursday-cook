@@ -98,20 +98,77 @@ export function checkThursdayHomeSafety(
   return null;
 }
 
-function validateThursdayHome(home: string): string | null {
-  const unsafe = checkThursdayHomeSafety(home);
-  if (unsafe) return unsafe;
+/** Commands the CLI knows. Anything else prints help and exits non-zero. */
+export const KNOWN_COMMANDS = new Set([
+  "serve",
+  "session",
+  "install",
+  "uninstall",
+  "status",
+  "update",
+]);
 
-  if (!existsSync(home)) {
-    return `Error: THURSDAY_HOME not found at ${home}; run 'thursday install' first`;
+/**
+ * Commands that require an EXISTING Thursday home.
+ *
+ * `install` is absent because it is the command that creates the home: on a
+ * machine with no Thursday, requiring one answered `thursday install` with
+ * "run 'thursday install' first".
+ *
+ * This set governs the EXISTENCE checks only. It must never govern the safety
+ * guards -- see preflight.
+ */
+export const COMMANDS_NEEDING_HOME = new Set(["serve", "session", "uninstall", "status", "update"]);
+
+export type Preflight = { ok: true; home: string } | { ok: false; message: string };
+
+/**
+ * Everything that must be true before a command runs, as a value rather than a
+ * sequence of process.exit calls.
+ *
+ * This is a function, and exported, for a reason a mutation run made concrete.
+ * The guards themselves were unit-tested and the tests passed -- but nothing
+ * asserted that the DISPATCH called them for `install`, so re-wrapping the call
+ * in `COMMANDS_NEEDING_HOME.has(command)` (the exact bug that was just fixed)
+ * left the suite green. A guard that is tested in isolation while its call site
+ * is untested is a guard with no regression protection at all.
+ *
+ * Order is load-bearing:
+ *   1. unknown command -- so a typo prints help rather than a path error;
+ *   2. resolve the home;
+ *   3. SAFETY, for every command including install: overlap with the user's dsh
+ *      home, and WSL drive mounts. These decide whether we may write here;
+ *   4. EXISTENCE, for commands that need a home that already exists.
+ */
+export function preflight(
+  command: string,
+  env: Record<string, string | undefined> = process.env,
+  userHome: string = homedir(),
+  exists: (path: string) => boolean = existsSync,
+): Preflight {
+  if (!KNOWN_COMMANDS.has(command)) {
+    return { ok: false, message: `Error: unknown command '${command}'` };
   }
 
-  const runtimeBin = join(home, "runtime", "node_modules", ".bin", "dsh");
-  if (!existsSync(runtimeBin)) {
-    return `Error: Thursday runtime not found at ${runtimeBin}`;
+  const home = resolveThursdayHome(env, userHome);
+
+  const unsafe = checkThursdayHomeSafety(home, env, userHome);
+  if (unsafe) return { ok: false, message: unsafe };
+
+  if (COMMANDS_NEEDING_HOME.has(command)) {
+    if (!exists(home)) {
+      return {
+        ok: false,
+        message: `Error: THURSDAY_HOME not found at ${home}; run 'thursday install' first`,
+      };
+    }
+    const runtimeBin = join(home, "runtime", "node_modules", ".bin", "dsh");
+    if (!exists(runtimeBin)) {
+      return { ok: false, message: `Error: Thursday runtime not found at ${runtimeBin}` };
+    }
   }
 
-  return null;
+  return { ok: true, home };
 }
 
 async function runDsh(home: string, args: string[]): Promise<number> {
@@ -161,33 +218,19 @@ async function main(): Promise<void> {
   // An unknown command must reach the default branch and print help. Validating
   // first made that branch unreachable on exactly the machines where a typo is
   // most likely.
-  const KNOWN_COMMANDS = new Set(["serve", "session", "install", "uninstall", "status", "update"]);
-  const COMMANDS_NEEDING_HOME = new Set(["serve", "session", "uninstall", "status", "update"]);
-
-  if (!KNOWN_COMMANDS.has(command)) {
-    process.stderr.write(`Error: unknown command '${command}'\n\n`);
-    printHelp();
-    process.exit(1);
-  }
-
-  const home = resolveThursdayHome();
-
-  // Unconditional, and BEFORE the dispatch below: no command may act on a home
-  // that overlaps the user's dsh install or sits on a WSL drive mount. install
-  // is included deliberately -- see checkThursdayHomeSafety.
-  const unsafeHome = checkThursdayHomeSafety(home);
-  if (unsafeHome) {
-    process.stderr.write(`${unsafeHome}\n`);
-    process.exit(1);
-  }
-
-  if (COMMANDS_NEEDING_HOME.has(command)) {
-    const validationError = validateThursdayHome(home);
-    if (validationError) {
-      process.stderr.write(`${validationError}\n`);
-      process.exit(1);
+  const checked = preflight(command);
+  if (!checked.ok) {
+    process.stderr.write(`${checked.message}\n`);
+    // An unrecognised command is a usage error, so the usage is what the user
+    // needs to see. A home that is unsafe or missing is not: help would bury
+    // the one line that says what is wrong.
+    if (!KNOWN_COMMANDS.has(command)) {
+      process.stderr.write("\n");
+      printHelp();
     }
+    process.exit(1);
   }
+  const home = checked.home;
 
   switch (command) {
     case "serve":

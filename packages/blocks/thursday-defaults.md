@@ -1,7 +1,7 @@
 ---
 id: thursday-defaults
 title: Thursday defaults (settings and preset)
-version: 1
+version: 2
 rationale: >
   The settings file and the standard preset Thursday ships: the active profile,
   and the subagent routing every delegated agent inherits.
@@ -26,8 +26,15 @@ modifies:
       orchestrator's creation route.
 steps:
   - action: copy-tree
-    from: home/settings
-    to: .
+    from: config/settings.yaml
+    to: settings.yaml
+    why: >
+      The settings template moved out of the old home/ staging tree into
+      config/ (see the migration map), so this step copies that one template
+      file — not a home/settings directory, which no longer exists. There is
+      no presets template to copy beside it: presets/standard.yaml is created
+      by the write-settings-key step below, which is why that action creates a
+      missing file rather than failing on it.
   - action: write-settings-key
     file: settings.yaml
     key: profile.active

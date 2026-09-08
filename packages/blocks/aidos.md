@@ -1,7 +1,7 @@
 ---
 id: aidos
 title: aidos (planning and ticketing)
-version: 1
+version: 2
 rationale: >
   Thursday's planning and ticketing subsystem: tickets, evidence gates, and the
   plan format. Installed from git at a pinned commit, and it builds on install.
@@ -44,6 +44,7 @@ steps:
   - action: copy-tree
     from: profiles/web/node_modules/aidos/skills
     to: skills/aidos
+    base: dsh
     why: >
       The skills come from the pinned package's own install, not a repo
       directory and not a separate clone: the pin is the single source of

@@ -2,16 +2,8 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { join, dirname } from "node:path";
 import { fs as memfsFs, vol } from "memfs";
 
-import {
-  INSTALL_ACTIONS,
-  DETECT_ACTIONS,
-  type Step,
-} from "../src/actions";
-import {
-  previewPatchFileExact,
-  classifyReplacement,
-  type FilesystemAPI,
-} from "../src/install";
+import { INSTALL_ACTIONS, DETECT_ACTIONS, type Step } from "../src/actions";
+import { previewPatchFileExact, classifyReplacement, type FilesystemAPI } from "../src/install";
 
 /**
  * Create a memfs-based filesystem API for testing.
@@ -135,7 +127,7 @@ describe("patch-file-exact executor with guards", () => {
       };
 
       expect(() => previewPatchFileExact(step, dshPath, thursdayHome, fs)).toThrow(
-        /not found|missing/i
+        /not found|missing/i,
       );
     });
 
@@ -171,7 +163,7 @@ describe("patch-file-exact executor with guards", () => {
 
       // In real filesystem this would be a symlink, but memfs limitation means
       // we test the guard logic separately. The key is that realpath can escape.
-      
+
       // For memfs testing, we verify the error message and logic are present.
       const step: Extract<Step, { action: "patch-file-exact" }> = {
         action: "patch-file-exact",
@@ -182,7 +174,7 @@ describe("patch-file-exact executor with guards", () => {
       };
 
       expect(() => previewPatchFileExact(step, dshPath, thursdayHome, fs)).toThrow(
-        /outside|THURSDAY_HOME/i
+        /outside|THURSDAY_HOME/i,
       );
     });
 
@@ -290,7 +282,7 @@ describe("patch-file-exact executor with guards", () => {
       };
 
       expect(() => previewPatchFileExact(step, dshPath, thursdayHome, fs)).toThrow(
-        /does not match|version skew/i
+        /does not match|version skew/i,
       );
 
       // Verify file is unchanged (preview doesn't write)

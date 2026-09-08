@@ -57,7 +57,7 @@ describe("resolveThursdayHome", () => {
         THURSDAY_HOME: "/tmp/test-thursday",
         HOME: "/home/test",
       },
-      "/home/test"
+      "/home/test",
     );
     expect(result.path).toBe("/tmp/test-thursday");
     expect(result.dshPath).toBe("/tmp/test-thursday/dsh");
@@ -68,7 +68,7 @@ describe("resolveThursdayHome", () => {
       {
         HOME: "/home/test",
       },
-      "/home/test"
+      "/home/test",
     );
     expect(result.path).toBe("/home/test/.thursday");
     expect(result.dshPath).toBe("/home/test/.thursday/dsh");
@@ -80,7 +80,7 @@ describe("resolveThursdayHome", () => {
         THURSDAY_HOME: "~/my-thursday",
         HOME: "/home/test",
       },
-      "/home/test"
+      "/home/test",
     );
     expect(result.path).toBe("/home/test/my-thursday");
   });
@@ -93,8 +93,8 @@ describe("resolveThursdayHome", () => {
           DSH_HOME: "/home/test/.dsh",
           HOME: "/home/test",
         },
-        "/home/test"
-      )
+        "/home/test",
+      ),
     ).toThrow(/cannot overlap/);
   });
 
@@ -106,8 +106,8 @@ describe("resolveThursdayHome", () => {
           DSH_HOME: "/home/test/.dsh",
           HOME: "/home/test",
         },
-        "/home/test"
-      )
+        "/home/test",
+      ),
     ).toThrow(/cannot overlap/);
   });
 
@@ -118,8 +118,8 @@ describe("resolveThursdayHome", () => {
           THURSDAY_HOME: "/mnt/c/thursday",
           HOME: "/home/test",
         },
-        "/home/test"
-      )
+        "/home/test",
+      ),
     ).toThrow(/WSL DrvFs/);
   });
 });
@@ -142,7 +142,7 @@ describe("Detection with memfs fake filesystem", () => {
         { action: "path-exists", path: "profiles/web/package.json", base: "dsh" },
         "/thursday/dsh",
         "/thursday",
-        fs
+        fs,
       );
       expect(result).toBe(true);
     });
@@ -152,7 +152,7 @@ describe("Detection with memfs fake filesystem", () => {
         { action: "path-exists", path: "missing/file.txt", base: "dsh" },
         "/thursday/dsh",
         "/thursday",
-        fs
+        fs,
       );
       expect(result).toBe(false);
     });
@@ -166,7 +166,7 @@ describe("Detection with memfs fake filesystem", () => {
         { action: "package-installed", name: "@example/pkg", profile: "web" },
         "/thursday/dsh",
         "/thursday",
-        fs
+        fs,
       );
       expect(result).toBe(true);
     });
@@ -176,7 +176,7 @@ describe("Detection with memfs fake filesystem", () => {
         { action: "package-installed", name: "missing-pkg", profile: "web" },
         "/thursday/dsh",
         "/thursday",
-        fs
+        fs,
       );
       expect(result).toBe(false);
     });
@@ -184,10 +184,7 @@ describe("Detection with memfs fake filesystem", () => {
     it("settings-key-equals: returns true when key matches", () => {
       const settingsPath = "/thursday/dsh/settings.yaml";
       fs.mkdirSync("/thursday/dsh", { recursive: true });
-      fs.writeFileSync(
-        settingsPath,
-        "profile:\n  active: web\n  mode: dark"
-      );
+      fs.writeFileSync(settingsPath, "profile:\n  active: web\n  mode: dark");
 
       const result = runDetectStep(
         {
@@ -198,7 +195,7 @@ describe("Detection with memfs fake filesystem", () => {
         },
         "/thursday/dsh",
         "/thursday",
-        fs
+        fs,
       );
       expect(result).toBe(true);
     });
@@ -206,10 +203,7 @@ describe("Detection with memfs fake filesystem", () => {
     it("settings-key-equals: returns false when key differs", () => {
       const settingsPath = "/thursday/dsh/settings.yaml";
       fs.mkdirSync("/thursday/dsh", { recursive: true });
-      fs.writeFileSync(
-        settingsPath,
-        "profile:\n  active: thursday"
-      );
+      fs.writeFileSync(settingsPath, "profile:\n  active: thursday");
 
       const result = runDetectStep(
         {
@@ -220,7 +214,7 @@ describe("Detection with memfs fake filesystem", () => {
         },
         "/thursday/dsh",
         "/thursday",
-        fs
+        fs,
       );
       expect(result).toBe(false);
     });
@@ -235,7 +229,7 @@ describe("Detection with memfs fake filesystem", () => {
         },
         "/thursday/dsh",
         "/thursday",
-        fs
+        fs,
       );
       expect(result).toBe(false);
     });
@@ -387,7 +381,7 @@ describe("the memfs fake really implements what the guards call", () => {
       { steps: [plannedPatch], problems: [] },
       "/thursday/dsh",
       "/thursday",
-      { quiet: true, fs }
+      { quiet: true, fs },
     );
 
     expect(result.problems).toEqual([]);
@@ -395,7 +389,7 @@ describe("the memfs fake really implements what the guards call", () => {
     // renameSync moved the temp file over the target, and unlinkSync had
     // nothing to clean up because the write succeeded
     expect(fs.readFileSync("/thursday/runtime/lib/index.js", "utf8").toString()).toBe(
-      "const a = 2;\n"
+      "const a = 2;\n",
     );
     expect(fs.existsSync("/thursday/runtime/lib/index.js.thursday-patch-tmp")).toBe(false);
     expect(fs.readFileSync("/thursday/state/demo.orig", "utf8").toString()).toBe("const a = 1;\n");
@@ -411,7 +405,7 @@ describe("the memfs fake really implements what the guards call", () => {
       { steps: [plannedPatch], problems: [] },
       "/thursday/dsh",
       "/thursday",
-      { quiet: true, fs }
+      { quiet: true, fs },
     );
 
     expect(result.problems).toHaveLength(1);

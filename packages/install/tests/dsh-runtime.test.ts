@@ -89,9 +89,7 @@ describe("dsh-runtime block", () => {
       // Looking for it in `find` (as this assertion used to) only matched while
       // the find was a substring of the replace — the exact non-idempotence the
       // review caught, so searching `find` here would re-enshrine that bug.
-      const aidosReplacement = replacements.find((r: any) =>
-        r.replace.includes("/aidos/scratch/")
-      );
+      const aidosReplacement = replacements.find((r: any) => r.replace.includes("/aidos/scratch/"));
       expect(aidosReplacement).toBeDefined();
       expect(aidosReplacement.find).not.toContain("/aidos/scratch/");
       // The correct replacement includes --wrapper

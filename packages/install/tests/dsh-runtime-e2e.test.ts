@@ -119,7 +119,7 @@ describe("dsh-runtime block, end to end on a real filesystem", () => {
     expect(patched).toContain('import { homedir, tmpdir } from "node:os";');
     expect(existsSync(join(home, "state", "dsh-sandbox.orig"))).toBe(true);
     expect(readFileSync(join(home, "state", "dsh-sandbox.orig"), "utf8")).toBe(
-      sandboxFixture(block)
+      sandboxFixture(block),
     );
 
     // the file-contains predicate really reads the patched file
@@ -140,9 +140,7 @@ describe("dsh-runtime block, end to end on a real filesystem", () => {
     const afterSecond = readFileSync(sandboxPath);
     expect(afterSecond.equals(afterFirst)).toBe(true);
     // and the stored original was not overwritten with the patched bytes
-    expect(readFileSync(join(home, "state", "dsh-sandbox.orig")).equals(origAfterFirst)).toBe(
-      true
-    );
+    expect(readFileSync(join(home, "state", "dsh-sandbox.orig")).equals(origAfterFirst)).toBe(true);
 
     // A third, forced apply of the patch step alone is still a no-op that says so.
     const patch = patchStepOf(block);
@@ -184,7 +182,7 @@ describe("dsh-runtime block, end to end on a real filesystem", () => {
 
       const patch = patchStepOf(block);
       expect(() => previewPatchFileExact(patch, dshPath, home, fs)).toThrow(
-        /resolves to .*, which is outside THURSDAY_HOME/
+        /resolves to .*, which is outside THURSDAY_HOME/,
       );
       // the file the symlink pointed at was not touched
       expect(readFileSync(victim, "utf8")).toBe(sandboxFixture(block));
@@ -199,7 +197,7 @@ describe("dsh-runtime block, end to end on a real filesystem", () => {
     // implementation would write replacement 0 and then fail.
     const broken = sandboxFixture(block).replace(
       patch.replacements[1].find,
-      "function writableRoots(policy) { return []; }"
+      "function writableRoots(policy) { return []; }",
     );
     writeFileSync(sandboxPath, broken, "utf8");
 
@@ -211,7 +209,7 @@ describe("dsh-runtime block, end to end on a real filesystem", () => {
     expect(readFileSync(sandboxPath, "utf8")).toBe(broken);
     // nothing was half-written: the first replacement did not land either
     expect(readFileSync(sandboxPath, "utf8")).not.toContain(
-      'import { homedir, tmpdir } from "node:os";'
+      'import { homedir, tmpdir } from "node:os";',
     );
     // and no temp file was left behind
     expect(existsSync(`${sandboxPath}.thursday-patch-tmp`)).toBe(false);

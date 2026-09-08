@@ -12,8 +12,10 @@ export {
   DETECT_ACTION_NAMES,
   INSTALL_ACTIONS,
   INSTALL_ACTION_NAMES,
+  copyTreeSourceBaseSchema,
   validateStepList,
   type ActionDefinition,
+  type CopyTreeSourceBase,
   type DetectActionName,
   type DetectStep,
   type InstallActionName,
@@ -28,6 +30,12 @@ export {
   type ConstraintName,
 } from "./constraints";
 export { BlockError, type BlockProblem } from "./errors";
+export {
+  DIST_ROOT_MARKERS,
+  DIST_SOURCE_BASE_NAME,
+  distributionRoot,
+  findDistributionRoot,
+} from "./dist-root";
 export {
   constraintsNamed,
   hasConstraint,

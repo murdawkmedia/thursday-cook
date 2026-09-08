@@ -8,6 +8,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import type { Block } from "./loader";
 import type { DetectStep, PathBase, Step } from "./actions";
 import { rowPresentSatisfied } from "./actions";
+import { distributionRoot } from "./dist-root";
 import { orderBlocks } from "./patch";
 
 /**
@@ -93,6 +94,13 @@ export interface InstallOptions {
   dryRun?: boolean;
   quiet?: boolean;
   fs?: FilesystemAPI;
+  /**
+   * Override the Thursday distribution root `copy-tree` sources with
+   * `base: dist` (the default) resolve against. Production leaves this unset
+   * so the root comes from `dist-root.ts` — the one module that owns the
+   * answer — and tests set it to point at a fixture tree.
+   */
+  distRoot?: string;
 }
 
 export interface ResolvedThursdayHome {
@@ -387,10 +395,27 @@ export interface CopyTreePlan {
  * identical file is left alone, so its mtime and the uninstall check stay
  * stable. Shared by the dry run and the apply so the two cannot disagree about
  * the file count they report.
+ *
+ * When `fromPath` names a single file rather than a directory, `toPath` is
+ * the destination FILE (copy-tree of one file is the same operation as a
+ * copy-file would be — `agents-md` and `mcp-servers` both rely on this).
+ * The caller reports a missing source with block, step and root; this
+ * function assumes the source exists.
  */
 export function planCopyTree(fromPath: string, toPath: string, fs: FilesystemAPI): CopyTreePlan {
   const directories: string[] = [];
   const files: { src: string; dest: string }[] = [];
+
+  if (fs.statSync(fromPath).isFile()) {
+    if (fs.existsSync(toPath)) {
+      const before = Buffer.from(fs.readFileSync(fromPath) as Buffer);
+      const after = Buffer.from(fs.readFileSync(toPath) as Buffer);
+      if (!before.equals(after)) files.push({ src: fromPath, dest: toPath });
+    } else {
+      files.push({ src: fromPath, dest: toPath });
+    }
+    return { directories, files };
+  }
 
   const walk = (src: string, dest: string): void => {
     if (!fs.existsSync(dest)) directories.push(dest);
@@ -602,6 +627,7 @@ export async function executeStep(
   thursdayHome: string,
   fs: FilesystemAPI,
   dryRun = false,
+  distRoot: string = distributionRoot,
 ): Promise<StepResult> {
   const { step, blockId, blockRationale } = planned;
   const output: string[] = [];
@@ -711,11 +737,25 @@ export async function executeStep(
       }
 
       case "copy-tree": {
-        const fromPath = join(dshPath, step.from);
+        // `base` governs the SOURCE only: `dist` (the default) reads the file
+        // Thursday ships, `dsh` reads a file a previous step installed. `to`
+        // always lands under the dsh home, so a step and its `path-exists`
+        // detect agree by construction.
+        const sourceBase = step.base ?? "dist";
+        const sourceRoot = sourceBase === "dist" ? distRoot : dshPath;
+        const fromPath = join(sourceRoot, step.from);
         const toPath = join(dshPath, step.to);
 
         if (!fs.existsSync(fromPath)) {
-          throw new Error(`source directory not found: ${fromPath}`);
+          const rootLabel = sourceBase === "dist" ? "the Thursday distribution" : "the dsh home";
+          throw new Error(
+            `copy-tree source not found for block '${blockId}' step ${planned.index}: ` +
+              `'${step.from}' resolved against ${rootLabel} to ${fromPath}, which does not exist. ` +
+              (sourceBase === "dist"
+                ? `The distribution root is ${sourceRoot}: the file is missing from the tree ` +
+                  `being installed, or the step names the wrong relative path.`
+                : `The step that installs this source must run first — for aidos, its pnpm-add.`),
+          );
         }
 
         // One walk decides what would change and, on an apply, what is
@@ -734,7 +774,18 @@ export async function executeStep(
           }
         }
 
-        output.push(`Copied tree: ${step.from} → ${step.to} (${plan.files.length} files changed)`);
+        const fromIsFile = fs.statSync(fromPath).isFile();
+        if (fromIsFile) {
+          output.push(
+            plan.files.length > 0
+              ? `Copied file: ${step.from} → ${step.to}`
+              : `File already current: ${step.to}`,
+          );
+        } else {
+          output.push(
+            `Copied tree: ${step.from} → ${step.to} (${plan.files.length} files changed)`,
+          );
+        }
 
         return {
           step: planned,
@@ -1017,6 +1068,7 @@ export async function executeInstall(
   const dryRun = options?.dryRun ?? false;
   const quiet = options?.quiet ?? false;
   const fs = options?.fs ?? createFilesystemAPI();
+  const distRoot = options?.distRoot ?? distributionRoot;
   const results: StepResult[] = [];
   const problems: InstallProblem[] = [...plan.problems];
 
@@ -1032,7 +1084,7 @@ export async function executeInstall(
     }
 
     try {
-      const result = await executeStep(planned, dshPath, thursdayHome, fs, dryRun);
+      const result = await executeStep(planned, dshPath, thursdayHome, fs, dryRun, distRoot);
       results.push(result);
       if (!quiet) {
         console.log(`  ${dryRun ? "[dry-run]" : "✓"} ${result.step.step.action}`);

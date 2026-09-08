@@ -1,7 +1,7 @@
 ---
 id: host-plane
 title: Host-plane plugin files
-version: 1
+version: 2
 rationale: >
   The personal host-plane plugins, which apply to EVERY session regardless of
   preset: the bash guard (rules read live from the guards directory), the
@@ -60,7 +60,7 @@ steps:
       source does not exist and the step cannot run — a forward declaration,
       stated here so the gap is visible rather than discovered at install.
   - action: copy-tree
-    from: guards
+    from: config/guards
     to: plugins/guards
   - action: patch-row
     id: log-exporter

@@ -21,6 +21,32 @@ export const pathBaseSchema = z.enum(["home", "dsh"]);
 export type PathBase = z.infer<typeof pathBaseSchema>;
 
 /**
+ * Where a `copy-tree` step resolves its SOURCE (`from`) from.
+ *
+ * Deliberately NOT `pathBaseSchema`. A copy source is either a file Thursday
+ * ships or a file a previous step installed, and those live in exactly two
+ * places, neither of which is `$THURSDAY_HOME` itself:
+ *
+ * - `dist` is the Thursday distribution: the tree holding the files being
+ *   installed (this checkout, the global npm prefix, the pnpm link, the
+ *   container's clone), resolved by `dist-root.ts` from the engine's own
+ *   module location. This is the default, because a block author writing a
+ *   bare `from: skills` means the repository — every one of the six I9
+ *   sources did, and the old missing default is where that bug came from.
+ * - `dsh` is `$THURSDAY_HOME/dsh`, for the one step whose source a previous
+ *   step put there: `aidos` copies `profiles/web/node_modules/aidos/skills`
+ *   after its `pnpm-add` installed that package. That step says `base: dsh`
+ *   in one word, and a blanket rebase must never silently flip it back.
+ *
+ * `to` is NOT governed by this field: destinations always resolve under the
+ * dsh home, so a step and its `path-exists` detect agree by construction.
+ */
+export const copyTreeSourceBaseSchema = z.enum(["dist", "dsh"]);
+
+/** Where a `copy-tree` step's source is resolved from. */
+export type CopyTreeSourceBase = z.infer<typeof copyTreeSourceBaseSchema>;
+
+/**
  * Keys every step may carry, whatever its action.
  *
  * `constraint` attaches one named constraint to this step, and `why` records
@@ -175,18 +201,30 @@ export const INSTALL_ACTIONS = {
   "copy-tree": defineAction({
     name: "copy-tree",
     kind: "install",
-    summary: "Copy a directory tree into the Thursday home.",
+    summary: "Copy a directory tree — or a single file — into the dsh home.",
     idempotence:
       "Content-compared per file: identical files are left alone, so mtimes and the uninstall check stay stable.",
     honours: [],
     shape: {
-      /** Source directory, relative to the block's package. */
+      /**
+       * Source, relative to `base`. A directory is copied as a tree; a single
+       * file is copied to `to` as a file (copy-tree of one file is the same
+       * operation as a copy-file would be, so there is no separate action).
+       */
       from: z.string().min(1),
-      /** Destination directory, relative to the Thursday home. */
+      /** Destination, relative to the dsh home — always, whatever `base` says. */
       to: z.string().min(1),
+      /**
+       * Which root `from` is relative to. Defaults to the distribution,
+       * because that is what a block author means by a bare relative path;
+       * the dsh-relative cases (a step consuming a previous step's install)
+       * say `base: dsh` explicitly.
+       */
+      base: copyTreeSourceBaseSchema.default("dist"),
       /**
        * Delete files under `to` that `from` no longer has. Off by default:
        * a sync that prunes by default eats anything a user dropped alongside.
+       * Meaningful only when `from` is a directory.
        */
       prune: z.boolean().default(false),
     },
@@ -216,8 +254,7 @@ export const INSTALL_ACTIONS = {
     name: "write-file",
     kind: "install",
     summary: "Write content to a file, creating parent directories if needed.",
-    idempotence:
-      "Compares current content byte-for-byte; file is untouched if content matches.",
+    idempotence: "Compares current content byte-for-byte; file is untouched if content matches.",
     honours: [],
     shape: {
       /** The file path, relative to `base`. */
@@ -297,14 +334,16 @@ export const INSTALL_ACTIONS = {
        * that is a substring of its `replace` re-matches for ever, which is how
        * a patch step ends up appending its own text on every run.
        */
-      replacements: z.array(
-        z.object({
-          /** The exact text to find. Must appear exactly once, or already be replaced. */
-          find: z.string().min(1),
-          /** The text to replace it with. Its presence is what marks the replacement as applied. */
-          replace: z.string().min(1),
-        })
-      ).min(1),
+      replacements: z
+        .array(
+          z.object({
+            /** The exact text to find. Must appear exactly once, or already be replaced. */
+            find: z.string().min(1),
+            /** The text to replace it with. Its presence is what marks the replacement as applied. */
+            replace: z.string().min(1),
+          }),
+        )
+        .min(1),
       /**
        * Which root `target` is relative to. Defaults to the Thursday home: the
        * file this action was written for lives under `runtime/`, outside the

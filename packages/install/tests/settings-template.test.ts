@@ -12,9 +12,7 @@ import { describe, expect, it, beforeEach } from "vitest";
  * preservation of user state across re-writes.
  */
 
-const configDir = fileURLToPath(
-  new URL("../../../config", import.meta.url),
-);
+const configDir = fileURLToPath(new URL("../../../config", import.meta.url));
 
 describe("C5: Settings template and agent rules", () => {
   describe("settings.yaml template structure", () => {
@@ -119,14 +117,12 @@ describe("C5: Settings template and agent rules", () => {
       expect(reasoningLine).toBeGreaterThanOrEqual(0);
 
       // The next line after reasoningEfforts should have off: somewhere nearby
-      const offLine = lines.findIndex(
-        (l, idx) => idx > reasoningLine && l.includes("off:"),
-      );
+      const offLine = lines.findIndex((l, idx) => idx > reasoningLine && l.includes("off:"));
       expect(offLine).toBeGreaterThanOrEqual(0);
 
       // Verify that a line-based patch would preserve it: split, patch, rejoin
-      const patched = lines.map((l) =>
-        l.includes("          off:") ? l : l, // No change, just verifying line is there
+      const patched = lines.map(
+        (l) => (l.includes("          off:") ? l : l), // No change, just verifying line is there
       );
       const reparsed = patched.join("\n");
       expect(reparsed).toContain("          off:");
@@ -230,9 +226,7 @@ describe("C5: Settings template and agent rules", () => {
 
   describe("the agents-md block installs AGENTS.md correctly", () => {
     it("the agents-md block exists", () => {
-      const blockPath = fileURLToPath(
-        new URL("../../blocks/agents-md.md", import.meta.url),
-      );
+      const blockPath = fileURLToPath(new URL("../../blocks/agents-md.md", import.meta.url));
       const content = readFileSync(blockPath, "utf8");
       expect(content).toContain("agents-md");
       expect(content).toContain("from: config/AGENTS.md");
@@ -240,9 +234,7 @@ describe("C5: Settings template and agent rules", () => {
     });
 
     it("copies AGENTS.md whole on every install", () => {
-      const blockPath = fileURLToPath(
-        new URL("../../blocks/agents-md.md", import.meta.url),
-      );
+      const blockPath = fileURLToPath(new URL("../../blocks/agents-md.md", import.meta.url));
       const content = readFileSync(blockPath, "utf8");
       // action: copy-tree, not merge
       expect(content).toContain("action: copy-tree");
@@ -261,15 +253,11 @@ describe("C5: Settings template and agent rules", () => {
       const agentsContent = readFileSync(agentsPath, "utf8");
 
       // Check if any block in the repo mounts tool-presentation or run_code
-      const blocksDir = fileURLToPath(
-        new URL("../../blocks", import.meta.url),
-      );
+      const blocksDir = fileURLToPath(new URL("../../blocks", import.meta.url));
       let hasCodeMode = false;
       try {
         const blockFiles = readFileSync(blocksDir, "utf8");
-        hasCodeMode =
-          blockFiles.includes("tool-presentation") ||
-          blockFiles.includes("run_code");
+        hasCodeMode = blockFiles.includes("tool-presentation") || blockFiles.includes("run_code");
       } catch {
         // blocks is a directory, not a file; we'd need to read each file.
         // For the test suite, we verify consistency: if run_code is in AGENTS.md,

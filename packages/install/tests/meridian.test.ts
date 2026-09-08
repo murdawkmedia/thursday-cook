@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  describeMeridianVerdict,
-  isUsable,
-  verifyMeridianHealth,
-} from "../src/meridian.ts";
+import { describeMeridianVerdict, isUsable, verifyMeridianHealth } from "../src/meridian.ts";
 
 /**
  * The real shape, captured from meridian 1.66.0 on 2026-09-07 via
@@ -171,6 +167,8 @@ describe("describeMeridianVerdict", () => {
   });
 
   it("never prints the email either", () => {
-    expect(describeMeridianVerdict(verifyMeridianHealth(200, REAL_HEALTH), 9000)).not.toContain("@");
+    expect(describeMeridianVerdict(verifyMeridianHealth(200, REAL_HEALTH), 9000)).not.toContain(
+      "@",
+    );
   });
 });

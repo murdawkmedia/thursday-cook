@@ -773,7 +773,7 @@
       "pattern": "skills/wizard/**",
       "verdict": "move",
       "destination": "skills/wizard/",
-      "reason": "General skill and the seed of Thursday's wizards/ directory; its template.sh moves with it."
+      "reason": "General skill and the seed of Thursday's wizards/ directory; its template.ts and patterns.md move with it. The skill was rewritten from bash to Deno upstream and template.sh no longer exists: a wizard is now one self-contained Deno file with pinned npm: imports and no install step, which is why nothing here provisions node_modules."
     },
 
     {

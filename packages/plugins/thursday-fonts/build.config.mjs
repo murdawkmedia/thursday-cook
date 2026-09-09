@@ -19,5 +19,6 @@ import { defineBuild } from "@trythursday/build";
 export default defineBuild({
   name: "@trythursday/thursday-fonts",
   root: dirname(fileURLToPath(import.meta.url)),
+  host: [{ entry: "src/index.ts", outfile: "lib/index.js" }],
   client: [{ entry: "src/client.tsx", outfile: "lib/client.js", id: "thursday-fonts" }],
 });

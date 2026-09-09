@@ -1,0 +1,7 @@
+# thursday-mark (host + client).
+# Unlike the client-only Thursday plugins, this row mounts a host half that
+# serves the favicon, the icon set and the web app manifest over the web
+# server's exact routes. The client half takes dsh's brand-mark slots.
+- insert:
+    - id: thursday-mark
+      name: thursday-mark

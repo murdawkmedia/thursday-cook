@@ -85,7 +85,21 @@ importers:
 
   packages/plugins/meridian-breaker: {}
 
-  packages/plugins/thursday-fonts: {}
+  packages/plugins/thursday-fonts:
+    devDependencies:
+      '@trythursday/build':
+        specifier: workspace:*
+        version: link:../../build
+
+  packages/plugins/thursday-mark:
+    dependencies:
+      '@trythursday/tokens':
+        specifier: workspace:*
+        version: link:../../tokens
+    devDependencies:
+      '@trythursday/build':
+        specifier: workspace:*
+        version: link:../../build
 
   packages/plugins/thursday-skin:
     dependencies:

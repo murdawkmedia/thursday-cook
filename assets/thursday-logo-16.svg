@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 800 800" width="800" height="800" role="img"
+     aria-label="Thursday mark, simplified small-size variant">
+  <!--
+    Thursday mark: SIMPLIFIED 16px VARIANT (ticket TH2).
+
+    Derived from assets/thursday-logo.svg, same viewBox and same 1.3x
+    transform so the silhouette overlays the source 1:1. Deliberate
+    deviations, each measured at 16px (see the ticket report):
+
+      1. KERFS FILLED. The source's four 34-unit kerfs render as 0.88px at
+         16px — below the one-pixel separation the legibility rule requires,
+         so they read as dirt rather than segmentation. The five segments are
+         unioned here: the shafts extend into the head (top shaft bottom edge
+         253 → 287, bottom shaft top edge 437 → 403) and the head rect spans
+         the full cap-to-cap width (170..630, exactly the caps' y-range).
+      2. NO DIE-CUT KEYLINE. The source's surviving 10-unit outer half renders
+         as 0.26px — a grey smear, not a keyline (measured: edge pixels read
+         ~#d6d6da at 30% alpha). The silhouette edge IS the outline here.
+      3. NO DROP SHADOW. Sub-pixel blur softens edges the mark cannot spare.
+      4. TWO-STOP GRADIENT AT FULL OPACITY, FITTED TO THE MARK. The source's
+         translucent mid-stop (#9a86b4 at 0.24 over the metal base, layer at
+         0.82) dithers across 88 distinct colours in 256 pixels and washes
+         every head pixel into a pastel band (measured luminance 161..227;
+         the most saturated pixel reads #78a4fd, nowhere near either
+         endpoint). Two full-opacity stops hold the ramp to the brand
+         endpoints with no dithering. The ramp is objectBoundingBox rather
+         than the source's userSpace window: the source's endpoints fall OFF
+         the mark (top-left / bottom-right of the canvas), so even a
+         full-opacity userSpace ramp only samples the muted middle of the
+         range at head height (measured: lum 104..125 across the head row).
+         Fitted horizontally (blue left → orange right), the left cap reads
+         near-saturated blue (measured #145ef5 vs token #0a5cff) and the
+         right cap near-saturated orange (#f5820a vs #ff8400): the caps keep
+         the hues the source itself renders there (B2's report notes blue at
+         the left cap, orange at the right), and the 12px head row — most of
+         the mark's opaque pixels at 16px — carries the transition instead
+         of a single mid-tone. The diagonal was measured too (85 colours, no
+         saturated pixel anywhere); the vertical puts saturated colour on the
+         3px shaft and leaves the whole head row a flat grey (rejected); a
+         solid orange is crispest (17 colours) but surrenders the
+         blue-to-orange identity that IS the brand, so it stays the documented
+         fallback, not the choice. This is the same treatment
+         thursday-thinking uses for its small mark (blue start stop, orange
+         end stop, token-driven there).
+      5. STATIC. Animated gradients do not animate in a favicon in most
+         browsers, so motion here would be a lie about what ships. The UI's
+         animated mark lives in the thursday-mark plugin (CSS animation, which
+         prefers-reduced-motion CAN switch off — SMIL cannot).
+
+    The two stop colours MUST equal the brand-blue and brand-orange tokens in
+    packages/tokens/src/tokens.ts. assets/ carries the brand mark with its own
+    colours by ticket exemption; this file follows assets/thursday-logo.svg's
+    own practice and states the coupling here instead of importing it.
+  -->
+  <defs>
+    <!-- L blue → R orange, fitted to the mark's own box (see header). -->
+    <linearGradient id="flat" gradientUnits="objectBoundingBox"
+                    x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0a5cff"/>
+      <stop offset="100%" stop-color="#ff8400"/>
+    </linearGradient>
+
+    <g id="mark16">
+      <!-- top shaft: rounded top kept (silhouette identity), square foot merged into the head -->
+      <path d="M335 183 A33 33 0 0 1 368 150 L432 150 A33 33 0 0 1 465 183 L465 287 L335 287 Z"/>
+      <!-- bottom shaft: square head merged into the head, rounded tail kept -->
+      <path d="M335 403 L465 403 L465 617 A33 33 0 0 1 432 650 L368 650 A33 33 0 0 1 335 617 Z"/>
+      <!-- head: full cap-to-cap width, caps merged (their y-range equals the head's) -->
+      <rect x="170" y="287" width="460" height="116"/>
+    </g>
+  </defs>
+
+  <g transform="translate(400 400) scale(1.3) translate(-400 -400)">
+    <use href="#mark16" fill="url(#flat)"/>
+  </g>
+</svg>

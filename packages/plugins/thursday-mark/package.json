@@ -1,0 +1,22 @@
+{
+  "name": "@trythursday/thursday-mark",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "dsh brand-plane plugin that replaces the dolphin mark with Thursday's animated mark in the web UI (client half) and serves the Thursday favicon and web app manifest from B2's export set (host half), with every colour generated from @trythursday/tokens.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client.tsx",
+    "./host": "./src/host.ts"
+  },
+  "dependencies": {
+    "@trythursday/tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "@trythursday/build": "workspace:*"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

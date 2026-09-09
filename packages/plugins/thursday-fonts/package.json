@@ -11,5 +11,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@trythursday/build": "workspace:*"
   }
 }

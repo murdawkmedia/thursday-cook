@@ -6,7 +6,9 @@
   "description": "dsh client-plane plugin that replaces the \"Deep diving...\" working indicator with a rotating set of phrases in Thursday's voice, a small animated Thursday mark to their left, and a blue-to-orange gradient generated from @trythursday/tokens.",
   "license": "MIT",
   "exports": {
-    ".": "./src/client.tsx",
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json",
     "./data/phrases.json": "./data/phrases.json"
   },
   "dependencies": {
@@ -18,5 +20,18 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "main": "./lib/index.js",
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
   }
 }

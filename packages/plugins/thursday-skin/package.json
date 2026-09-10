@@ -6,7 +6,9 @@
   "description": "dsh client-plane plugin that reskins the web UI in Thursday's palette by overriding dsh's own --dsw-* theme variables from a higher-specificity scope, with every value generated from @trythursday/tokens.",
   "license": "MIT",
   "exports": {
-    ".": "./src/client.tsx"
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
   },
   "dependencies": {
     "@trythursday/tokens": "workspace:*"
@@ -17,5 +19,18 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "main": "./lib/index.js",
+  "files": [
+    "lib",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
   }
 }

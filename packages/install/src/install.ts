@@ -777,14 +777,36 @@ export async function executeStep(
             }
           }
 
-          const pkgName = name;
-          const added = pkgName !== "" && allowMap[pkgName] !== true;
-          if (added) allowMap[pkgName] = true;
+          // The KEY SHAPE depends on where the package comes from, and pnpm
+          // states both forms itself:
+          //
+          //   registry package   koffi: true
+          //   git-hosted         aidos@https://codeload.github.com/<owner>/<repo>/tar.gz/<sha>: true
+          //
+          // The git form is what the ORIGINAL code built, and dropping it in
+          // favour of a bare name was a regression I introduced while fixing
+          // the map-vs-list bug: the runtime install started working and all
+          // eight git-hosted adds kept failing, with
+          // ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED naming the exact key it
+          // wanted. Both forms are map keys; only the list shape was ever
+          // wrong.
+          let allowKey = name;
+          if (spec.startsWith("github:")) {
+            const parts = spec.slice(7).split("#");
+            const [owner, repo] = parts[0].split("/");
+            const ref = parts[1] ?? "main";
+            if (owner !== undefined && repo !== undefined) {
+              allowKey = `${name}@https://codeload.github.com/${owner}/${repo}/tar.gz/${ref}`;
+            }
+          }
+
+          const added = allowKey !== "" && allowMap[allowKey] !== true;
+          if (added) allowMap[allowKey] = true;
 
           if (added || normalised.length > 0) {
             // The line is reported from the comparison, not from the write, so
             // a dry run and an apply say the same thing about it.
-            if (added) output.push(`Added allowBuilds entry: ${pkgName}`);
+            if (added) output.push(`Added allowBuilds entry: ${allowKey}`);
             if (normalised.length > 0) {
               output.push(`Allowed ${normalised.length} pending build(s): ${normalised.join(", ")}`);
             }

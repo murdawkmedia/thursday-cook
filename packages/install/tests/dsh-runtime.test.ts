@@ -30,11 +30,29 @@ describe("dsh-runtime block", () => {
   });
 
   describe("version pin single-source-of-truth", () => {
-    it("pins @deepseek-ai/dsh to 0.1.0-rc.7 in runtime/package.json step", () => {
+    // Read the pin from the block rather than restating it here. Written down,
+    // this file plus version-pin.test.ts made THREE copies of the version whose
+    // whole point is to exist once, so a bump turned the guards red and the
+    // only way to green was to duplicate the edit - the I10 violation moved
+    // into the thing guarding against it. Found bumping to 0.1.5-rc.1 on
+    // 2026-09-16.
+    const pinnedVersion = (): string => {
+      const block = loadBlockFile(example("dsh-runtime.md"));
+      const writeFileStep = block.frontmatter.steps.find((s) => s.action === "write-file");
+      const content = String((writeFileStep as any)?.content ?? "");
+      const match = content.match(/"@deepseek-ai\/dsh":\s*"([^"]+)"/);
+      if (match === null) throw new Error("no @deepseek-ai/dsh pin in the write-file step");
+      return match[1];
+    };
+    const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    it("pins @deepseek-ai/dsh in the runtime/package.json step", () => {
       const block = loadBlockFile(example("dsh-runtime.md"));
       const writeFileStep = block.frontmatter.steps.find((s) => s.action === "write-file");
       expect(writeFileStep).toBeDefined();
-      expect((writeFileStep as any).content).toContain('"@deepseek-ai/dsh": "0.1.0-rc.7"');
+      expect((writeFileStep as any).content).toContain(
+        `"@deepseek-ai/dsh": "${pinnedVersion()}"`,
+      );
     });
 
     it("the installs prose points at the pin instead of restating it", () => {
@@ -43,7 +61,7 @@ describe("dsh-runtime block", () => {
       // in installs[0].from, which is the duplication the criterion forbids.
       const block = loadBlockFile(example("dsh-runtime.md"));
       const from = block.frontmatter.installs[0].from ?? "";
-      expect(from).not.toContain("0.1.0-rc.7");
+      expect(from).not.toContain(pinnedVersion());
       expect(from).toContain("@deepseek-ai/dsh");
       expect(from).toContain("package.json");
     });
@@ -51,7 +69,7 @@ describe("dsh-runtime block", () => {
     it("version appears in exactly one place in steps (no duplication)", () => {
       const block = loadBlockFile(example("dsh-runtime.md"));
       const steps = JSON.stringify(block.frontmatter.steps);
-      const matches = steps.match(/0\.1\.0-rc\.7/g);
+      const matches = steps.match(new RegExp(escapeRe(pinnedVersion()), "g"));
       expect(matches?.length).toBe(1);
     });
   });

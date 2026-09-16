@@ -670,7 +670,22 @@ export function runDetectStep(
     }
 
     case "file-contains": {
-      const path = join(baseDirFor(step.base, dshPath, thursdayHome), step.file);
+      const detectBase = baseDirFor(step.base, dshPath, thursdayHome);
+      // A detect path takes the same one-`*` form a patch target does, because
+      // it usually names the SAME file: the dsh-sandbox patch target lives
+      // under pnpm's content-hashed .pnpm directory. Detection that could not
+      // follow the glob would report a correctly patched block as not
+      // installed, and the installer would patch it again on every run.
+      // Unresolvable is not an error here — an absent file is simply "not
+      // installed", which is what this predicate exists to answer.
+      let path: string;
+      try {
+        path = step.file.includes("*")
+          ? resolveSingleGlob(detectBase, step.file, fs)
+          : join(detectBase, step.file);
+      } catch {
+        return false;
+      }
       if (!fs.existsSync(path)) return false;
       try {
         const content = fs.readFileSync(path, "utf8") as string;

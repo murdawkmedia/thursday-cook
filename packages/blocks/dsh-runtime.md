@@ -65,7 +65,7 @@ detect:
     path: runtime/node_modules/.bin/dsh
     base: home
   - action: file-contains
-    file: "runtime/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-sandbox/lib/index.js"
+    file: "runtime/node_modules/.pnpm/@deepseek-ai+dsh-sandbox@*/node_modules/@deepseek-ai/dsh-sandbox/lib/index.js"
     text: "return home + \"/aidos/scratch/--\" + readable + \"--\";"
     why: The fs-sandbox patch has been applied.
 ---

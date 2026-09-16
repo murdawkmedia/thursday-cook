@@ -81,7 +81,16 @@ describe("dsh-runtime block, end to end on a real filesystem", () => {
     // runtime/node_modules is the same signal a completed install leaves, so
     // the executor takes its "already installed" path and stays offline.
     const patch = patchStepOf(block);
-    sandboxPath = join(home, patch.target);
+    // The block's target carries one `*` because pnpm stores a package under a
+    // directory whose name includes a content hash of its peer set. Expand it
+    // to a REALISTIC hashed segment rather than creating a directory literally
+    // named "*": that way this fixture exercises the glob resolution the real
+    // install depends on, instead of accidentally passing because the literal
+    // path happened to match.
+    sandboxPath = join(
+      home,
+      patch.target.replace("*", "0.1.5-rc.2_@deepseek-ai+cordis@4.0.2_d0c2c4982b7993aee60c7265"),
+    );
     mkdirSync(dirname(sandboxPath), { recursive: true });
     writeFileSync(sandboxPath, sandboxFixture(block), "utf8");
   });

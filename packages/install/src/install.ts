@@ -201,6 +201,66 @@ export function describeCommandFailure(err: unknown): string {
   return `${base}\n${prefix}${tail.map((line) => `    ${line}`).join("\n")}`;
 }
 
+/**
+ * Turn pnpm's own `allowBuilds` placeholders into real `true` values, and
+ * report which packages were changed.
+ *
+ * When pnpm refuses to run a package's build scripts it writes the package
+ * into the working directory's `pnpm-workspace.yaml` as a placeholder STRING:
+ *
+ *     allowBuilds:
+ *       '@deepseek-ai/dsh-subprocess-local': set this to true or false
+ *       koffi: set this to true or false
+ *
+ * A string is neither `true` nor `false` to pnpm, so it is read as
+ * not-allowed and the next run fails identically. Rewriting those five values
+ * as `true` by hand took the runtime install from exit 1 to exit 0 with every
+ * build script running, which is what this reproduces.
+ *
+ * Returns the names it changed, EMPTY when there was nothing to change. An
+ * empty return is what tells the caller this was a different failure wearing
+ * the same exit code, so it must not be conflated with success.
+ */
+export function normaliseIgnoredBuilds(
+  cwd: string,
+  dryRun: boolean,
+  // Only the three calls this needs, so the injected FilesystemAPI satisfies
+  // it as readily as node:fs does.
+  fs: {
+    existsSync: (p: string) => boolean;
+    readFileSync: (p: string, enc: "utf8") => string;
+    writeFileSync: (p: string, data: string, enc: "utf8") => void;
+  } = fsDefault as never,
+): string[] {
+  const workspacePath = join(cwd, "pnpm-workspace.yaml");
+  if (!fs.existsSync(workspacePath)) return [];
+
+  let doc: any;
+  try {
+    doc = parseYaml(fs.readFileSync(workspacePath, "utf8") as string) || {};
+  } catch {
+    // A malformed workspace file is a real problem, but it is NOT this one,
+    // and rewriting a file we could not parse would destroy it.
+    return [];
+  }
+
+  const allow = doc.allowBuilds;
+  if (allow === null || typeof allow !== "object" || Array.isArray(allow)) return [];
+
+  const changed: string[] = [];
+  for (const key of Object.keys(allow as Record<string, unknown>)) {
+    if (typeof (allow as Record<string, unknown>)[key] !== "boolean") {
+      (allow as Record<string, unknown>)[key] = true;
+      changed.push(key);
+    }
+  }
+
+  if (changed.length > 0 && !dryRun) {
+    fs.writeFileSync(workspacePath, stringifyYaml(doc), "utf8");
+  }
+  return changed;
+}
+
 /** Count non-overlapping occurrences of `needle` in `haystack`. */
 function countOccurrences(haystack: string, needle: string): number {
   if (needle === "") return 0;
@@ -666,27 +726,69 @@ export async function executeStep(
             workspaceDoc = parseYaml(content as string) || {};
           }
 
-          if (!workspaceDoc.allowBuilds) {
-            workspaceDoc.allowBuilds = [];
+          // allowBuilds is a MAP of package name -> boolean, not a list of
+          // tarball URLs. Found by running a real install on 2026-09-16: the
+          // list form left pnpm writing its own placeholder entries, literally
+          // `'koffi': set this to true or false`, which are strings rather
+          // than booleans, so pnpm treated every one as NOT allowed and exited
+          // non-zero with ERR_PNPM_IGNORED_BUILDS. That failure is what took
+          // the runtime install down, and every later step that needed the
+          // runtime's node_modules failed behind it -- 13 reported problems
+          // from this one shape error. Rewriting the five placeholders as
+          // `true` by hand took the same pnpm install from exit 1 to exit 0
+          // with all four build scripts running.
+          //
+          // The keys are package NAMES because the packages that need to build
+          // are TRANSITIVE -- koffi, node-pty, protobufjs and @google/genai
+          // arrive under @deepseek-ai/dsh, not as anything a block names
+          // directly. A per-step entry derived from the spec being added
+          // therefore cannot be the whole set, which is why any placeholder
+          // pnpm has already written is normalised here rather than ignored.
+          if (
+            workspaceDoc.allowBuilds === undefined ||
+            workspaceDoc.allowBuilds === null ||
+            Array.isArray(workspaceDoc.allowBuilds)
+          ) {
+            const carried: Record<string, boolean> = {};
+            if (Array.isArray(workspaceDoc.allowBuilds)) {
+              // Migrate the old list form: each entry was `name@url` or a bare
+              // spec, and the name is everything before the first `@` that is
+              // not the leading scope marker.
+              for (const entry of workspaceDoc.allowBuilds as unknown[]) {
+                if (typeof entry !== "string" || entry === "") continue;
+                const at = entry.indexOf("@", 1);
+                const name = at === -1 ? entry : entry.slice(0, at);
+                if (name !== "") carried[name] = true;
+              }
+            }
+            workspaceDoc.allowBuilds = carried;
           }
 
-          let allowBuildsEntry = "";
-          if (spec.startsWith("github:")) {
-            const parts = spec.slice(7).split("#");
-            const [owner, repo] = parts[0].split("/");
-            const ref = parts[1] ?? "main";
-            const baseRepo = repo?.split("@")[0] ?? "";
-            allowBuildsEntry = `${baseRepo}@https://codeload.github.com/${owner}/${repo}/tar.gz/${ref}`;
-          } else {
-            allowBuildsEntry = spec;
+          const allowMap = workspaceDoc.allowBuilds as Record<string, unknown>;
+
+          // Normalise anything that is not a real boolean. pnpm's own
+          // placeholder is the string "set this to true or false", and a
+          // string is neither true nor false to pnpm: it is not-allowed.
+          const normalised: string[] = [];
+          for (const key of Object.keys(allowMap)) {
+            if (typeof allowMap[key] !== "boolean") {
+              allowMap[key] = true;
+              normalised.push(key);
+            }
           }
 
-          if (allowBuildsEntry && !workspaceDoc.allowBuilds.includes(allowBuildsEntry)) {
+          const pkgName = name;
+          const added = pkgName !== "" && allowMap[pkgName] !== true;
+          if (added) allowMap[pkgName] = true;
+
+          if (added || normalised.length > 0) {
             // The line is reported from the comparison, not from the write, so
             // a dry run and an apply say the same thing about it.
-            output.push(`Added allowBuilds entry: ${allowBuildsEntry}`);
+            if (added) output.push(`Added allowBuilds entry: ${pkgName}`);
+            if (normalised.length > 0) {
+              output.push(`Allowed ${normalised.length} pending build(s): ${normalised.join(", ")}`);
+            }
             if (!dryRun) {
-              workspaceDoc.allowBuilds.push(allowBuildsEntry);
               fs.writeFileSync(workspacePath, stringifyYaml(workspaceDoc), "utf8");
             }
           }
@@ -715,8 +817,16 @@ export async function executeStep(
               [
                 "add",
                 `--config.store-dir=${storeDir}`,
-                spec,
-                ...(step.as ? [`--save-as=${step.as}`] : []),
+                // Aliasing is `<alias>@<spec>`, NOT `--save-as`. pnpm has no
+                // --save-as flag and rejects the whole command when it sees
+                // one: "Unknown option: 'save-as'. Did you mean 'save-dev'?".
+                // Found by running a real install on 2026-09-16; the only
+                // block using `as:` is compaction-instant, so this failed
+                // exactly one step and did so for a reason unrelated to
+                // anything that step was trying to do. The alias form was
+                // then confirmed against pnpm 11.22 with the same github
+                // spec: it parses, and resolution proceeds past the flag.
+                step.as ? `${step.as}@${spec}` : spec,
               ],
               {
                 cwd: profilePath,
@@ -860,15 +970,66 @@ export async function executeStep(
             THURSDAY_HOME: thursdayHome,
           };
 
-          try {
+          const runInstall = async () => {
             // See the pnpm-add step above for why stderr is captured.
             await execa("pnpm", ["install", `--config.store-dir=${storeDir}`], {
               cwd,
               env,
               stdio: ["ignore", "inherit", "pipe"],
             });
+          };
+
+          try {
+            await runInstall();
           } catch (err) {
-            throw new Error(`pnpm install failed in ${cwd}: ${describeCommandFailure(err)}`);
+            // ERR_PNPM_IGNORED_BUILDS is not a failure to install: pnpm has
+            // resolved and linked everything, then refused to run the build
+            // scripts of packages it has not been told about, and exited
+            // non-zero. On a FRESH home it also WRITES the packages it wants a
+            // decision on into pnpm-workspace.yaml, as placeholder strings:
+            //
+            //   allowBuilds:
+            //     '@deepseek-ai/dsh-subprocess-local': set this to true or false
+            //     koffi: set this to true or false
+            //
+            // A string is neither true nor false, so a second run fails the
+            // same way forever. Found by running a real install on 2026-09-16:
+            // this single step failing took down the whole install, because
+            // every later step needing the runtime's node_modules failed
+            // behind it -- 13 reported problems, one cause.
+            //
+            // Answering pnpm's own question and retrying ONCE is the fix, and
+            // it needs no hardcoded package list: pnpm has just named exactly
+            // the packages it wants a decision on, and the packages are
+            // transitive (koffi, node-pty, protobufjs, @google/genai arrive
+            // under @deepseek-ai/dsh), so no list Thursday maintains by hand
+            // could stay correct anyway.
+            //
+            // The retry is deliberately not a loop. If the second run fails,
+            // that is a different problem and it is reported as one.
+            // The trigger is the FILE, not the message. pnpm prints
+            // ERR_PNPM_IGNORED_BUILDS on STDOUT, and stdout here is inherited
+            // so a long install shows live progress -- only stderr is
+            // captured. Gating the retry on the message therefore never fired,
+            // and the reported failure carried no stderr tail at all, which is
+            // exactly how that was spotted. The placeholder entries pnpm wrote
+            // are the durable evidence, they are on disk, and they say which
+            // packages are involved, so they are the better signal.
+            const message = describeCommandFailure(err);
+            const normalised = normaliseIgnoredBuilds(cwd, dryRun, fs);
+            if (normalised.length === 0) {
+              throw new Error(`pnpm install failed in ${cwd}: ${message}`);
+            }
+
+            output.push(`Allowed ${normalised.length} pending build(s): ${normalised.join(", ")}`);
+            try {
+              await runInstall();
+            } catch (retryErr) {
+              throw new Error(
+                `pnpm install failed in ${cwd} after allowing builds ` +
+                  `(${normalised.join(", ")}): ${describeCommandFailure(retryErr)}`,
+              );
+            }
           }
         }
 

@@ -795,8 +795,21 @@ export async function executeStep(
             const parts = spec.slice(7).split("#");
             const [owner, repo] = parts[0].split("/");
             const ref = parts[1] ?? "main";
-            if (owner !== undefined && repo !== undefined) {
-              allowKey = `${name}@https://codeload.github.com/${owner}/${repo}/tar.gz/${ref}`;
+            // STRIP THE REF FROM THE NAME. `name` is derived from the spec, so
+            // for a github spec it carries the `#<sha>` along with it. That
+            // produced the key
+            //   aidos#fc435af...@https://codeload.github.com/...
+            // where pnpm wanted
+            //   aidos@https://codeload.github.com/...
+            // and reported the miss with exactly the same
+            // ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED it gives for no entry at
+            // all. A WRONG key and a MISSING key are indistinguishable in that
+            // error, so this was only visible by reading the file back after
+            // the write -- worth remembering the next time an allowlist "does
+            // not take effect".
+            const baseName = (name.split("#")[0] ?? name).trim();
+            if (owner !== undefined && repo !== undefined && baseName !== "") {
+              allowKey = `${baseName}@https://codeload.github.com/${owner}/${repo}/tar.gz/${ref}`;
             }
           }
 

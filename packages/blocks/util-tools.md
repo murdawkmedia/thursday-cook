@@ -38,6 +38,8 @@ installs:
 steps:
   - action: pnpm-add
     spec: "github:omdsh-dev/dsh-tool-calculator#05090e946113721c5295518cc20e74f427022c55"
+    allowBuilds: true
+    constraint: needs-allow-builds
     why: >
       Its own repo, not a toolkit collection. Do NOT swap this step for the
       omdsh-dev/dsh-toolkit monorepo: that collection also registers
@@ -45,11 +47,15 @@ steps:
       repos, and mounting it double-registers both tools.
   - action: pnpm-add
     spec: "github:omdsh-dev/dsh-tool-diff#d4afd6e2de0b411151fefc60adebd0973373ec10"
+    allowBuilds: true
+    constraint: needs-allow-builds
     why: >
       Its own repo, same hazard as calculator: the toolkit monorepo also
       registers diff and would double-register it against this package.
   - action: pnpm-add
     spec: "github:omdsh-dev/dsh-tool-time#8b7a2137f516f9d9179663f5aa58928034c90377"
+    allowBuilds: true
+    constraint: needs-allow-builds
     why: >
       Its own repo, NOT the omdsh-dev/dsh-toolkit monorepo: that collection
       also registers calculator and diff, already installed by the two steps
@@ -57,18 +63,24 @@ steps:
       redundant; they are the fix.
   - action: pnpm-add
     spec: "github:omdsh-dev/dsh-tool-regex#5afda86cd6862a25f6684056b378c330a5aa86b3"
+    allowBuilds: true
+    constraint: needs-allow-builds
     why: >
       Its own repo, NOT the toolkit monorepo — see the time step: the
       collection also registers calculator and diff and would double-register
       them.
   - action: pnpm-add
     spec: "github:omdsh-dev/dsh-tool-markdown#267871b115c49c5cde072d05d0d2cef6982ae8f8"
+    allowBuilds: true
+    constraint: needs-allow-builds
     why: >
       Its own repo, NOT the toolkit monorepo — see the time step: the
       collection also registers calculator and diff and would double-register
       them.
   - action: pnpm-add
     spec: "github:omdsh-dev/dsh-tool-encoding#dbf829b5a755d27ed64a146a4bfa50a62f985f6c"
+    allowBuilds: true
+    constraint: needs-allow-builds
     why: >
       Its own repo, NOT the toolkit monorepo — see the time step: the
       collection also registers calculator and diff and would double-register

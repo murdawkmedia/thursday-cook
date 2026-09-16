@@ -261,6 +261,85 @@ export function normaliseIgnoredBuilds(
   return changed;
 }
 
+/**
+ * Every `@deepseek-ai/dsh*` version the runtime install resolved, so the
+ * profile can be pinned to the same set.
+ *
+ * THE PROBLEM IT SOLVES. Third-party plugins declare ranges the registry
+ * cannot satisfy: dsh-tool-time depends on dsh-tools, which depends on
+ * `@deepseek-ai/dsh-invariants@^0.1.0`, and that package's `latest` tag still
+ * points at an 0.0.1 stub while its 0.1.x line lives only on `alpha` and
+ * `next`. Every pnpm-add into a fresh profile then fails with
+ * ERR_PNPM_NO_MATCHING_VERSION naming a different family member. An existing
+ * machine never shows this: its profile resolved long ago and has a lockfile.
+ *
+ * WHY DERIVED. The runtime has just resolved the whole family consistently, so
+ * its versions are the correct target by construction and cannot drift from
+ * the runtime pin when that pin moves. Writing them down would need 231 lines
+ * of hand-maintained version numbers.
+ *
+ * WHY ONLY `dsh*`. The @deepseek-ai scope is NOT homogeneous: it also holds
+ * cordis@4.0.2, cosmokit@1.8.3, schemastery@3.18.2 and
+ * node-addon-landlock-run@0.1.1, which are ordinary released packages on
+ * entirely different version lines. An earlier attempt overrode the whole
+ * scope and broke immediately on cordis, pinning it to a version that does not
+ * exist. The prefix is the boundary between "the dsh release train" and
+ * "libraries that happen to share the scope".
+ */
+export function collectRuntimeOverrides(
+  runtimeDir: string,
+  fs: {
+    existsSync: (p: string) => boolean;
+    readFileSync: (p: string, enc: "utf8") => string;
+    readdirSync: (p: string) => string[];
+  },
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  const pnpmDir = join(runtimeDir, "node_modules", ".pnpm");
+  if (!fs.existsSync(pnpmDir)) return out;
+
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(pnpmDir);
+  } catch {
+    return out;
+  }
+
+  for (const entry of entries) {
+    if (!entry.startsWith("@deepseek-ai+dsh")) continue;
+    const scopeDir = join(pnpmDir, entry, "node_modules", "@deepseek-ai");
+    if (!fs.existsSync(scopeDir)) continue;
+
+    let names: string[];
+    try {
+      names = fs.readdirSync(scopeDir);
+    } catch {
+      continue;
+    }
+
+    for (const shortName of names) {
+      const manifest = join(scopeDir, shortName, "package.json");
+      if (!fs.existsSync(manifest)) continue;
+      try {
+        const parsed = JSON.parse(fs.readFileSync(manifest, "utf8")) as {
+          name?: unknown;
+          version?: unknown;
+        };
+        if (typeof parsed.name !== "string" || typeof parsed.version !== "string") continue;
+        if (!parsed.name.startsWith("@deepseek-ai/dsh")) continue;
+        // First wins. A family member resolved at two versions in one runtime
+        // tree would make the override arbitrary, and picking silently is
+        // worse than being consistent about which one is taken.
+        if (out[parsed.name] === undefined) out[parsed.name] = parsed.version;
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return out;
+}
+
 /** Count non-overlapping occurrences of `needle` in `haystack`. */
 function countOccurrences(haystack: string, needle: string): number {
   if (needle === "") return 0;
@@ -338,6 +417,77 @@ export interface PatchFileExactPreview {
  * replacement is neither applied nor matchable exactly once — before anything
  * has been written, so a failed `find` cannot leave a half-patched file.
  */
+/**
+ * Resolve a patch target containing exactly one `*` segment to exactly one
+ * file, and refuse on zero or several.
+ *
+ * WHY A GLOB IS NEEDED AT ALL. pnpm stores a package under a directory whose
+ * name carries the version AND a content hash of its peer set, for example
+ *
+ *   .pnpm/@deepseek-ai+dsh-sandbox@0.1.5-rc.2_@deepseek-ai+cordis@4.0.2_...d0c2c49/
+ *
+ * That hash is not predictable from anything a block can state, and it changes
+ * whenever a peer moves. The old literal target assumed pnpm would NEST the
+ * package under its parent
+ * (runtime/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-sandbox),
+ * which pnpm does not do: only the direct dependency is hoisted, and
+ * everything else lives in .pnpm behind a hashed directory. The step failed
+ * for that reason alone, not because anything was missing -- the patch's find
+ * string is still byte-identical to the shipped source at dsh 0.1.5-rc.2.
+ *
+ * REFUSING ON SEVERAL MATCHES IS THE POINT. Two matches means two copies of
+ * the package are installed at different versions, and patching an arbitrary
+ * one of them would produce a half-patched tree whose behaviour depends on
+ * which copy the resolver happens to load. That is the failure this refusal is
+ * here to prevent, so it reports every match rather than picking one.
+ */
+export function resolveSingleGlob(base: string, pattern: string, fs: FilesystemAPI): string {
+  const star = pattern.indexOf("*");
+  const head = pattern.slice(0, star);
+  const tail = pattern.slice(star + 1);
+  if (tail.includes("*")) {
+    throw new Error(
+      `patch target may contain at most one "*": ${pattern}. More than one wildcard makes the ` +
+        `match ambiguous, and an ambiguous patch target is how a half-patched tree happens.`,
+    );
+  }
+
+  // The wildcard stands for ONE directory entry, so split the head at the last
+  // separator: everything before it is a real directory to list.
+  const lastSep = head.lastIndexOf("/");
+  const dirPart = lastSep === -1 ? "" : head.slice(0, lastSep);
+  const prefix = lastSep === -1 ? head : head.slice(lastSep + 1);
+  const searchDir = dirPart === "" ? base : join(base, dirPart);
+
+  if (!fs.existsSync(searchDir)) {
+    throw new Error(
+      `patch target not found: ${join(base, pattern)}. The directory ${searchDir} does not ` +
+        `exist, so the step that installs it did not run to completion.`,
+    );
+  }
+
+  const entries = (fs.readdirSync(searchDir) as string[]).filter((e) => e.startsWith(prefix));
+  const matches = entries
+    .map((entry) => join(searchDir, entry) + tail)
+    .filter((candidate) => fs.existsSync(candidate));
+
+  if (matches.length === 0) {
+    throw new Error(
+      `patch target not found: no entry in ${searchDir} starting with "${prefix}" has ` +
+        `"${tail}". patch-file-exact requires the file to exist; a missing target means the ` +
+        `step that installs it did not run to completion.`,
+    );
+  }
+  if (matches.length > 1) {
+    throw new Error(
+      `patch target is ambiguous: ${matches.length} files match ${pattern} — ${matches.join(", ")}. ` +
+        `Several matches means the package is installed more than once, and patching one copy ` +
+        `leaves a tree whose behaviour depends on which copy the resolver loads.`,
+    );
+  }
+  return matches[0];
+}
+
 export function previewPatchFileExact(
   step: Extract<Step, { action: "patch-file-exact" }>,
   dshPath: string,
@@ -348,7 +498,10 @@ export function previewPatchFileExact(
   // missing file means the install that should have created it did not finish;
   // aidos's script prints "nothing to patch" and exits 0 here, which is the
   // silent success docs/fs-sandbox.md tells Thursday not to inherit.
-  const targetPath = join(baseDirFor(step.base, dshPath, thursdayHome), step.target);
+  const base = baseDirFor(step.base, dshPath, thursdayHome);
+  const targetPath = step.target.includes("*")
+    ? resolveSingleGlob(base, step.target, fs)
+    : join(base, step.target);
   if (!fs.existsSync(targetPath)) {
     throw new Error(
       `patch target not found: ${targetPath}. patch-file-exact requires the file to exist; ` +
@@ -716,6 +869,48 @@ export async function executeStep(
         if (!dryRun) {
           fs.mkdirSync(profilePath, { recursive: true });
           fs.mkdirSync(storeDir, { recursive: true });
+        }
+
+        // Pin the profile to the dsh family the RUNTIME resolved, before pnpm
+        // is asked to resolve anything here. Without it every add into a fresh
+        // profile fails with ERR_PNPM_NO_MATCHING_VERSION; see
+        // collectRuntimeOverrides for the cause and for why the map is derived
+        // and restricted to the `dsh` prefix.
+        //
+        // Overrides live in pnpm-workspace.yaml, NOT package.json. pnpm 11
+        // stopped reading the `pnpm` field and says so: 'The "pnpm" field in
+        // package.json is no longer read by pnpm. The following keys were
+        // ignored: "pnpm.overrides".' An earlier attempt wrote package.json,
+        // and the install failed identically while pnpm parsed and discarded
+        // the overrides -- the warning was the only sign.
+        //
+        // It runs before the FIRST add rather than as its own step, because an
+        // override applied after a resolution has happened does not
+        // retroactively fix that resolution.
+        if (!dryRun) {
+          const overrides = collectRuntimeOverrides(join(thursdayHome, "runtime"), fs);
+          if (Object.keys(overrides).length > 0) {
+            const wsPath = join(profilePath, "pnpm-workspace.yaml");
+            let wsDoc: any = {};
+            if (fs.existsSync(wsPath)) {
+              try {
+                wsDoc = parseYaml(fs.readFileSync(wsPath, "utf8") as string) || {};
+              } catch {
+                wsDoc = {};
+              }
+            }
+            const existing = (wsDoc.overrides ?? {}) as Record<string, string>;
+            const differs =
+              Object.keys(existing).length !== Object.keys(overrides).length ||
+              Object.keys(overrides).some((k) => existing[k] !== overrides[k]);
+            if (differs) {
+              wsDoc.overrides = overrides;
+              fs.writeFileSync(wsPath, stringifyYaml(wsDoc), "utf8");
+              output.push(
+                `Pinned ${Object.keys(overrides).length} @deepseek-ai/dsh* package(s) to the runtime's resolved versions`,
+              );
+            }
+          }
         }
 
         if (step.allowBuilds) {

@@ -43,7 +43,7 @@ steps:
       Install the runtime with pnpm using Thursday's private store directory.
       The store lives inside the home so uninstall removes all pnpm artifacts.
   - action: patch-file-exact
-    target: "runtime/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-sandbox/lib/index.js"
+    target: "runtime/node_modules/.pnpm/@deepseek-ai+dsh-sandbox@*/node_modules/@deepseek-ai/dsh-sandbox/lib/index.js"
     storageKey: "dsh-sandbox"
     replacements:
       - find: "import { tmpdir } from \"node:os\";"

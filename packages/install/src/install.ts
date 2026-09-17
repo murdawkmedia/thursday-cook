@@ -1046,6 +1046,20 @@ export async function executeStep(
             ...process.env,
             DSH_HOME: dshPath,
             THURSDAY_HOME: thursdayHome,
+            // Keep the WHOLE install inside the Thursday home.
+            // --config.store-dir pins the store for the command we run, but
+            // pnpm SYNTHESIZES a nested `pnpm install` for any git dependency
+            // carrying a `prepare` script, and that nested install does not
+            // inherit the flag: it falls back to $PNPM_HOME/store. So a git
+            // dependency writes into the user's default pnpm store on every
+            // machine, which E6's no-side-effects guarantee forbids.
+            //
+            // Found 2026-09-16 diagnosing the aidos step. aidos declares only
+            // `prepare: node build.mjs`; the `pnpm-install: pnpm install` line
+            // in that failure is pnpm's own synthesis, not an aidos script.
+            // Verified that PNPM_HOME moves the nested store and XDG_DATA_HOME
+            // does not, with `PNPM_HOME=... pnpm store path`.
+            PNPM_HOME: join(thursdayHome, "cache", "pnpm-home"),
           };
 
           try {
@@ -1213,6 +1227,20 @@ export async function executeStep(
             ...process.env,
             DSH_HOME: dshPath,
             THURSDAY_HOME: thursdayHome,
+            // Keep the WHOLE install inside the Thursday home.
+            // --config.store-dir pins the store for the command we run, but
+            // pnpm SYNTHESIZES a nested `pnpm install` for any git dependency
+            // carrying a `prepare` script, and that nested install does not
+            // inherit the flag: it falls back to $PNPM_HOME/store. So a git
+            // dependency writes into the user's default pnpm store on every
+            // machine, which E6's no-side-effects guarantee forbids.
+            //
+            // Found 2026-09-16 diagnosing the aidos step. aidos declares only
+            // `prepare: node build.mjs`; the `pnpm-install: pnpm install` line
+            // in that failure is pnpm's own synthesis, not an aidos script.
+            // Verified that PNPM_HOME moves the nested store and XDG_DATA_HOME
+            // does not, with `PNPM_HOME=... pnpm store path`.
+            PNPM_HOME: join(thursdayHome, "cache", "pnpm-home"),
           };
 
           const runInstall = async () => {

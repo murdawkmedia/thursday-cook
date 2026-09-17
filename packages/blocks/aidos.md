@@ -8,7 +8,7 @@ rationale: >
 dependsOn: [dsh-runtime]
 installs:
   - path: skills/aidos
-    from: "github:xyzshantaram/aidos#fc435af68e384963a8575abd1ddac08e54daaa49"
+    from: "github:xyzshantaram/aidos#78f742d3fbdf629ab255d03949d8dddfaece7271"
     what: >
       the aidos skills, copied from the pinned package's own install at
       profiles/web/node_modules/aidos/skills — the package ships its skills,
@@ -31,7 +31,7 @@ dshConfig:
     why: The plugin mounts one row; nothing upstream owns this id.
 steps:
   - action: pnpm-add
-    spec: "github:xyzshantaram/aidos#fc435af68e384963a8575abd1ddac08e54daaa49"
+    spec: "github:xyzshantaram/aidos#78f742d3fbdf629ab255d03949d8dddfaece7271"
     allowBuilds: true
     constraint: needs-allow-builds
     why: >

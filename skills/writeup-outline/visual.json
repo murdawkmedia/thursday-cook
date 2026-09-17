@@ -1,0 +1,5 @@
+{
+  "_comment": "What counts as a screenshot opportunity: turns whose tool calls touched a visual artifact. Tool names match tool/call `name` exactly; extensions match (case-insensitive) inside tool arguments. DATA, not code: extend without a code change via --visual.",
+  "tools": ["see", "read_image"],
+  "extensions": ["png", "jpg", "jpeg", "gif", "webp", "svg", "css", "html", "htm"]
+}

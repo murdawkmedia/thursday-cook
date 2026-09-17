@@ -1,0 +1,32 @@
+{
+  "_comment": "Praise/satisfaction phrases that mark narrative beats. DATA, not code: adding a phrase needs no code change. Matching is case-insensitive with word boundaries, against depth-0 human prompts only. Subagent dispatch text is never scanned.",
+  "phrases": [
+    "that looks great",
+    "looks great",
+    "good job",
+    "great job",
+    "nice job",
+    "perfect",
+    "excellent",
+    "love it",
+    "exactly what i wanted",
+    "that is exactly",
+    "ship it",
+    "lgtm",
+    "looks good",
+    "works now",
+    "that works",
+    "thank you",
+    "thanks",
+    "brilliant",
+    "beautiful",
+    "much better",
+    "that is better",
+    "this is great",
+    "well done",
+    "impressive",
+    "huge improvement",
+    "finally works",
+    "nailed it"
+  ]
+}

@@ -27,6 +27,12 @@ Resolve every file against this skill's base directory.
 
 ## Procedure
 
+0. If the user does not know which session they mean, list them:
+   `node extract.mjs --list [--project <key>] [--limit N]`
+   One line per session, newest first — date, size, HUMAN or SUBAGENT, id —
+   each followed by the exact command that outlines it. Titles are omitted
+   because the title is not in the header frame, so listing them would mean
+   decompressing every log in full.
 1. Resolve the session. A session id (full or prefix) or a path to the session
    directory or log file both work:
    `node extract.mjs --session <id|path> [--project <key>] [--root <dir>]`

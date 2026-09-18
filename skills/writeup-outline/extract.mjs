@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = process.env.THURSDAY_REPO ?? path.resolve(HERE, "..", "..");
-const { openSessionFile, defaultSessionRoots, findSessionArtifacts } = await import(
+const { openSessionFile, defaultSessionRoots, findSessionArtifacts, readHeaderOnly } = await import(
   pathToFileURL(path.join(REPO, "packages/session/src/read.mjs")).href
 );
 const { loadSessionModel } = await import(
@@ -571,11 +571,76 @@ function collect(opened, file, flags, beats, visual) {
 }
 
 // ---------------------------------------------------------------- main
+/**
+ * `--list`: print one line per session, each ending in the exact command that
+ * produces its outline.
+ *
+ * HEADER-ONLY ON PURPOSE. This reads ONE zstd frame per session via
+ * readHeaderOnly, which is why it can list a thousand logs in a moment. The
+ * session TITLE is not in that frame — it arrives later as a `session/title`
+ * event — so listing titles would mean decompressing every log in full. The
+ * columns here are the ones that cost nothing: id, kind, project, date, size.
+ *
+ * `kind` comes from record 0's `origin` and `delegationDepth`, NOT from the
+ * directory name. Both usually agree (a `session-` prefix means depth 0), but
+ * the record is the source of truth and the prefix is a convention.
+ */
+function listSessions(flags) {
+  const roots = flags.root
+    ? [{ root: path.resolve(flags.root), label: "--root" }]
+    : defaultSessionRoots(process.env, process.env.HOME);
+  const rows = [];
+  for (const r of roots)
+    for (const a of findSessionArtifacts(r.root, { project: flags.project })) rows.push(a);
+
+  // Newest first: the session you want to write about is almost always the one
+  // you just had.
+  rows.sort((a, b) => b.mtime - a.mtime);
+  const limit = flags.limit === undefined ? 40 : Number(flags.limit);
+  const shown = Number.isFinite(limit) && limit > 0 ? rows.slice(0, limit) : rows;
+
+  const out = [];
+  out.push(`${rows.length} session(s)${flags.project ? ` in ${flags.project}` : ""}, newest first`);
+  out.push("");
+  return { rows, shown, out };
+}
+
+async function runList(flags) {
+  const { rows, shown, out } = listSessions(flags);
+  for (const a of shown) {
+    let head = null;
+    try {
+      head = await readHeaderOnly(a.file);
+    } catch {
+      head = null;
+    }
+    const depth = head?.delegationDepth ?? 0;
+    const origin = head?.origin ?? "";
+    const kind = depth > 0 || origin === "subagent" ? `SUBAGENT d${depth}` : "HUMAN";
+    const size = a.bytes < 1048576 ? `${Math.round(a.bytes / 1024)}K` : `${(a.bytes / 1048576).toFixed(1)}M`;
+    const when = new Date(a.mtime).toISOString().slice(0, 16).replace("T", " ");
+    out.push(`${when}  ${size.padStart(6)}  ${kind.padEnd(13)}  ${a.sessionId}`);
+    out.push(
+      `    node skills/writeup-outline/extract.mjs --session ${a.sessionId} --project=${a.project}`,
+    );
+    out.push("");
+  }
+  if (shown.length < rows.length) {
+    out.push(`… ${rows.length - shown.length} more (--limit N, or --limit 0 for all)`);
+    out.push("");
+  }
+  out.push("Titles are omitted: the title is not in the header frame, so listing them");
+  out.push("would mean decompressing every log in full. Run a command above to see one.");
+  process.stdout.write(out.join("\n") + "\n");
+  return 0;
+}
+
 async function main(argv) {
   const flags = parseArgs(argv);
+  if (flags.list === true) return runList(flags);
   if (!flags.session || flags.help === true || flags.h === true) {
     process.stdout.write(
-      "writeup-outline: one session in, one markdown outline out\n\n  node extract.mjs --session <id|path> [--root <dir>] [--project <key>]\n    [--out <file>] [--cwd <dir>] [--context \"...\"] [--context-file <f>]\n    [--context-turn <seq>] [--beats <file>] [--visual <file>]\n",
+      "writeup-outline: one session in, one markdown outline out\n\n  node extract.mjs --list [--project <key>] [--limit N]\n    print every session, newest first, each with the command that outlines it\n\n  node extract.mjs --session <id|path> [--root <dir>] [--project <key>]\n    [--out <file>] [--cwd <dir>] [--context \"...\"] [--context-file <f>]\n    [--context-turn <seq>] [--beats <file>] [--visual <file>]\n",
     );
     return flags.session ? 0 : 2;
   }

@@ -220,3 +220,55 @@ test("commits: no repo is a standing-alone session, not an error", () => {
   const out = runExtract(["--session", SHORT_ID, `--project=${PROJECT}`, "--cwd", repoFreeDir()]);
   assert.match(out, /no git repo at .* — commit join skipped \(the session stands alone\)/);
 });
+
+// ---------------------------------------------------------------- attribution fails CLOSED
+/**
+ * Build a log whose record 0 lacks origin and delegationDepth — an older
+ * format, or a foreign log. Review of 7d2f143 found this defaulted to HUMAN
+ * and published orchestrator dispatch text as the user's verbatim words.
+ */
+function craftLog(dir, headerExtra) {
+  fs.mkdirSync(dir, { recursive: true });
+  const recs = [
+    { type: "session", version: 1, id: "crafted", createdAt: 1789000000000, cwd: "/home/sid/ai-scratch", ...headerExtra },
+    { type: "session/title", seq: 3, time: 1789000000100, data: { title: "t" } },
+    {
+      type: "user/message", seq: 8, time: 1789000000200,
+      data: { source: { kind: "user" }, message: { role: "user", content: [{ type: "text", text: "ORCHESTRATOR DISPATCH: extract the receipts now" }] } },
+    },
+  ];
+  const f = path.join(dir, "session.jsonl");
+  fs.writeFileSync(f, recs.map((r) => JSON.stringify(r)).join("\n") + "\n");
+  return f;
+}
+
+test("attribution: missing origin fields + parentSession is SUBAGENT, not HUMAN", () => {
+  const f = craftLog(path.join(fs.mkdtempSync(path.join(os.tmpdir(), "wo-attr-")), "s"), { parentSession: "session-parent" });
+  const out = runExtract(["--session", f]);
+  assert.match(out, /kind: SUBAGENT/);
+  assert.ok(!out.includes("verbatim [user]"), "orchestrator text attributed to the human");
+});
+
+test("attribution: nothing decides it is UNKNOWN and quotes nothing as the user", () => {
+  const f = craftLog(path.join(fs.mkdtempSync(path.join(os.tmpdir(), "wo-attr-")), "s"), {});
+  const out = runExtract(["--session", f]);
+  assert.match(out, /kind: UNKNOWN/);
+  assert.ok(!out.includes("verbatim [user]"), "unknown-attribution log quoted text as the human's words");
+  assert.ok(!out.includes("[user] (seq"), "unknown-attribution log quoted text as the human's words");
+});
+
+test("sensitive: JWT, stripe, github_pat and env assignments are flagged, never removed", () => {
+  const cwd = "/home/sid/ai-scratch";
+  const cases = [
+    "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+    "sk_live_51H8xKfLkdIwHu7ixAlpha0000",
+    "github_pat_11ABCDEFG0aBcDeFgHiJkL",
+    "DB_PASSWORD=supersecretvalue123!",
+  ];
+  for (const c of cases) {
+    const out = ex.flagSensitive(`value ${c} end`, cwd);
+    assert.ok(out.includes("[⚑"), `not flagged: ${c}`);
+    assert.ok(out.includes(c), `span removed rather than flagged: ${c}`);
+  }
+  assert.ok(!ex.flagSensitive("an ordinary sentence", cwd).includes("[⚑"), "false positive on plain prose");
+});

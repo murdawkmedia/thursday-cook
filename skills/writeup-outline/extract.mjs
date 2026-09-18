@@ -110,7 +110,13 @@ export function flagSensitive(text, cwd = "") {
     return `⟦EMAIL-HELD-${held.length - 1}⟧`;
   });
   const tokenRe =
-    /\b(sk-[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{8,}|xox[bpas]-[A-Za-z0-9-]{8,}|[A-Za-z0-9+/]{40,}={0,2}|[0-9a-fA-F]{40,})\b/gu;
+    // Review of 7d2f143 found four live misses, each demonstrated against this
+    // function: a JWT (no segment reaches 40 chars), a Stripe `sk_live_` key
+    // (the old pattern demanded a literal `sk-`), a `github_pat_` token, and
+    // an env assignment like DB_PASSWORD=... which passed through completely
+    // clean. This document is written to be PUBLISHED, so a miss is not a
+    // cosmetic gap.
+    /\b(sk[-_][A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,}|xox[bpas]-[A-Za-z0-9-]{8,}|eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}|[A-Za-z0-9+/]{40,}={0,2}|[0-9a-fA-F]{40,})\b/gu;
   const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
   t = t.replace(tokenRe, (m) => (uuidRe.test(m) ? m : `${m} [⚑ maybe-secret]`));
   t = t.replace(
@@ -121,6 +127,12 @@ export function flagSensitive(text, cwd = "") {
   // so PLAN.md is never flagged but https://paste.rs/x is.
   t = t.replace(/(https?:\/\/)([A-Za-z0-9.-]+)/gu, "$1$2 [⚑ hostname]");
   t = t.replace(/\b(\d{1,3}(?:\.\d{1,3}){3})\b/gu, "$1 [⚑ hostname]");
+  // KEY=value assignments whose key names a credential. Flagged whole, because
+  // the value is the leak and the key is what makes it findable.
+  t = t.replace(
+    /\b([A-Z][A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|APIKEY|API_KEY|PRIVATE_KEY|ACCESS_KEY|CREDENTIAL)[A-Z0-9_]*\s*=\s*\S+)/gu,
+    "$1 [⚑ maybe-secret]",
+  );
   const tail = "[^\\s'\"`,;:!?)\\]>}]*";
   const roots = [`\\/home\\/${tail}`, `\\/tmp\\/${tail}`];
   if (cwd) roots.unshift(escRe(cwd) + tail);
@@ -255,7 +267,7 @@ export function loadCommits(cwd, startMs, endMs) {
 function outlineHead(L, d) {
   L.push(`outline: ${d.titleText} (${d.sessionId})`);
   L.push(`- session id: ${d.sessionId}`);
-  L.push(`- kind: ${d.isHuman ? "HUMAN" : "SUBAGENT"} (record 0: origin ${d.origin}, depth ${d.depth})`);
+  L.push(`- kind: ${d.attribution === "human" ? "HUMAN" : d.attribution === "subagent" ? "SUBAGENT" : "UNKNOWN"} (${d.attributionWhy})`);
   L.push(`- dir-name check: ${d.dirName} ${d.dirAgrees ? "(matches record 0)" : "(DIFFERS from record 0 — record 0 wins [inferred])"}`);
   if (!d.isHuman) L.push(`- parent session: ${d.parent ?? "?"} / dispatch label: ${d.dispatchLabel}`);
   L.push(`- title: ${d.titleLine}`);
@@ -264,7 +276,7 @@ function outlineHead(L, d) {
   L.push(
     `- turns: ${d.turns} / steps: ${d.steps} / tool calls: ${d.toolCalls.length} / approvals asked: ${d.asked}, decided: ${d.decided}`,
   );
-  L.push(`- subagents spawned: ${d.subCalls} call(s), ${d.subLabels.length} distinct label(s)${d.subLabels.length > 0 ? ` (${d.subLabels.join(" | ")})` : ""}`);
+  L.push(`- subagents spawned: ${d.subCalls} call(s), ${d.subLabelCount} distinct label(s)${d.subLabels.length > 0 ? ` (${d.subLabels.join(" | ")})` : ""}`);
   L.push(`- inbox: ${d.reports} subagent-report(s), ${d.settled} subagent-settled(s)`);
   L.push(`- context: peak cacheReadTokens ${d.peak} (gauge [inferred]; the log carries a cumulative ledger — summed it overcounts ~100x, so peak only, never a sum)`);
   L.push(`- generated model-written spans: 0 (every line here is an extracted fact, a verbatim quote, or fixed template text)`);
@@ -303,7 +315,7 @@ function outlineVoice(L, d, flag) {
 }
 
 function outlineArc(L, d, flag) {
-  const tag = d.isHuman ? "user" : "dispatch";
+  const tag = d.attribution === "human" ? "user" : d.attribution === "subagent" ? "dispatch" : "unattributed";
   L.push(`## Arc (${d.prompts.length} prompts in ${d.buckets.length} buckets; heads are verbatim prefixes, […+N chars] marks cuts)`);
   d.buckets.forEach((b, i) => {
     const t0 = shortTime(b[0].time);
@@ -423,13 +435,60 @@ function collect(opened, file, flags, beats, visual) {
   const events = opened.events;
   const header = opened.header ?? {};
   const sessionId = header.id ?? path.basename(path.dirname(file));
-  const depth = Number.isInteger(header.delegationDepth) ? header.delegationDepth : 0;
-  const origin = header.origin ?? (depth > 0 ? "subagent" : "human");
-  const isHuman = depth === 0 && origin !== "subagent";
   const dirName = path.basename(path.dirname(file));
   const bareDir = dirName.replace(/^session-/, "");
   const bareId = String(header.id ?? "").replace(/^session-/, "");
   const dirAgrees = bareDir === bareId || dirName === String(header.id ?? "");
+
+  // ATTRIBUTION FAILS CLOSED.
+  //
+  // Quoting orchestrator dispatch text as the human's verbatim words, in a
+  // document written to be published, is the worst thing this tool can do. The
+  // question is therefore not only "is this a subagent log" but "do we KNOW".
+  //
+  // Found by review of 7d2f143: a record 0 lacking `origin` and
+  // `delegationDepth` — an older format, or a foreign log — defaulted to
+  // depth 0 / origin "human", and its dispatch text was published as the
+  // user's words. The directory-name signal that would have caught it was
+  // computed and then ignored.
+  //
+  // Three states now, not two:
+  //   human     record 0 says depth 0 and origin is not subagent
+  //   subagent  record 0 says otherwise, OR the fields are missing and another
+  //             signal points that way (parentSession, a subagent/descriptor
+  //             event)
+  //   unknown   the fields are missing and nothing decides it
+  //
+  // `unknown` quotes NOTHING as the user's words. An outline missing its
+  // quotes is visibly incomplete; an outline attributing an orchestrator's
+  // words to the user is not visibly anything.
+  const hasOriginFields =
+    Number.isInteger(header.delegationDepth) || typeof header.origin === "string";
+  const depth = Number.isInteger(header.delegationDepth) ? header.delegationDepth : 0;
+  let attribution;
+  let attributionWhy;
+  if (hasOriginFields) {
+    const declared = header.origin ?? (depth > 0 ? "subagent" : "human");
+    attribution = depth === 0 && declared !== "subagent" ? "human" : "subagent";
+    attributionWhy = `record 0: origin ${declared}, depth ${depth}`;
+  } else {
+    const hasParent = typeof header.parentSession === "string" && header.parentSession.length > 0;
+    const hasDescriptor = events.some((e) => e.type === "subagent/descriptor");
+    if (hasParent || hasDescriptor) {
+      attribution = "subagent";
+      attributionWhy = `record 0 lacks origin/delegationDepth; ${hasParent ? "parentSession present" : "subagent/descriptor event present"} [inferred]`;
+    } else if (dirName.startsWith("session-")) {
+      attribution = "human";
+      attributionWhy =
+        "record 0 lacks origin/delegationDepth; directory carries the session- prefix [inferred]";
+    } else {
+      attribution = "unknown";
+      attributionWhy =
+        "record 0 lacks origin/delegationDepth and nothing else decides it — NO text is quoted as the user's words";
+    }
+  }
+  const origin = attribution === "unknown" ? "unknown" : attribution;
+  const isHuman = attribution === "human";
   const titled = pickTitle(events);
   const ordered = opened.session?.ordered ?? events;
   const startMs = Number.isFinite(header.createdAt) ? header.createdAt : (ordered[0]?.time ?? 0);
@@ -485,6 +544,11 @@ function collect(opened, file, flags, beats, visual) {
     }
   }
   const desc = events.find((e) => e.type === "subagent/descriptor")?.data;
+  // Count BEFORE the cap. Slicing then reporting `.length` stated 20 distinct
+  // labels for a session that had 175 — found by review of 7d2f143. Every
+  // other capped list in this file counts the full array; this was the one
+  // site with the slice-then-count shape.
+  const subLabelCount = subLabelSet.size;
   const subLabels = [...subLabelSet].sort().slice(0, MAX_LABELS);
 
   let peak = 0;
@@ -540,7 +604,7 @@ function collect(opened, file, flags, beats, visual) {
   const contextSeq = flags["context-turn"] !== undefined ? Number(flags["context-turn"]) : null;
 
   return {
-    sessionId, depth, origin, isHuman, dirName, dirAgrees,
+    sessionId, depth, origin, isHuman, attribution, attributionWhy, dirName, dirAgrees, subLabelCount,
     parent: header.parentSession ?? null,
     dispatchLabel: desc?.label ?? "(no subagent/descriptor)",
     titleText: titled.title ?? "UNTITLED",

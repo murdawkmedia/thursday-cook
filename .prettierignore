@@ -5,3 +5,5 @@ node_modules
 **/lib
 pnpm-lock.yaml
 *.log
+# Checked-in codegen: data/steps.yaml formats stable, its output does not.
+packages/plugins/thursday-tour/src/steps.generated.ts

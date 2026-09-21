@@ -72,6 +72,9 @@ importers:
       execa:
         specifier: ^10.0.1
         version: 10.0.1
+      semver:
+        specifier: ^7.8.5
+        version: 7.8.5
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
@@ -79,6 +82,9 @@ importers:
         specifier: ^4.5.4
         version: 4.5.4
     devDependencies:
+      '@types/semver':
+        specifier: ^7.8.0
+        version: 7.8.0
       memfs:
         specifier: ^4.71.0
         version: 4.71.0
@@ -112,6 +118,16 @@ importers:
         version: link:../../build
 
   packages/plugins/thursday-thinking:
+    dependencies:
+      '@trythursday/tokens':
+        specifier: workspace:*
+        version: link:../../tokens
+    devDependencies:
+      '@trythursday/build':
+        specifier: workspace:*
+        version: link:../../build
+
+  packages/plugins/thursday-tour:
     dependencies:
       '@trythursday/tokens':
         specifier: workspace:*
@@ -685,6 +701,9 @@ packages:
 
   '@types/node@26.4.1':
     resolution: {integrity: sha512-k97ENvZWtvA6yqz5/FS6a7duDgOPEeOQOc2iKS/nY6mX6qJUKtLnWzQS+Xj6tXweyj6ZcTAK2Qecetnvi9nCLA==}
+
+  '@types/semver@7.8.0':
+    resolution: {integrity: sha512-1mAINjtQCXXeLkJ9ehXkwOcBpqtLxiVtKhpUf83DdRNdQKV0iXZpaHYqRr7nj+wvxuJzoAmAwXI+sCNMv1CzLQ==}
 
   '@typescript-eslint/eslint-plugin@8.69.0':
     resolution: {integrity: sha512-t5jQTKPIgVW1PE6dR6H6Qz5gm8zjMlX5/2gRaOGd9eO6V7J+tQc6iWKukEe7dY8u9HyYasQ0yfF0/FSSTEO2gA==}
@@ -2759,6 +2778,8 @@ snapshots:
   '@types/node@26.4.1':
     dependencies:
       undici-types: 8.3.0
+
+  '@types/semver@7.8.0': {}
 
   '@typescript-eslint/eslint-plugin@8.69.0(@typescript-eslint/parser@8.69.0(eslint@9.39.5(supports-color@7.2.0))(supports-color@10.2.2)(typescript@6.0.3))(eslint@9.39.5(supports-color@7.2.0))(supports-color@10.2.2)(typescript@6.0.3)':
     dependencies:

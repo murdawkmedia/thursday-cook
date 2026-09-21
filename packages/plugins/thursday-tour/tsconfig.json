@@ -1,0 +1,14 @@
+{
+  // The client half compiles with the classic JSX factory, like every other
+  // dsh client plugin in this workspace -- see tsconfig.client.json for why.
+  // The host half is plain node TypeScript and shares the same strict base;
+  // DOM lib types are present but the host half must not touch them (there is
+  // no document in the dsh node process -- only the tool, the progress file
+  // and the client RPC handlers).
+  //
+  // Like thursday-mark this project INCLUDES tests. The ticket's criteria are
+  // enforced by the tests, so a type error in a test is a hole in the
+  // enforcement; it must fail `typecheck` rather than hide behind `exclude`.
+  "extends": "../../../tsconfig.client.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "scripts/**/*.mjs"]
+}

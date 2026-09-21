@@ -100,6 +100,8 @@ steps:
       them.
 detect:
   - action: package-installed
+    name: "@deepseek-ai/dsh-tools"
+  - action: package-installed
     name: "@deepseek-ai/dsh-tool-calculator"
   - action: package-installed
     name: "@deepseek-ai/dsh-tool-diff"

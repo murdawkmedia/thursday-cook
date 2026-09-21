@@ -212,12 +212,46 @@ beforeEach(() => {
 });
 
 describe("E1 enforcement: exactly one module constructs the user dsh home path", () => {
-  it("only dsh-import.ts contains the construction under packages/install/src", () => {
-    const srcDir = fileURLToPath(new URL("../src", import.meta.url));
-    const files = (nodeReaddirSync(srcDir) as string[]).filter((f) => f.endsWith(".ts"));
-    expect(files).toContain("dsh-import.ts");
-    const holders = files.filter((f) => readFileSync(join(srcDir, f), "utf8").includes('".dsh"'));
-    expect(holders).toEqual(["dsh-import.ts"]);
+  it("only dsh-import.ts builds the user dsh home path anywhere in packages/", () => {
+    const packagesDir = fileURLToPath(new URL("../../", import.meta.url));
+    // Frozen pre-existing spellings. Three are genuine path constructions
+    // outside this ticket's allowlist (session x2, cli); the fourth is a
+    // benign fixture — a directory skip-list entry in the tokens tests, not a
+    // path into anyone's home. Each is listed explicitly so a NEW file with a
+    // quoted home segment fails this test instead of blending in.
+    const FROZEN = new Set([
+      "session/src/runtime.mjs",
+      "session/src/doctor.mjs",
+      "cli/src/index.ts",
+      "tokens/tests/tokens.test.ts",
+    ]);
+    const hits: string[] = [];
+    const walk = (dir: string): void => {
+      const entries = nodeReaddirSync(dir, { withFileTypes: true }) as unknown as Array<{
+        name: string;
+        isDirectory: () => boolean;
+      }>;
+      for (const entry of entries) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name === "node_modules" || entry.name === "dist") continue;
+          walk(full);
+          continue;
+        }
+        if (!/\.(ts|mjs|js|yml|yaml)$/.test(entry.name)) continue;
+        // Any quote style around the home segment: single, double, template.
+        if (/([\'"`])\.dsh\1/.test(readFileSync(full, "utf8"))) {
+          // Normalize against a missing trailing slash: fileURLToPath keeps
+          // the directory URL's slash, but this must not depend on that.
+          const rel = full
+            .slice(full.startsWith(packagesDir) ? packagesDir.length : 0)
+            .replace(/^\/+/, "");
+          if (!FROZEN.has(rel)) hits.push(rel);
+        }
+      }
+    };
+    walk(packagesDir);
+    expect(hits).toEqual(["install/src/dsh-import.ts"]);
   });
 });
 
@@ -319,9 +353,11 @@ describe("E1: discovery and honest degradation", () => {
 describe("E1: chains, not single models", () => {
   it("a single rung is reported as having no failover", async () => {
     const h = makeHarness();
-    await runWizard(baseOpts(h, {}));
+    const result = await runWizard(baseOpts(h, {}));
     const text = readSettings(h);
     expect(text).toContain("- deepseek-official/deepseek-v4-pro");
+    // The route line alone does not prove the message: assert the words.
+    expect(result.messages.join("\n")).toContain("no failover");
   });
 
   it("the same model twice is accepted and its meaning is stated", async () => {
@@ -366,7 +402,9 @@ describe("E1: meridian branches", () => {
     const h = makeHarness();
     const s: Script = { branch: "port", port: 9999 };
     const result = await runWizard(
-      baseOpts(h, s, { probes: { probeMeridian: async () => ({ status: 200, body: IMPOSTOR }) } }),
+      baseOpts(h, s, {
+        probes: { probeMeridian: async () => ({ status: 200, body: IMPOSTOR }) },
+      }),
     );
     expect(result.messages.join("\n")).toContain("NOT written");
     expect(readSettings(h)).not.toContain("meridian");
@@ -404,6 +442,29 @@ describe("E1: meridian branches", () => {
     expect(result.completed).toBe(true);
     expect(result.messages.join("\n")).toContain("free-provider path");
     expect(readSettings(h)).not.toContain("meridian");
+  });
+
+  it("branch (a) success installs, verifies the default port, and writes meridian", async () => {
+    const h = makeHarness();
+    const s: Script = {
+      branch: "setup",
+      meridianSetup: { installed: true, detail: "installed" },
+      discoverFails: false,
+      discover: { meridian: [{ id: "sonnet" }] },
+    };
+    const result = await runWizard(
+      baseOpts(h, s, {
+        probes: { probeMeridian: async () => ({ status: 200, body: REAL_HEALTH }) },
+      }),
+    );
+    expect(result.completed).toBe(true);
+    expect(result.messages.join("\n")).toContain("signed in");
+    const text = readSettings(h);
+    expect(text).toContain("http://127.0.0.1:9000");
+    const receipt = JSON.parse(
+      h.fs.readFileSync(join(h.home, "state", "wizard.json"), "utf8") as string,
+    );
+    expect(receipt.meridian).toEqual({ port: 9000 });
   });
 
   it("Claude installed without meridian offers the setup rather than asking cold", async () => {
@@ -484,6 +545,9 @@ describe("E1: import is read-only, complete, and consented", () => {
     const result = await runWizard(baseOpts(h, { askImport: true }));
     expect(result.messages.join("\n")).toContain("decoy-provider");
     expect(result.messages.join("\n")).toContain("point-in-time snapshot");
+    // The decoy chains are read but not applied: the frontier/flash answers
+    // own the chains region, and the message must say so honestly.
+    expect(result.messages.join("\n")).toContain("own the chains region");
     expect(h.chmods).toContainEqual({ path: join(h.dsh, ".credentials.yaml"), mode: 0o600 });
     expect(h.fs.readFileSync(join(h.dsh, ".credentials.yaml"), "utf8")).toContain("DECOY_API_KEY");
   });
@@ -594,6 +658,24 @@ describe("settings-patch: line-wise surgery", () => {
     expect(() =>
       patchRegion("no markers\n", "thursday-chains:begin", "thursday-chains:end", []),
     ).toThrow();
+  });
+
+  it("a prose mention of the marker in the header does not anchor the region", () => {
+    // The real template header names every marker in prose. A substring
+    // search anchors on that prose and wipes everything down to the real end
+    // marker; exact-trim matching keeps the header and swaps only the body.
+    const doc = [
+      "#   # thursday-chains:begin / :end      the named route chains",
+      "profile:",
+      "  chains:",
+      "    # thursday-chains:begin",
+      "    - old",
+      "    # thursday-chains:end",
+    ].join("\n");
+    const patched = patchRegion(doc, "thursday-chains:begin", "thursday-chains:end", ["    - new"]);
+    expect(patched).toContain("#   # thursday-chains:begin / :end");
+    expect(patched).toContain("    - new");
+    expect(patched).not.toContain("    - old");
   });
 });
 

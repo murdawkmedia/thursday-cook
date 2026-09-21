@@ -6,7 +6,8 @@
  * is the only place that joins the home directory to the dsh home name or
  * reads the DSH_HOME override for the USER's home. A test
  * (`tests/wizard.test.ts`, "exactly one module") asserts no other file under
- * `packages/install/src/` contains that construction; `resolveThursdayHome`
+ * `packages/` does that (modulo a frozen list of pre-existing offenders
+ * outside this ticket's allowlist); `resolveThursdayHome`
  * in `install.ts` delegates here rather than spelling it again.
  *
  * READ-ONCE, COPY-NOT-LINK. The wizard may read the user's dsh home exactly
@@ -32,7 +33,6 @@ import { parse as parseYaml } from "yaml";
 import {
   patchAgentDefaultModel,
   patchRegion,
-  renderChainsRegion,
   renderProvidersRegion,
   type SettingsProvider,
 } from "./settings-patch";
@@ -190,9 +190,11 @@ export function previewDshImport(userDshHome: string, fs: DshFs): DshImportPrevi
       ? { provider: agentDefault.provider, model: agentDefault.model }
       : null;
 
-  // Profile chains: adopt only personal/work entries whose orchestrator and
-  // subagent are string arrays — exactly the shape Thursday's chains region
-  // can render. Anything else is reported, not guessed at.
+  // Profile chains: reported, never written. The ticket gives the chains
+  // region to the frontier/flash answers, and runWizard overwrites that region
+  // after the import — so writing them here would be a dead write with a
+  // false message. They are collected so the preview and receipt can say what
+  // was read; anything else is reported, not guessed at.
   const adopted: AdoptedChains = {};
   const otherProfiles: string[] = [];
   const profile = doc.profile;
@@ -327,22 +329,20 @@ export function copyDshImport(
     );
   }
 
+  // The chains region belongs to the frontier/flash answers, not to the
+  // import: runWizard overwrites it after this returns, so writing adopted
+  // chains here would be a dead write — and saying "profile chains follow
+  // dsh" would be a false message. Report what was read instead.
   const adoptedNames = (Object.keys(preview.adopted) as (keyof AdoptedChains)[]).filter(
     (key) => preview.adopted[key] !== undefined,
   );
   if (adoptedNames.length > 0) {
-    const first = preview.adopted[adoptedNames[0] as "personal"] ?? preview.adopted.work;
-    if (first !== undefined) {
-      content = patchRegion(
-        content,
-        "thursday-chains:begin",
-        "thursday-chains:end",
-        renderChainsRegion(first.orchestrator, first.subagent),
-      );
-      messages.push(`profile chains follow dsh (${adoptedNames.join(", ")}).`);
-    }
+    messages.push(
+      `dsh profile chains (${adoptedNames.join(", ")}) were read, but the frontier/flash ` +
+        `answers own the chains region, so they were not applied.`,
+    );
   } else {
-    messages.push(`no adoptable dsh profile chains; Thursday chains left as the template.`);
+    messages.push(`no adoptable dsh profile chains in the dsh home.`);
   }
 
   // Thursday composes its own presets (C2): dsh's preset default is reported,

@@ -279,6 +279,36 @@ const USER_DSH = (() => {
 const SETTINGS_PATH = `${THURSDAY_DSH}/settings.yaml`;
 const RECEIPT_PATH = `${THURSDAY_HOME}/state/wizard.json`;
 
+// The AI scratch default: the same default the engine reads
+// (defaultAiScratchDir in packages/install/src/uninstall.ts). Recorded, never
+// created: it lives outside the home.
+const AI_SCRATCH = expandHome("~/.ai-scratch");
+
+// PROVISIONAL (AIDOS_SCRATCH_DEFAULT_UNWIRED): mirrors the workspace-key
+// mangling documented in docs/dsh-home.md until A6 records the default as an
+// importable constant. See AIDOS_SCRATCH_WIRE_POINT in
+// packages/install/src/wizard.ts.
+function provisionalAidosScratchDir(dshHome: string, cwd: string): string {
+  let readable = "";
+  let prevSep = false;
+  for (const ch of cwd) {
+    if (ch === "/" || ch === "\\" || ch === ":") {
+      if (!prevSep) readable += "-";
+      prevSep = true;
+      continue;
+    }
+    prevSep = false;
+    if (ch !== "~" && /[A-Za-z0-9._-]/.test(ch)) {
+      readable += ch;
+    } else {
+      readable += `~${(ch.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, "0000")}`;
+    }
+  }
+  readable = readable.replace(/^-+/, "");
+  if (readable === "") readable = "root";
+  return `${dshHome}/aidos/scratch/--${readable}--`;
+}
+
 interface ProviderEntry {
   name: string;
   displayName: string;
@@ -293,7 +323,7 @@ type Ctx = {
   providerList: ProviderEntry[];
   models: { frontier: string; flash: string };
   done: string | null;
-}
+};
 
 // Auxiliary answers that are not chain routes. Pipeline context carries the
 // values the receipt needs; this carries the rest.
@@ -301,7 +331,6 @@ const W = {
   imported: false,
   verified: false,
   fallback: null as string | null,
-  adopted: null as { orchestrator: string[]; subagent: string[] } | null,
   defaultModel: null as { provider: string; model: string } | null,
   credSrc: null as string | null,
 };
@@ -401,10 +430,16 @@ function assessHealth(port: number, probe: Health | null): { ok: boolean; line: 
   return { ok: true, line: `meridian${version} is running on port ${port} and signed in${plan}.` };
 }
 
+// Same rule as the engine's patchRegion (packages/install/src/settings-patch.ts):
+// a marker line is exactly `# ` plus the marker name. The template header
+// carries prose mentions of every marker (`#   # thursday-chains:begin / :end
+// ...`), and a substring search anchors on the prose, wiping everything from
+// the header to the real end marker.
 function patchRegion(content: string, begin: string, end: string, body: string[]): string {
+  const isMarker = (l: string, marker: string): boolean => l.trim() === `# ${marker}`;
   const lines = content.split("\n");
-  const b = lines.findIndex((l) => l.includes(begin));
-  const e = lines.findIndex((l) => l.includes(end));
+  const b = lines.findIndex((l) => isMarker(l, begin));
+  const e = lines.findIndex((l) => isMarker(l, end));
   if (b === -1 || e === -1 || e <= b) {
     throw new Error(`settings region markers not found: ${begin} / ${end}`);
   }
@@ -451,45 +486,22 @@ function parseDshProviders(text: string): ProviderEntry[] {
   return out;
 }
 
+// Anchored at line start like every other search here: a prose mention of the
+// block name must never select the block.
 function parseDshDefaultModel(text: string): { provider: string; model: string } | null {
-  const block = /agent-default-model:\s*\n((?:  [^\n]*\n)+)/.exec(text);
-  if (!block) return null;
-  const provider = /^  provider:\s*(\S+)/m.exec(block[1]);
-  const model = /^  model:\s*(\S+)/m.exec(block[1]);
+  const start = /^agent-default-model:\s*$/m.exec(text);
+  if (!start) return null;
+  let provider: string | null = null;
+  let model: string | null = null;
+  for (const line of text.slice(start.index).split("\n").slice(1)) {
+    if (/^\S/.test(line)) break;
+    const p = /^  provider:\s*(\S+)/.exec(line);
+    if (p) provider = p[1];
+    const m = /^  model:\s*(\S+)/.exec(line);
+    if (m) model = m[1];
+  }
   if (!provider || !model) return null;
-  return { provider: provider[1], model: model[1] };
-}
-
-// Adopt only personal/work entries whose orchestrator and subagent are plain
-// string lists — the shape the chains region can render. Anything else is
-// left as the template rather than guessed at.
-function parseDshChains(text: string): { orchestrator: string[]; subagent: string[] } | null {
-  return parseProfileChains(text, "personal") ?? parseProfileChains(text, "work");
-}
-
-function parseProfileChains(
-  text: string,
-  profile: string,
-): { orchestrator: string[]; subagent: string[] } | null {
-  const block = new RegExp(
-    `^  ${profile}:\\s*\\n((?:    [^\\n]*\\n|(?:      [^\\n]*\\n)+)+)`,
-    "m",
-  ).exec(text);
-  if (!block) return null;
-  const get = (key: string): string[] | null => {
-    const section = new RegExp(`^    ${key}:\\s*\\n((?:      - [^\\n]*\\n)+)`, "m").exec(block[1]);
-    if (!section) return null;
-    const items = section[1]
-      .split("\n")
-      .map((l) => /^      - (\S+)\s*$/.exec(l))
-      .filter((m): m is RegExpExecArray => m !== null)
-      .map((m) => m[1]);
-    return items.length > 0 ? items : null;
-  };
-  const orchestrator = get("orchestrator");
-  const subagent = get("subagent");
-  if (orchestrator === null || subagent === null) return null;
-  return { orchestrator, subagent };
+  return { provider, model };
 }
 
 function renderProvider(p: ProviderEntry): string[] {
@@ -519,9 +531,11 @@ function renderChains(frontier: string[], flash: string[]): string[] {
   ];
 }
 
+// Same class as patchRegion: the block is found by exact-trim match, not by
+// substring, so a future header mention of the block name cannot hijack it.
 function patchDefaultModel(content: string, provider: string, model: string): string {
   const lines = content.split("\n");
-  const start = lines.findIndex((l) => l.includes("agent-default-model:"));
+  const start = lines.findIndex((l) => l.trim() === "agent-default-model:");
   if (start === -1) throw new Error("agent-default-model block not found");
   let end = lines.length;
   for (let i = start + 1; i < lines.length; i++) {
@@ -634,7 +648,9 @@ await createWizard<Ctx>()
           if (!list.some((q) => q.name === p.name)) list.push(p);
         }
         W.defaultModel = parseDshDefaultModel(settings);
-        W.adopted = parseDshChains(settings);
+        say(
+          "dsh profile chains are not imported: the frontier/flash answers own the chains region.",
+        );
         try {
           Deno.statSync(`${USER_DSH}/.credentials.yaml`);
           W.credSrc = `${USER_DSH}/.credentials.yaml`;
@@ -735,12 +751,11 @@ await createWizard<Ctx>()
     }
     const frontierChain = [ctx.models.frontier, ...(W.fallback ? [W.fallback] : [])];
     const flashChain = [ctx.models.flash, ...(W.fallback ? [W.fallback] : [])];
-    const adopted = W.adopted;
     content = patchRegion(
       content,
       "thursday-chains:begin",
       "thursday-chains:end",
-      renderChains(adopted?.orchestrator ?? frontierChain, adopted?.subagent ?? flashChain),
+      renderChains(frontierChain, flashChain),
     );
     const head = ctx.models.frontier.includes("/")
       ? ctx.models.frontier.split("/")
@@ -754,6 +769,19 @@ await createWizard<Ctx>()
       Deno.chmodSync(dest, 0o600);
       say("Copied .credentials.yaml with mode 0600.");
     }
+    // Scratch directories. The aidos path is the provisional spelling (see
+    // provisionalAidosScratchDir); the AI scratch is recorded, never created.
+    const aidosScratch = provisionalAidosScratchDir(THURSDAY_DSH, Deno.cwd());
+    if (aidosScratch !== THURSDAY_HOME && !aidosScratch.startsWith(`${THURSDAY_HOME}/`)) {
+      throw new Error(
+        `refusing to create aidos scratch outside the Thursday home: ${aidosScratch}`,
+      );
+    }
+    await Deno.mkdir(aidosScratch, { recursive: true });
+    say(`aidos durable scratch: ${aidosScratch} (provisional default; see A6).`);
+    say(
+      `AI scratch is ${AI_SCRATCH}, outside the Thursday home, so the wizard records it but does not create it.`,
+    );
     await Deno.mkdir(`${THURSDAY_HOME}/state`, { recursive: true });
     await Deno.writeTextFile(
       RECEIPT_PATH,
@@ -762,9 +790,13 @@ await createWizard<Ctx>()
           version: 1,
           frontier: ctx.models.frontier,
           flash: ctx.models.flash,
+          frontierChain,
+          flashChain,
           verified: W.verified,
           meridian: ctx.meridianPort === null ? null : { port: ctx.meridianPort },
           imported: W.imported,
+          aidosScratchDir: aidosScratch,
+          aiScratchDir: AI_SCRATCH,
           completedAt: new Date().toISOString(),
         },
         null,

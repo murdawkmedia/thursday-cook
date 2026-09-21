@@ -117,7 +117,9 @@ export function renderChainsRegion(frontierChain: string[], flashChain: string[]
  */
 export function patchAgentDefaultModel(content: string, provider: string, model: string): string {
   const lines = content.split("\n");
-  const start = lines.findIndex((line) => line.includes("agent-default-model:"));
+  // Line-start anchored, not includes(): a prose mention of the key in the
+  // template header must never anchor the block (same class as patchRegion).
+  const start = lines.findIndex((line) => line.startsWith("agent-default-model:"));
   if (start === -1) {
     throw new Error(`agent-default-model block not found: the settings template must carry it.`);
   }

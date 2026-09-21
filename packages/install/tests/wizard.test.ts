@@ -674,6 +674,12 @@ describe("settings-patch: line-wise surgery", () => {
     ].join("\n");
     const patched = patchRegion(doc, "thursday-chains:begin", "thursday-chains:end", ["    - new"]);
     expect(patched).toContain("#   # thursday-chains:begin / :end");
+    // The canaries: everything between the prose mention and the real begin
+    // marker is exactly what includes()-anchoring wipes. Without these two
+    // lines this test passes under the buggy logic too (proven by a reviewer
+    // running the old implementation against this very doc).
+    expect(patched).toContain("profile:");
+    expect(patched).toContain("  chains:");
     expect(patched).toContain("    - new");
     expect(patched).not.toContain("    - old");
   });

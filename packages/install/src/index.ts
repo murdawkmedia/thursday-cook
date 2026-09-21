@@ -86,6 +86,7 @@ export {
 // consumer, and it could not import the function it exists to call.
 export {
   baseDirFor,
+  checkDepsSatisfied,
   classifyReplacement,
   createFilesystemAPI,
   detectBlockStatus,
@@ -110,6 +111,8 @@ export {
   type ReplacementState,
   type ResolvedThursdayHome,
   type StepResult,
+  type WizardContext,
+  type WizardReport,
 } from "./install";
 // `resolveThursdayHome` is deliberately NOT re-exported from ./uninstall: it
 // used to be a second implementation of the same rule and is now a delegating
@@ -118,6 +121,7 @@ export {
 export {
   KNOWN_THURSDAY_DIRS,
   OUTSIDE_THE_HOME_EFFECTS,
+  defaultAiScratchDir,
   expandPath,
   findUnexpectedFiles,
   getIconRemovalPaths,
@@ -134,3 +138,43 @@ export {
   verifyMeridianHealth,
   type MeridianVerdict,
 } from "./meridian";
+export {
+  DSH_IMPORT_FORBIDDEN,
+  assertInsideHome,
+  copyDshImport,
+  previewDshImport,
+  resolveUserDshHome,
+  type AdoptedChains,
+  type DshCopyOptions,
+  type DshCopyResult,
+  type DshFs,
+  type DshImportPreview,
+  type ImportedProvider,
+} from "./dsh-import";
+export {
+  patchAgentDefaultModel,
+  patchRegion,
+  renderChainsRegion,
+  renderProviderLines,
+  renderProvidersRegion,
+  type SettingsProvider,
+} from "./settings-patch";
+export {
+  AIDOS_SCRATCH_WIRE_POINT,
+  FREE_FLASH,
+  FREE_FRONTIER,
+  FREE_PROVIDER_NAME,
+  MERIDIAN_DEFAULT_PORT,
+  hasAidosModelConfig,
+  provisionalAidosScratchDir,
+  runWizard,
+  type ClaudeBranch,
+  type DiscoveredModel,
+  type MeridianSetupResult,
+  type WizardEnvironment,
+  type WizardProbes,
+  type WizardPrompts,
+  type WizardReceipt,
+  type WizardRunOptions,
+  type WizardRunResult,
+} from "./wizard";

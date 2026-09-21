@@ -4,11 +4,13 @@ import { execa } from "execa";
 import * as fsDefault from "node:fs";
 import * as fsPromisesDefault from "node:fs/promises";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { satisfies } from "semver";
 
 import type { Block } from "./loader";
 import type { DetectStep, PathBase, Step } from "./actions";
 import { rowPresentSatisfied } from "./actions";
 import { distributionRoot } from "./dist-root";
+import { resolveUserDshHome } from "./dsh-import";
 import { orderBlocks } from "./patch";
 
 /**
@@ -89,11 +91,27 @@ export interface InstallResult {
   problems: InstallProblem[];
 }
 
+export interface WizardContext {
+  thursdayHome: string;
+  dshPath: string;
+}
+
+export interface WizardReport {
+  changed: boolean;
+  output: string;
+}
+
 export interface InstallOptions {
   thursdayHome?: string;
   dryRun?: boolean;
   quiet?: boolean;
   fs?: FilesystemAPI;
+  /**
+   * Run the E1 install wizard after the engine finishes (never on a dry run).
+   * The engine owns no wizard logic; the CLI passes the runner that shells to
+   * `wizards/thursday-setup.ts`. Absent in tests, so they never prompt.
+   */
+  runWizard?: (ctx: WizardContext) => Promise<WizardReport>;
   /**
    * Override the Thursday distribution root `copy-tree` sources with
    * `base: dist` (the default) resolve against. Production leaves this unset
@@ -131,9 +149,9 @@ export function resolveThursdayHome(
 
   thursdayHome = resolve(thursdayHome);
 
-  // Guard 1: refuse if overlaps with user's ~/.dsh
-  const userDshHome = environment.DSH_HOME?.trim() ?? join(home, ".dsh");
-  const resolvedUserDsh = resolve(userDshHome);
+  // Guard 1: refuse if overlaps with the user's dsh home. The spelling lives
+  // in dsh-import.ts (the single-module rule); this guard only compares.
+  const resolvedUserDsh = resolveUserDshHome(environment, home);
   if (
     thursdayHome === resolvedUserDsh ||
     thursdayHome.startsWith(resolvedUserDsh + "/") ||
@@ -259,6 +277,126 @@ export function normaliseIgnoredBuilds(
     fs.writeFileSync(workspacePath, stringifyYaml(doc), "utf8");
   }
   return changed;
+}
+
+/**
+ * The exact bytes the installer writes as `$THURSDAY_HOME/pnpm-workspace.yaml`.
+ *
+ * The home must be self-delimiting: with THURSDAY_HOME inside a pnpm workspace
+ * (a temp home inside the checkout, or a user whose $HOME is a workspace
+ * root), pnpm walks up from the step's cwd, finds the ENCLOSING workspace,
+ * and hoists the install away — exit 0, no node_modules in the cwd, and the
+ * next step fails blaming the wrong action. A marker at the home root stops
+ * the upward walk at the home for every pnpm invocation under it, present and
+ * future, by one artifact.
+ *
+ * WHY A MARKER AND NOT PER-ACTION `--ignore-workspace`. The flag would have to
+ * ride on every pnpm command line, including `pnpm-add` — but the profile
+ * installs read their overrides and allowBuilds out of the profile's OWN
+ * pnpm-workspace.yaml, and ignoring workspace settings there threatens exactly
+ * the machinery that keeps registry resolution working. The marker changes no
+ * command line: profiles keep their own nearest file (nearest wins going up).
+ *
+ * WHY THE LIST IS EMPTY. The marker is a delimiter, not a project list: the
+ * install cwds the engine owns root THEMSELVES (see ensurePnpmInstallRoot),
+ * so no cwd ever resolves to the home root as its workspace. An empty list
+ * keeps a stray root-level `pnpm install` a safe no-op ("No projects found",
+ * exit 0, nothing written — verified live 2026-09-21) instead of installing
+ * the runtime with the workspace-root layout. A new pnpm cwd under the home
+ * without its own workspace file must grow one via ensurePnpmInstallRoot;
+ * the pnpm-install self-check (assertPnpmInstallLanded) turns an omission
+ * into a loud failure instead of another silent one.
+ */
+export const HOME_WORKSPACE_MARKER_CONTENT = "packages: []\n";
+
+/**
+ * Write the workspace marker at the home root unless one is already there.
+ *
+ * Never overwrites: an existing file is the user's (or a previous install's)
+ * and wins. Returns true when this call wrote the file. Exported so tests can
+ * drive it against memfs; `install()` calls it where the home root is first
+ * materialized.
+ */
+export function ensureHomeWorkspaceMarker(
+  thursdayHome: string,
+  // Only the two calls this needs, so the injected FilesystemAPI satisfies
+  // it as readily as node:fs does.
+  fs: {
+    existsSync: (p: string) => boolean;
+    writeFileSync: (p: string, data: string, enc: "utf8") => void;
+  } = fsDefault as never,
+): boolean {
+  const markerPath = join(thursdayHome, "pnpm-workspace.yaml");
+  if (fs.existsSync(markerPath)) return false;
+  fs.writeFileSync(markerPath, HOME_WORKSPACE_MARKER_CONTENT, "utf8");
+  return true;
+}
+
+/**
+ * Root a `pnpm-install` cwd as its own workspace, unless it already is one.
+ *
+ * Workspace membership changes the on-disk layout: with the cwd a mere
+ * member, pnpm keeps ONE virtual store at the workspace root, so
+ * `node_modules/.pnpm` lands beside the marker instead of beside the
+ * package.json — and every downstream consumer (the patch-file-exact target,
+ * collectRuntimeOverrides, the profile pins) assumes the standalone layout.
+ * Verified live 2026-09-21: with only the home marker in place, the runtime
+ * install "succeeded" into the home-root store and the patch step found
+ * nothing to patch. A workspace file of its own (nearest wins going up)
+ * keeps the install standalone however the home itself is delimited.
+ *
+ * The file is comment-only on purpose: any `packages` list would be wrong
+ * here (the cwd IS the root; a list names subdirectories of it), and pnpm
+ * amends the file itself with its allowBuilds placeholders, which is exactly
+ * the handshake normaliseIgnoredBuilds reads. Never overwrites: an existing
+ * file — pnpm's placeholders, a previous run, a user's hand — wins.
+ * Returns true when this call wrote the file.
+ */
+export const PNPM_INSTALL_ROOT_CONTENT =
+  "# Thursday-managed: roots this directory as its own pnpm workspace, so the\n" +
+  "# install stays standalone (node_modules/.pnpm beside package.json) however\n" +
+  "# the Thursday home itself is delimited. pnpm amends this file with its own\n" +
+  "# allowBuilds decisions; those entries are pnpm's and must be left alone.\n";
+
+export function ensurePnpmInstallRoot(
+  cwd: string,
+  // Only the two calls this needs, so the injected FilesystemAPI satisfies
+  // it as readily as node:fs does.
+  fs: {
+    existsSync: (p: string) => boolean;
+    writeFileSync: (p: string, data: string, enc: "utf8") => void;
+  } = fsDefault as never,
+): boolean {
+  const workspacePath = join(cwd, "pnpm-workspace.yaml");
+  if (fs.existsSync(workspacePath)) return false;
+  fs.writeFileSync(workspacePath, PNPM_INSTALL_ROOT_CONTENT, "utf8");
+  return true;
+}
+
+/**
+ * Fail loudly when a zero-exit `pnpm install` installed nothing.
+ *
+ * Exit 0 is not success: absorbed into an enclosing workspace, pnpm hoists
+ * the install away and the cwd gains no node_modules while the step reports
+ * success — and the NEXT step (patch-file-exact on the .pnpm tree) fails
+ * blaming the wrong step. Kept even though the home marker makes this
+ * unlikely, because the effect (node_modules in the cwd) is the contract and
+ * the exit code is not the proof.
+ */
+export function assertPnpmInstallLanded(
+  cwd: string,
+  fs: {
+    existsSync: (p: string) => boolean;
+  },
+): void {
+  if (fs.existsSync(join(cwd, "node_modules"))) return;
+  throw new Error(
+    `pnpm install reported success in ${cwd} but created no node_modules there. ` +
+      `The directory was probably absorbed into an enclosing pnpm workspace, which hoists ` +
+      `the install away from the working directory instead of installing into it. ` +
+      `Check for a pnpm-workspace.yaml above ${cwd} and re-run once the home carries its ` +
+      `own marker (ensureHomeWorkspaceMarker).`,
+  );
 }
 
 /**
@@ -835,6 +973,104 @@ export function planInstall(
 }
 
 /**
+ * Check one `assert-deps-satisfied` step against the filesystem, returning one
+ * problem string per failing dependent (empty when every range is satisfied).
+ *
+ * This is the whole decision procedure of the action: read the installed
+ * version of `name` from the profile's node_modules — the same base `pnpm-add`
+ * installs into — then check every dependent's declared range for `name`
+ * against it. Read-only like the detect predicates, so a dry run and an apply
+ * run the identical check and cannot disagree.
+ *
+ * Every failure mode is a returned problem, never a throw: a missing package,
+ * an unreadable manifest, a dependent with no declared range, and an
+ * unsatisfied range are all install problems the caller reports with block and
+ * step, not crashes.
+ */
+export function checkDepsSatisfied(
+  step: Extract<Step, { action: "assert-deps-satisfied" }>,
+  dshPath: string,
+  fs: FilesystemAPI,
+): string[] {
+  const profile = step.profile ?? "web";
+  const nodeModules = join(dshPath, "profiles", profile, "node_modules");
+  const problems: string[] = [];
+
+  const readManifest = (
+    packageName: string,
+  ): { version?: unknown; dependencies?: unknown; peerDependencies?: unknown } | undefined => {
+    const manifestPath = join(nodeModules, packageName, "package.json");
+    if (!fs.existsSync(manifestPath)) return undefined;
+    try {
+      return JSON.parse(fs.readFileSync(manifestPath, "utf8") as string);
+    } catch {
+      return undefined;
+    }
+  };
+
+  const depManifest = readManifest(step.name);
+  if (depManifest === undefined) {
+    problems.push(
+      `'${step.name}' is not installed in profile '${profile}': cannot check any dependent's range against it.`,
+    );
+    return problems;
+  }
+  const installed = depManifest.version;
+  if (typeof installed !== "string" || installed === "") {
+    problems.push(
+      `'${step.name}' is installed in profile '${profile}' but its package.json carries no usable version.`,
+    );
+    return problems;
+  }
+
+  for (const dependent of step.dependents) {
+    const dependentManifest = readManifest(dependent);
+    if (dependentManifest === undefined) {
+      problems.push(
+        `dependent '${dependent}' is not installed in profile '${profile}': cannot check its range for '${step.name}'.`,
+      );
+      continue;
+    }
+    const declared =
+      (dependentManifest.dependencies as Record<string, unknown> | undefined)?.[step.name] ??
+      (dependentManifest.peerDependencies as Record<string, unknown> | undefined)?.[step.name];
+    if (typeof declared !== "string" || declared === "") {
+      problems.push(
+        `dependent '${dependent}' declares no range for '${step.name}' (installed: ${installed}): ` +
+          `a missing declaration would pass vacuously, so it fails instead.`,
+      );
+      continue;
+    }
+    // includePrerelease is REQUIRED, not a nicety: without it
+    // satisfies("0.1.0-rc.8", ">=0.0.1-rc.1") is false, because semver excludes
+    // prerelease versions from ranges whose comparator has no prerelease tag on
+    // the same [major, minor, patch] tuple — and the whole dsh family lives on
+    // prerelease tags. Verified against semver 7.8.5: with the flag true, without
+    // it false.
+    let rangeValid = true;
+    let satisfied = false;
+    try {
+      satisfied = satisfies(installed, declared, { includePrerelease: true });
+    } catch {
+      rangeValid = false;
+    }
+    if (!rangeValid) {
+      problems.push(
+        `dependent '${dependent}' declares an unparsable range '${declared}' for '${step.name}' (installed: ${installed}).`,
+      );
+      continue;
+    }
+    if (!satisfied) {
+      problems.push(
+        `dependent '${dependent}' requires '${step.name}' ${declared} but ${installed} is installed in profile '${profile}'.`,
+      );
+    }
+  }
+
+  return problems;
+}
+
+/**
  * Execute a single install step.
  *
  * `dryRun` performs every read and every comparison the apply performs and
@@ -1031,7 +1267,9 @@ export async function executeStep(
             // a dry run and an apply say the same thing about it.
             if (added) output.push(`Added allowBuilds entry: ${allowKey}`);
             if (normalised.length > 0) {
-              output.push(`Allowed ${normalised.length} pending build(s): ${normalised.join(", ")}`);
+              output.push(
+                `Allowed ${normalised.length} pending build(s): ${normalised.join(", ")}`,
+              );
             }
             if (!dryRun) {
               fs.writeFileSync(workspacePath, stringifyYaml(workspaceDoc), "utf8");
@@ -1221,6 +1459,12 @@ export async function executeStep(
         output.push(`Installed dependencies with pnpm: ${step.cwd} (store: ${step.storeDir})`);
 
         if (!dryRun) {
+          // Root the cwd before pnpm runs: without its own file the cwd
+          // resolves to the home marker (or an enclosing workspace without
+          // one) and the install layout follows the workspace root instead
+          // of the cwd. See ensurePnpmInstallRoot.
+          ensurePnpmInstallRoot(cwd, fs);
+
           fs.mkdirSync(storeDir, { recursive: true });
 
           const env = {
@@ -1288,8 +1532,24 @@ export async function executeStep(
             // exactly how that was spotted. The placeholder entries pnpm wrote
             // are the durable evidence, they are on disk, and they say which
             // packages are involved, so they are the better signal.
+            //
+            // The file is the workspace ROOT's, not necessarily the cwd's.
+            // pnpm writes its placeholders to the nearest pnpm-workspace.yaml
+            // going up -- and with the home marker in place that is the home
+            // root, while the step's cwd has no file of its own (verified live
+            // 2026-09-21: placeholders landed in $THURSDAY_HOME/pnpm-workspace.yaml
+            // and the cwd-only lookup missed them, so the retry never fired and
+            // the runtime install failed). Both files are normalized, bounded
+            // by the home: nothing above it is ever touched.
             const message = describeCommandFailure(err);
-            const normalised = normaliseIgnoredBuilds(cwd, dryRun, fs);
+            const normalised = [
+              ...new Set([
+                ...normaliseIgnoredBuilds(cwd, dryRun, fs),
+                ...(resolve(cwd) === resolve(thursdayHome)
+                  ? []
+                  : normaliseIgnoredBuilds(thursdayHome, dryRun, fs)),
+              ]),
+            ];
             if (normalised.length === 0) {
               throw new Error(`pnpm install failed in ${cwd}: ${message}`);
             }
@@ -1304,6 +1564,13 @@ export async function executeStep(
               );
             }
           }
+
+          // Exit 0 is not success. A cwd absorbed into an enclosing pnpm
+          // workspace hoists the install away and pnpm still exits 0, so the
+          // step verifies its own effect — node_modules in the cwd — instead
+          // of trusting the exit code. Kept even though the home marker makes
+          // this unlikely: the marker is the prevention, this is the proof.
+          assertPnpmInstallLanded(cwd, fs);
         }
 
         return {
@@ -1479,6 +1746,26 @@ export async function executeStep(
         }
       }
 
+      case "assert-deps-satisfied": {
+        // Read-only: the check runs identically in a dry run and an apply, so
+        // the two agree by construction. changed is always false — this step
+        // verifies, it installs nothing.
+        const failures = checkDepsSatisfied(step, dshPath, fs);
+        if (failures.length > 0) {
+          throw new Error(
+            `dependency range check failed for '${step.name}':\n${failures.map((f) => `    ${f}`).join("\n")}`,
+          );
+        }
+        output.push(
+          `Dependencies satisfied: ${step.dependents.length} dependent(s) of '${step.name}' all satisfied`,
+        );
+        return {
+          step: planned,
+          changed: false,
+          output: output.join("\n"),
+        };
+      }
+
       default:
         throw new Error(`unknown install action: ${(step as any).action}`);
     }
@@ -1587,7 +1874,38 @@ export async function install(
 
   fs.mkdirSync(dshPath, { recursive: true });
 
+  // Delimit the home before any pnpm action runs: with THURSDAY_HOME inside
+  // an enclosing pnpm workspace, pnpm would otherwise hoist installs away
+  // from the step's cwd while exiting 0. See HOME_WORKSPACE_MARKER_CONTENT.
+  ensureHomeWorkspaceMarker(thursdayHome, fs);
+
   const plan = planInstall(blocks, dshPath, thursdayHome, fs);
 
-  return executeInstall(plan, dshPath, thursdayHome, { ...options, fs });
+  const result = await executeInstall(plan, dshPath, thursdayHome, { ...options, fs });
+
+  if (!options?.dryRun && options?.runWizard) {
+    try {
+      const report = await options.runWizard({ thursdayHome, dshPath });
+      result.steps.push({
+        step: {
+          blockId: "wizard",
+          blockRationale: "E1: the install wizard",
+          index: 0,
+          step: { action: "run", command: "thursday-wizard", args: [] },
+          dryRun: false,
+        },
+        changed: report.changed,
+        output: report.output,
+      });
+      result.anyChanged = result.anyChanged || report.changed;
+    } catch (err) {
+      result.problems.push({
+        block: "wizard",
+        step: 0,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  return result;
 }

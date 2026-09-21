@@ -98,6 +98,15 @@ steps:
       Its own repo, NOT the toolkit monorepo — see the time step: the
       collection also registers calculator and diff and would double-register
       them.
+  - action: assert-deps-satisfied
+    name: "@deepseek-ai/dsh-tools"
+    dependents:
+      - "@deepseek-ai/dsh-tool-calculator"
+      - "@deepseek-ai/dsh-tool-diff"
+      - "@deepseek-ai/dsh-tool-time"
+      - "@deepseek-ai/dsh-tool-regex"
+      - "@deepseek-ai/dsh-tool-markdown"
+      - "@deepseek-ai/dsh-tool-encoding"
 detect:
   - action: package-installed
     name: "@deepseek-ai/dsh-tools"

@@ -275,7 +275,7 @@ export const INSTALL_ACTIONS = {
     kind: "install",
     summary: "Run pnpm install with store-dir pointing to Thursday's cache.",
     idempotence:
-      "Decided by the presence of `node_modules` in the working directory: an install that already has one is reported as unchanged and pnpm is not run. The same signal is read by a dry run, so a dry run and an apply agree.",
+      "Decided by the presence of `node_modules` in the working directory: an install that already has one is reported as unchanged and pnpm is not run. The same signal is read by a dry run, so a dry run and an apply agree. After a zero-exit run the step verifies `node_modules` exists in the cwd and fails loudly — naming the enclosing-workspace hoist as the likely cause — when it does not, because exit 0 is not success: a cwd absorbed into an enclosing pnpm workspace installs nothing where the installer expects it.",
     honours: [],
     shape: {
       /** Working directory for pnpm install, relative to `base`. */
@@ -375,6 +375,30 @@ export const INSTALL_ACTIONS = {
        * belongs in TypeScript where it can be tested.
        */
       why: z.string().min(1),
+    },
+  }),
+
+  "assert-deps-satisfied": defineAction({
+    name: "assert-deps-satisfied",
+    kind: "install",
+    summary:
+      "Fail the install when an installed dependency's version falls outside a dependent's declared range.",
+    idempotence:
+      "Read-only: compares installed versions against declared ranges and changes nothing, so re-running changes nothing.",
+    honours: [],
+    shape: {
+      /** The dependency package whose installed version is checked, e.g. "@deepseek-ai/dsh-tools". */
+      name: z.string().min(1),
+      /**
+       * Installed packages that must each declare a range for `name` that the
+       * installed version satisfies. A dependent with no declared range for
+       * `name` fails: a silent vacuous pass is the bug this action exists to
+       * prevent. Carries no version string of its own — the pin lives in the
+       * `pnpm-add` step, this step only checks it still satisfies everyone.
+       */
+      dependents: z.array(z.string().min(1)).min(1),
+      /** The dsh profile to look in. Defaults to the web profile. */
+      profile: z.string().min(1).default("web"),
     },
   }),
 } as const;

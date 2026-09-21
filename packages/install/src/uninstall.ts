@@ -122,6 +122,14 @@ export type UnexpectedFilePolicy = "preserve" | "delete";
  * The `thursday` CLI checks the same guards before dispatch, but the engine is
  * also a library: E6's guarantee cannot depend on the CLI being its only caller.
  */
+/**
+ * The AI scratch directory default (E2): `~/.ai-scratch`. Recorded here so
+ * the install wizard can read it rather than spelling the path a second time.
+ */
+export function defaultAiScratchDir(homeDir: string = homedir()): string {
+  return resolve(homeDir, ".ai-scratch");
+}
+
 export function resolveThursdayHome(): string {
   return resolveGuardedHome().path;
 }
@@ -312,8 +320,8 @@ export function uninstall(
     deletedUnexpectedFiles: [],
     homeRemoved: false,
     preservedPaths: {
-      aiScratchDirectory: resolve(homedir(), ".ai-scratch"),
-      tourWorkspace: resolve(homedir(), ".ai-scratch/trying-out-thursday"),
+      aiScratchDirectory: defaultAiScratchDir(),
+      tourWorkspace: join(defaultAiScratchDir(), "trying-out-thursday"),
     },
   };
 

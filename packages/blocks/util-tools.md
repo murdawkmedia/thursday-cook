@@ -17,6 +17,9 @@ rationale: >
   gates.
 dependsOn: [dsh-runtime]
 installs:
+  - path: profiles/web/node_modules/@deepseek-ai/dsh-tools
+    from: "@deepseek-ai/dsh-tools"
+    what: the pinned dsh-tools anchor every tool step below resolves against
   - path: profiles/web/node_modules/@deepseek-ai/dsh-tool-calculator
     from: "github:omdsh-dev/dsh-tool-calculator#05090e946113721c5295518cc20e74f427022c55"
     what: the pinned calculator tool package
@@ -36,6 +39,16 @@ installs:
     from: "github:omdsh-dev/dsh-tool-encoding#dbf829b5a755d27ed64a146a4bfa50a62f985f6c"
     what: the pinned encoding tool package
 steps:
+  - action: pnpm-add
+    spec: "@deepseek-ai/dsh-tools@0.1.0-rc.8"
+    why: >
+      Anchor for the six dsh-tool-* adds below. Upstream's `latest` dist-tag
+      for @deepseek-ai/dsh-tools is stale (0.0.1-rc.1) while the usable
+      releases sit on `next`/`alpha`, so a fresh profile resolves the tools'
+      dependency range against nothing and all six adds fail. Installing the
+      pin FIRST puts a matching version in the web profile, which anchors
+      resolution for the six github adds. The version lives HERE ONLY — the
+      six steps below must not repeat it, so a bump is one edit.
   - action: pnpm-add
     spec: "github:omdsh-dev/dsh-tool-calculator#05090e946113721c5295518cc20e74f427022c55"
     allowBuilds: true

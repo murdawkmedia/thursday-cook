@@ -66,6 +66,13 @@
       testable. Omit the section entirely when there is nothing. Signoff,
       verify and mark-done are board nominations, not items here.
 
+      Never urge, remind or advise the user to test, verify, review or sign
+      off. Never tell them to verify before building, to hold work until
+      something is checked, or that unverified work is piling up. They decide
+      when to test. An untested property is stated once, as a fact, where the
+      evidence goes; it is never turned into an instruction. Verify and
+      signoff asks go to the board silently.
+
       A reader must finish able to say what changed, what proves it, what is
       still uncertain, and what they need to do.
     # Set explicitly rather than inheriting the deployment default.

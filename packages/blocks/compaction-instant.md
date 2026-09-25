@@ -33,7 +33,7 @@ dshConfig:
       boot with "duplicate loader entry id: command-compact".
 steps:
   - action: pnpm-add
-    spec: "github:xyzshantaram/dsh-compaction-instant#9525c7233d0f92651bd850ff7d49bb2d149d099f"
+    spec: "github:xyzshantaram/dsh-compaction-instant#c349aab0baa3dcb8bf918b86e5fadbee9a1292ad"
     as: "@deepseek-ai/dsh-compaction-basic"
     constraint: alias-install-name
     why: >

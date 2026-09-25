@@ -40,7 +40,7 @@ steps:
       without a dist.
   - action: patch-row
     id: aidos
-    name: "@xyzshantaram/aidos"
+    name: aidos
   - action: copy-tree
     from: profiles/web/node_modules/aidos/skills
     to: skills/aidos
@@ -53,7 +53,7 @@ steps:
       landed without its skills rather than silently installing nothing.
 detect:
   - action: package-installed
-    name: "@xyzshantaram/aidos"
+    name: aidos
   - action: path-exists
     path: skills/aidos
 ---

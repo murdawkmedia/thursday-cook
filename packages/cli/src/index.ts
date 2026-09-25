@@ -327,7 +327,10 @@ async function main(): Promise<void> {
   switch (command) {
     case "serve":
       // Start server with Thursday preset; preset choice in app is via preset picker
-      process.exit(await runDsh(home, ["--profile", "web"]));
+      // Forward the rest of the command line to dsh. Without it `thursday serve`
+      // could not take --host or --port, so a containerised Thursday bound the
+      // container's own loopback and no host browser could reach it.
+      process.exit(await runDsh(home, ["--profile", "web", ...args.slice(1)]));
       break;
 
     case "session":

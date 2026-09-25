@@ -29,7 +29,7 @@ steps:
         "version": "0.0.0",
         "private": true,
         "dependencies": {
-          "@deepseek-ai/dsh": "0.1.5-rc.1"
+          "@deepseek-ai/dsh": "0.1.5-rc.3"
         }
       }
     why: >

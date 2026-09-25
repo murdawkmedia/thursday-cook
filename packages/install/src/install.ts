@@ -12,6 +12,7 @@ import { rowPresentSatisfied } from "./actions";
 import { distributionRoot } from "./dist-root";
 import { resolveUserDshHome } from "./dsh-import";
 import { orderBlocks } from "./patch";
+import { composeWebProfile } from "./compose";
 
 /**
  * Filesystem API that can be injected for testing.
@@ -1101,8 +1102,17 @@ export async function executeStep(
       case "pnpm-add": {
         const profile = step.profile ?? "web";
         const profilePath = join(dshPath, "profiles", profile);
-        const spec = step.spec;
-        const name = step.as ?? spec.split("/").pop()?.split("@")[0] ?? spec;
+        // A `./` spec names a directory in the Thursday DISTRIBUTION, like every
+        // other `./` a block writes. pnpm runs with cwd = the profile, so passing
+        // it through unchanged resolved it inside the profile: every local
+        // plugin became a link to profiles/web/packages/plugins/<name>, which
+        // does not exist, and pnpm exited 0. Found on 2026-09-24 when the
+        // job-viewer row failed at boot with "Cannot find package".
+        const spec =
+          step.spec.startsWith("./") || step.spec.startsWith("../")
+            ? resolve(distRoot, step.spec)
+            : step.spec;
+        const name = step.as ?? step.spec.split("/").pop()?.split("@")[0] ?? step.spec;
 
         const nodeModulesPath = join(profilePath, "node_modules", name);
         const alreadyInstalled = fs.existsSync(nodeModulesPath);
@@ -1633,7 +1643,7 @@ export async function executeStep(
       }
 
       case "patch-row": {
-        output.push(`Would patch row: ${step.id} (placement: ${step.placement ?? "insert"})`);
+        output.push(`Queued row: ${step.id} (placement: ${step.placement ?? "insert"}) — written by [compose] after every block runs`);
         return {
           step: planned,
           changed: true,
@@ -1882,6 +1892,40 @@ export async function install(
   const plan = planInstall(blocks, dshPath, thursdayHome, fs);
 
   const result = await executeInstall(plan, dshPath, thursdayHome, { ...options, fs });
+
+  // The row actions only queue; the composition is written here, once, from
+  // every block together. See compose.ts for why this was missing.
+  if (!options?.dryRun) {
+    try {
+      const composed = composeWebProfile(blocks, dshPath, thursdayHome, fs);
+      result.steps.push({
+        step: {
+          blockId: "compose",
+          blockRationale: "write the web profile composition from every block's rows",
+          index: 0,
+          step: { action: "run", command: "compose-web-profile", args: [] },
+          dryRun: false,
+        },
+        changed: composed.changed,
+        output: composed.output.join("\n"),
+      });
+      result.anyChanged = result.anyChanged || composed.changed;
+      for (const o of composed.omitted) {
+        result.problems.push({
+          block: o.block,
+          step: 0,
+          message: `row \`${o.id}\` left out of the composition: its module ${o.name} does not exist`,
+        });
+      }
+      if (!options?.quiet) console.log(`\n[compose]\n    ${composed.output.join("\n    ")}`);
+    } catch (err) {
+      result.problems.push({
+        block: "compose",
+        step: 0,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   if (!options?.dryRun && options?.runWizard) {
     try {

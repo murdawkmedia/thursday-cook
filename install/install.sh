@@ -102,18 +102,28 @@ if [ -n "$pm" ] && command -v corepack >/dev/null 2>&1; then
 fi
 
 # --- hand off ---------------------------------------------------------------
-# SEAM (I4 / C6): packages/cli is a README placeholder today, so this entry
-# point is inferred, not observed. I4 owns the engine binary and C6 owns the
-# launcher; whichever lands first fixes this path, or overrides THURSDAY_ENTRY.
-entry=${THURSDAY_ENTRY:-$src/packages/cli/bin/thursday.js}
+# The CLI's package.json bin is dist/index.js. The old default here,
+# packages/cli/bin/thursday.js, was written while packages/cli was a
+# placeholder and never existed.
+entry=${THURSDAY_ENTRY:-$src/packages/cli/dist/index.js}
 # SEAM (R2): delete this if R2 decides to ship a prebuilt engine bundle.
 if [ ! -d "$src/node_modules" ]; then
 	say "installing the engine's own dependencies"
 	(cd "$src" && pnpm install --frozen-lockfile) ||
 		die "'pnpm install' failed in $src. Fix the error above and re-run."
 fi
+# dist/ is gitignored, so a fresh checkout has no built entry point. Build the
+# CLI and every workspace package it depends on. The braces matter: for a path
+# selector pnpm ignores a bare trailing `...` and builds only the CLI, which
+# then runs against a stale or missing packages/install/dist. Found running
+# this script from a clean clone in the E8 container.
+if [ ! -f "$entry" ] && [ -z "${THURSDAY_ENTRY:-}" ]; then
+	say "building the install engine"
+	(cd "$src" && pnpm --filter '{./packages/cli}...' run build) ||
+		die "building packages/cli failed in $src. Fix the error above and re-run."
+fi
 if [ ! -f "$entry" ]; then
-	die "the install engine is not present at '$entry'. packages/cli is still a placeholder; that entry point is owned by I4/C6. Set THURSDAY_ENTRY once it exists."
+	die "the install engine is not present at '$entry' after building. Check packages/cli's build output, or set THURSDAY_ENTRY."
 fi
 say "handing off to the install engine"
 exec node "$entry" install "$@"

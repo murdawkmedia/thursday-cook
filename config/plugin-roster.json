@@ -561,7 +561,7 @@
     {
       "id": "compaction-instant",
       "packageName": "@deepseek-ai/dsh-compaction-basic",
-      "installSpec": "@deepseek-ai/dsh-compaction-basic@github:xyzshantaram/dsh-compaction-instant#9525c7233d0f92651bd850ff7d49bb2d149d099f",
+      "installSpec": "@deepseek-ai/dsh-compaction-basic@github:xyzshantaram/dsh-compaction-instant#c349aab0baa3dcb8bf918b86e5fadbee9a1292ad",
       "origin": "fetched",
       "source": {
         "type": "git",
@@ -571,7 +571,7 @@
       },
       "pin": {
         "kind": "git-sha",
-        "value": "9525c7233d0f92651bd850ff7d49bb2d149d099f",
+        "value": "c349aab0baa3dcb8bf918b86e5fadbee9a1292ad",
         "immutability": "sha",
         "note": "Full sha off the fork's fix/retention-and-shrink-gate branch, taken from published 0.1.4. Upgrading = bumping this pin."
       },

@@ -1150,6 +1150,27 @@ export async function executeStep(
         // retroactively fix that resolution.
         if (!dryRun) {
           const overrides = collectRuntimeOverrides(join(thursdayHome, "runtime"), fs);
+          // Never override a package this profile installs DIRECTLY. The
+          // override exists for transitive family members a third-party plugin
+          // drags in; applied to a direct dependency it replaces the block's own
+          // spec. Found 2026-09-24: @deepseek-ai/dsh-compaction-basic is an alias
+          // for the user's fork (github:xyzshantaram/dsh-compaction-instant),
+          // and the override swapped it for upstream's 0.1.5-rc.3 package,
+          // which has no ./tool export, so the tool-recall row failed at boot
+          // even with the fork pinned to the right commit.
+          const direct = new Set<string>([name]);
+          const pkgPath = join(profilePath, "package.json");
+          if (fs.existsSync(pkgPath)) {
+            try {
+              const deps = (JSON.parse(fs.readFileSync(pkgPath, "utf8") as string) as {
+                dependencies?: Record<string, string>;
+              }).dependencies;
+              for (const k of Object.keys(deps ?? {})) direct.add(k);
+            } catch {
+              // An unreadable package.json is pnpm's to report, not ours.
+            }
+          }
+          for (const k of direct) delete overrides[k];
           if (Object.keys(overrides).length > 0) {
             const wsPath = join(profilePath, "pnpm-workspace.yaml");
             let wsDoc: any = {};

@@ -18,7 +18,7 @@
 
 import { spawn } from "node:child_process";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -213,15 +213,19 @@ async function runDsh(home: string, args: string[]): Promise<number> {
 async function runInstall(home: string, argv: string[]): Promise<number> {
   const dryRun = argv.includes("--dry-run");
   const quiet = argv.includes("--quiet");
+  const noWizard = argv.includes("--no-wizard");
+  const wizardOnly = argv.includes("--wizard-only");
 
-  const unknown = argv.filter((a) => a.startsWith("-") && !["--dry-run", "--quiet"].includes(a));
+  const known = ["--dry-run", "--quiet", "--no-wizard", "--wizard-only"];
+  const unknown = argv.filter((a) => a.startsWith("-") && !known.includes(a));
   if (unknown.length > 0) {
     process.stderr.write(
       `Error: unknown option${unknown.length > 1 ? "s" : ""} ${unknown.join(", ")}\n`,
     );
-    process.stderr.write("Usage: thursday install [--dry-run] [--quiet]\n");
+    process.stderr.write("Usage: thursday install [--dry-run] [--quiet] [--no-wizard] [--wizard-only]\n");
     return 1;
   }
+  if (wizardOnly) return runWizard(home);
 
   const { blocksDir } = await import("@trythursday/blocks");
   const { loadBlockDir, install, BlockError } = await import("@trythursday/install");
@@ -283,10 +287,74 @@ async function runInstall(home: string, argv: string[]): Promise<number> {
     return 1;
   }
 
-  if (!quiet && !dryRun) {
-    process.stdout.write(`\nThursday is installed. Start it with:\n  thursday serve\n`);
+  if (dryRun) return 0;
+  if (noWizard) {
+    if (!quiet) process.stdout.write(`\nThursday is installed. Start it with:\n  thursday serve\n`);
+    return 0;
   }
+  const wizardCode = await runWizard(home);
+  if (wizardCode !== 0) return wizardCode;
+  if (!quiet) process.stdout.write(`\nThursday is installed. Start it with:\n  thursday serve\n`);
   return 0;
+}
+
+/**
+ * Run the E1 setup wizard (wizards/thursday-setup.ts) with Deno.
+ *
+ * Deno is resolved from the Thursday home first, where install.sh places it
+ * when it is not already on PATH, then from PATH. DENO_DIR is pinned inside the
+ * home: Deno's default cache is ~/.cache/deno, and a module cache written there
+ * would break the promise that uninstalling Thursday leaves the machine
+ * byte-identical.
+ *
+ * No terminal means no questions can be asked, so the wizard is skipped with the
+ * command that runs it later, rather than hanging on a prompt nobody can answer.
+ */
+async function runWizard(home: string): Promise<number> {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    process.stdout.write(
+      `\nNo terminal attached, so the setup wizard was skipped. Run it with:\n  thursday install --wizard-only\n`,
+    );
+    return 0;
+  }
+  const wizard = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "wizards", "thursday-setup.ts");
+  if (!existsSync(wizard)) {
+    process.stderr.write(`Error: the setup wizard is missing from this distribution: ${wizard}\n`);
+    return 1;
+  }
+  const homeDeno = join(home, "runtime", "deno", "bin", "deno");
+  const deno = existsSync(homeDeno) ? homeDeno : "deno";
+  process.stdout.write(`\nStarting the setup wizard\n`);
+  return new Promise((resolveCode) => {
+    const child = spawn(
+      deno,
+      // --no-config and --node-modules-dir=none: the wizard lives inside a
+      // checkout that has a package.json and node_modules, and without these
+      // Deno switches to resolving npm: imports from that node_modules, where
+      // they do not exist. --allow-sys: zx reads os.cpus() at import. Both
+      // found by the first real run of the wizard, 2026-09-26.
+      [
+        "run", "--no-lock", "--no-config", "--node-modules-dir=none",
+        "--allow-read", "--allow-write", "--allow-run", "--allow-env", "--allow-net", "--allow-sys",
+        wizard,
+      ],
+      {
+        stdio: "inherit",
+        env: { ...process.env, THURSDAY_HOME: home, DENO_DIR: join(home, "cache", "deno") },
+      },
+    );
+    child.on("exit", (code) => {
+      if (code === 0) return resolveCode(0);
+      process.stderr.write(`\nThe setup wizard did not finish (exit ${code}). Re-run it with:\n  thursday install --wizard-only\n`);
+      resolveCode(1);
+    });
+    child.on("error", (error) => {
+      process.stderr.write(
+        `\nCould not start the setup wizard: ${error.message}\nDeno is required. Re-run install.sh, which installs it into the Thursday home, then:\n  thursday install --wizard-only\n`,
+      );
+      resolveCode(1);
+    });
+  });
 }
 
 async function main(): Promise<void> {

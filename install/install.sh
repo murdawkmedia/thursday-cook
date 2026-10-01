@@ -73,6 +73,19 @@ if ! command -v pnpm >/dev/null 2>&1; then
 		die "'corepack enable pnpm' failed. It writes shims beside the node binary and needs write access there. Install pnpm yourself instead: 'npm install -g pnpm'."
 fi
 
+# Deno runs the setup wizard (wizards/thursday-setup.ts). One already on PATH is
+# used as is. Otherwise it goes INSIDE the Thursday home, with
+# --no-modify-path, so uninstalling the home removes it and no shell rc file
+# is ever edited.
+if ! command -v deno >/dev/null 2>&1 && [ ! -x "$home/runtime/deno/bin/deno" ]; then
+	need curl "your package manager, e.g. 'sudo dnf install curl' or 'sudo apt install curl'"
+	need unzip "your package manager, e.g. 'sudo dnf install unzip' or 'sudo apt install unzip'"
+	say "installing Deno into $home/runtime/deno for the setup wizard"
+	mkdir -p "$home/runtime"
+	curl -fsSL https://deno.land/install.sh | DENO_INSTALL="$home/runtime/deno" sh -s -- --yes --no-modify-path >/dev/null ||
+		die "could not install Deno. Install it yourself (https://deno.com) and re-run, or finish later with 'thursday install --wizard-only'."
+fi
+
 # --- fetch ------------------------------------------------------------------
 # A shallow git clone, not a tarball: git is a prerequisite either way, the
 # clone carries the ref that `thursday status` reports drift against, and it

@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { build } from "esbuild";
+import { build, transform } from "esbuild";
 import type { BuildOptions } from "esbuild";
 import { cssTextPlugin } from "./css-text.js";
 import type { BuildOutput, ClientBuild } from "./spec.js";
@@ -117,12 +117,30 @@ export function clientBuildOptions(
  * requires `react/jsx-runtime` and only fails in the browser, at load, with
  * no useful message. This turns that into a build error naming the fix.
  */
-export function assertNoAutomaticJsxRuntime(code: string, entry: string): void {
-  if (!code.includes("react/jsx-runtime")) return;
+/**
+ * Fail when the ENTRY's own transform uses the automatic JSX runtime.
+ *
+ * A substring check over the finished bundle cannot work: bundled
+ * third-party deps (e.g. @radix-ui, 18 `import_jsx_runtime` refs in its
+ * dist) ship their own precompiled jsx-runtime requires, and the dsh
+ * browser resolves those — dotfiles-ai's shipped composer-menu bundle
+ * carries them and boots. So this transforms the entry file alone, with
+ * the same JSX options the bundle uses: only the entry's own emit is
+ * examined, never a dependency's.
+ */
+export async function assertNoAutomaticJsxRuntime(entry: string): Promise<void> {
+  const source = await readFile(entry, "utf8");
+  const out = await transform(source, {
+    loader: "tsx",
+    jsx: "transform",
+    jsxFactory: "react.createElement",
+    jsxFragment: "react.Fragment",
+    tsconfigRaw: CLIENT_TSCONFIG_RAW,
+  });
+  if (!out.code.includes("import_jsx_runtime")) return;
   throw new Error(
-    `client bundle for ${entry} requires "react/jsx-runtime": it was compiled with the ` +
-      "automatic JSX runtime, which the dsh browser module loader cannot resolve. A " +
-      'tsconfig with "jsx": "react-jsx" reached the build and overrode jsxFactory. Remove ' +
+    `client entry ${entry} compiles with the automatic JSX runtime (esbuild emit). A ` +
+      'tsconfig with "jsx": "react-jsx" reached the transform and overrode jsxFactory. Remove ' +
       "the client spec's `tsconfig` override, or point it at a tsconfig whose `jsx` is " +
       '"react" with jsxFactory "react.createElement".',
   );
@@ -144,15 +162,15 @@ export async function buildClient(
   await mkdir(dirname(outPath), { recursive: true });
 
   if (wrapper === "iife") {
+    await assertNoAutomaticJsxRuntime(entry);
     await build(clientBuildOptions(spec, ctx, outPath));
-    assertNoAutomaticJsxRuntime(await readFile(outPath, "utf8"), entry);
   } else {
     const tmpDir = await mkdtemp(join(tmpdir(), "dsh-wrap-"));
     const bundlePath = join(tmpDir, "_client.bundle.js");
     try {
+      await assertNoAutomaticJsxRuntime(entry);
       await build(clientBuildOptions(spec, ctx, bundlePath));
       const bundled = (await readFile(bundlePath, "utf8")).replace(/\s+$/, "");
-      assertNoAutomaticJsxRuntime(bundled, entry);
       await writeFile(outPath, wrapModuleLoaderFacade(spec.id, bundled));
     } finally {
       await rm(tmpDir, { recursive: true, force: true });

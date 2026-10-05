@@ -14,19 +14,23 @@ rationale: >
 dependsOn: [dsh-runtime]
 installs:
   - path: plugins/host
-    from: packages/plugins
+    from: packages/plugins/host-plane/dist
     what: >
-      the eleven host-plane plugin bundles, one per package under
-      packages/plugins: log-exporter, bash-guard, manifest-guard, package-tool,
-      skill-gate, see, tmp-dsh-shared, grant, ask-interrupt, profiles, and
-      resume-command. The migration map gives each plugin its own package
-      directory; each one's built bundle merges into the flat plugins/host
-      directory dsh reads. Until the plugin migration lands, this source is a
-      forward declaration and the step cannot run — recorded here rather than
-      papered over.
+      the twelve host-plane plugin bundles, built by @trythursday/host-plane's
+      build.config.mjs into dist/ and installed flat: see, profiles, grant,
+      resume, ask-interrupt, log-exporter, bash-guard, manifest-guard,
+      package-tool, tmp-dsh-shared, approval-interrupt, and subagent-steer.
+      skill-gate is context-guard.ts upstream, ported as part of this package.
   - path: plugins/guards
     from: config/guards
     what: the bash-guard rule files, which the guard re-reads at runtime
+  - path: plugins/command-hooks
+    from: command-hooks
+    what: >
+      the command-hook executables bash-guard offers to hooks when rules gate.
+      Mirrored whole (wipe + copy, preserving the execute bit): a hook the
+      repo stopped shipping must actually disappear, or it keeps allowing
+      commands forever. Copied from dotfiles-ai/command-hooks.
 dshConfig:
   - file: profiles/web/cordis.patch.yml
     rows:
@@ -51,23 +55,24 @@ dshConfig:
       registrars for one server name would register each tool twice.
 steps:
   - action: copy-tree
-    from: packages/plugins
+    from: packages/plugins/host-plane/dist
     to: plugins/host
     why: >
-      The migration map gives each host plugin its own package directory under
-      packages/plugins; each one's built bundle merges into the flat
-      plugins/host directory dsh reads. Until that migration lands, this
-      source does not exist and the step cannot run — a forward declaration,
-      stated here so the gap is visible rather than discovered at install.
+      The host-plane package builds each source file to dist/<name>.js; the
+      flat dist directory is what dsh reads as plugins/host. Built by
+      `build:plugins` before install reaches this block.
   - action: copy-tree
     from: config/guards
     to: plugins/guards
+  - action: copy-tree
+    from: command-hooks
+    to: plugins/command-hooks
   - action: patch-row
     id: log-exporter
-    name: ./plugins/log-exporter.js
+    name: ./plugins/host/log-exporter.js
   - action: patch-row
     id: bash-guard
-    name: ./plugins/bash-guard.js
+    name: ./plugins/host/bash-guard.js
     config:
       guardsDir: ./plugins/guards
     why: >
@@ -76,13 +81,13 @@ steps:
       to take effect without a reinstall and without a restart.
   - action: patch-row
     id: manifest-guard
-    name: ./plugins/manifest-guard.js
+    name: ./plugins/host/manifest-guard.js
   - action: patch-row
     id: package-tool
-    name: ./plugins/package-tool.js
+    name: ./plugins/host/package-tool.js
   - action: patch-row
     id: skill-gate
-    name: ./plugins/skill-gate.js
+    name: ./plugins/host/skill-gate.js
     config:
       alwaysDeny: [search, recall]
     constraint: nested-tool-config
@@ -94,25 +99,27 @@ steps:
       config block, where the plugin reads it.
   - action: patch-row
     id: see
-    name: ./plugins/see.js
+    name: ./plugins/host/see.js
   - action: patch-row
     id: tmp-dsh-shared
-    name: ./plugins/tmp-dsh-shared.js
+    name: ./plugins/host/tmp-dsh-shared.js
   - action: patch-row
     id: grant
-    name: ./plugins/grant.js
+    name: ./plugins/host/grant.js
   - action: patch-row
     id: ask-interrupt
-    name: ./plugins/ask-interrupt.js
+    name: ./plugins/host/ask-interrupt.js
   - action: patch-row
     id: profiles
-    name: ./plugins/profiles.js
+    name: ./plugins/host/profiles.js
   - action: patch-row
     id: resume-command
-    name: ./plugins/resume.js
+    name: ./plugins/host/resume.js
 detect:
   - action: path-exists
-    path: plugins/bash-guard.js
+    path: plugins/host/bash-guard.js
+  - action: path-exists
+    path: plugins/command-hooks/worktree-commit
   - action: row-present
     id: bash-guard
 ---

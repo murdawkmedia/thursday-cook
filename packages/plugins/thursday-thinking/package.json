@@ -18,8 +18,9 @@
     "@trythursday/build": "workspace:*"
   },
   "scripts": {
-    "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "test": "node scripts/link-dsh-packages.mjs && vitest run",
+    "typecheck": "node scripts/link-dsh-packages.mjs && tsc -p tsconfig.json --noEmit",
+    "link:dsh": "node scripts/link-dsh-packages.mjs"
   },
   "main": "./lib/index.js",
   "files": [

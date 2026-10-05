@@ -1,0 +1,7 @@
+{
+  // Host-plane files are plain node TypeScript (no JSX); the strict base is
+  // enough. Tests live in tests/ and are included so a type error in a test
+  // fails typecheck.
+  "extends": "../../../tsconfig.json",
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}

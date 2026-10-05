@@ -1,0 +1,68 @@
+/* #65 — hand the composer back while this bundle holds the takeover chain.
+   `conversation.composer` is the host's composer TAKEOVER chain: whenever any
+   entry is elected, ConversationRoot renders the whole default composer (input
+   bar, tool row, and the input dock itself) inside
+   `<div data-chain-overlay-fallback="conversation.composer" style="display:none">`
+   and mounts the winner beside it. This bundle must keep winning that election,
+   because winning is the only way to stop the shipped `ApprovalPanel` from
+   mounting and taking the composer over itself — so the winner is the empty
+   `ComposerShadow` marker and this rule restores the composer's own
+   `display: contents`, which is exactly what the host sets when nothing is
+   elected. An author `!important` declaration outranks the host's non-important
+   inline style, so no DOM is touched to undo it.
+
+   The `:has()` guard is what keeps this honest: the override applies only when
+   OUR marker is the elected sibling, so another takeover kind (a pending user
+   question) still hides the composer exactly as the host intends.
+
+   The dock-card styles this file used to carry are gone with the card: the
+   answer surface is the tool call card's approval bar (tool-render, #8/#48),
+   and the owner rejected a duplicate card above the composer. */
+.approval-comment-shadow {
+  display: none;
+}
+/* Self-healing (review nit, 3cd6cf67): a chain entry does NOT abdicate on
+   crash — a crashing ComposerShadow renders
+   <div data-slot-error="conversation.composer"> as the elected sibling and
+   the composer would stay hidden forever. Matching that error node in the
+   same override hands the composer back even then, so the failure mode of a
+   marker loss is a working composer instead of a dead one.
+
+   Scope note (review 3aa96162): the second selector matches the error node of
+   ANY registrant on this chain — a future question panel, or the shipped
+   ApprovalPanel — not just our marker. That is deliberate rather than loose:
+   a crashed chain entry never abdicates, so failing open to a usable composer
+   is right no matter whose entry died. */
+[data-chain-overlay-fallback="conversation.composer"]:has(~ .approval-comment-shadow),
+[data-chain-overlay-fallback="conversation.composer"]:has(~ [data-slot-error="conversation.composer"]) {
+  display: contents !important;
+}
+
+/* THE COMPOSER RINGS ARE GONE (#135).
+   This file used to own a four-layer box-shadow on [data-composer-card]
+   (escalated / rewrite / question / host elevation, #65) plus the :has()
+   rules that filled each slot and published --composer-ring-outer for
+   composer-approvals to offset against (#132). The owner replaced the whole
+   idea with a coloured badge, so the slots, the offset contract and the
+   cumulative-spread arithmetic are DELETED rather than maintained. Nothing
+   here touches [data-composer-card] any more, so the host's own elevation is
+   left alone by simply not competing for the property.
+
+   THE DOM FACT BELOW IS KEPT, because the marker and its :has() selectors
+   above still depend on it and it was expensive to establish (review
+   3aa96162 — an earlier version of this comment claimed the marker was a
+   direct child of the seat, and its `> ` selectors were dead):
+
+     div[data-composer-seat]                         conversation client.js:7167
+     └─ div[data-slot="conversation.composer"]       renderer client.js:745-749
+        │  (display:contents — removed from the BOX tree, still in the DOM
+        │   tree, so a child combinator from the seat does NOT reach past it)
+        ├─ div[data-chain-overlay-fallback]          renderer client.js:822
+        │  └─ … └─ div[data-composer-card]           conversation client.js:3893
+        └─ div.approval-comment-shadow[data-…]       our elected entry
+
+   So the marker is matched as a DESCENDANT of the seat, not a child.
+
+   The .approval-comment-shadow marker STAYS: it is the elected entry this
+   plugin registers, and the rules above depend on it. */
+

@@ -3,14 +3,15 @@ id: workspace-plugins
 title: First-party workspace plugin packages
 version: 1
 rationale: >
-  The eleven first-party plugin packages that are neither plugin files on the
-  host plane (those are the host-plane block) nor big enough to have earned
-  their own block (job-viewer and mcp-servers have blocks of their own, and
-  llm-pi-ai is a vendored fork). Each is a workspace package installed from a
-  path, linked rather than fetched, and each mounts its own row from its own
-  cordis.patch.yml, so this block writes no composition rows at all. Delete
-  this block and exactly these eleven panels, tools and affordances
-  disappear; nothing else in the composition references them.
+  The seventeen first-party plugin packages that are neither plugin files on
+  the host plane (those are the host-plane block) nor big enough to have
+  earned their own block (job-viewer and mcp-servers have blocks of their
+  own, and llm-pi-ai is a vendored fork). Each is a workspace package
+  installed from a path, linked rather than fetched, and each mounts its own
+  row from its own cordis.patch.yml, so this block writes no composition
+  rows at all. Delete this block and exactly these seventeen panels, tools
+  and affordances disappear; nothing else in the composition references
+  them.
 dependsOn: [dsh-runtime, host-plane]
 installs:
   - path: profiles/web/node_modules/session-archive
@@ -46,6 +47,24 @@ installs:
   - path: profiles/web/node_modules/log-viewer
     from: packages/plugins/log-viewer
     what: read the harness logs from the UI
+  - path: profiles/web/node_modules/toast
+    from: packages/plugins/toast
+    what: the app-wide toast stack; other packages reach it through the global it publishes
+  - path: profiles/web/node_modules/modal
+    from: packages/plugins/modal
+    what: the app-wide modal host; other packages reach it through the global it publishes
+  - path: profiles/web/node_modules/composer-approvals
+    from: packages/plugins/composer-approvals
+    what: pending-approval indicator beside the composer overflow trigger
+  - path: profiles/web/node_modules/quote-selection
+    from: packages/plugins/quote-selection
+    what: floating quote button on assistant-message selections
+  - path: profiles/web/node_modules/restart-pause
+    from: packages/plugins/restart-pause
+    what: debug settings panel for draining sessions and restarting dsh
+  - path: profiles/web/node_modules/user-bubble
+    from: packages/plugins/user-bubble
+    what: markdown user/steering bubbles with hard breaks outside fenced code
 steps:
   - action: pnpm-add
     spec: ./packages/plugins/session-archive
@@ -69,6 +88,18 @@ steps:
     spec: ./packages/plugins/composer-menu
   - action: pnpm-add
     spec: ./packages/plugins/log-viewer
+  - action: pnpm-add
+    spec: ./packages/plugins/toast
+  - action: pnpm-add
+    spec: ./packages/plugins/modal
+  - action: pnpm-add
+    spec: ./packages/plugins/composer-approvals
+  - action: pnpm-add
+    spec: ./packages/plugins/quote-selection
+  - action: pnpm-add
+    spec: ./packages/plugins/restart-pause
+  - action: pnpm-add
+    spec: ./packages/plugins/user-bubble
 detect:
   - action: package-installed
     name: session-archive
@@ -92,20 +123,32 @@ detect:
     name: composer-menu
   - action: package-installed
     name: log-viewer
+  - action: package-installed
+    name: toast
+  - action: package-installed
+    name: modal
+  - action: package-installed
+    name: composer-approvals
+  - action: package-installed
+    name: quote-selection
+  - action: package-installed
+    name: restart-pause
+  - action: package-installed
+    name: user-bubble
 ---
 
 # workspace-plugins
 
-Eleven first-party packages, one block. They are grouped here because they
+Seventeen first-party packages, one block. They are grouped here because they
 share every property that matters to the installer: authored in this
 repository, installed from a path so no pin and no allowBuilds question can
 arise, and self-mounting from their own cordis.patch.yml so this block writes
 no rows. None of them is load-bearing for another block; each is a
 user-facing surface that can vanish without breaking the composition.
 
-## Why one block and not eleven
+## Why one block and not seventeen
 
-The stranger test cuts both ways. Eleven blocks would make the deletion of one
+The stranger test cuts both ways. Seventeen blocks would make the deletion of one
 panel predictable, but none of these packages carries a composition row, a
 pin, a hazard or a constraint — there is no fact for a per-plugin block to
 record that the frontmatter above does not already carry. The per-plugin
@@ -147,6 +190,20 @@ panel blanks mid-session again, the self-mount is the first thing to check.
   and offers a slot for other plugins.
 - **log-viewer** — read the harness logs from the UI instead of tailing a
   file.
+- **toast** — one app-wide toast stack in shell.overlay; installs before
+  anything that raises a toast, same ordering discipline as modal below.
+- **modal** — one app-wide modal host in shell.overlay; installs before
+  anything that opens a modal. The registry test pins that consumers reach
+  the shared component through the global rather than forking it.
+- **composer-approvals** — pending-approval indicator beside the overflow
+  trigger, with a modal listing every pending approval (reaches modal
+  through its global, which is why modal installs first).
+- **quote-selection** — floating quote button on assistant-message
+  selections; quoting appends the passage to the composer draft.
+- **restart-pause** — debug panel: drain sessions, run preflight, restart
+  dsh, report whether it came back.
+- **user-bubble** — user/steering messages render as markdown with hard
+  breaks outside fenced code.
 
 ## What to check when it goes wrong
 

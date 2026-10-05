@@ -14,7 +14,9 @@ packages:
 # script must be allowed to fetch its platform binary. dotfiles-ai, which owns
 # the build pipeline this workspace inherits, sets the same.
 allowBuilds:
+  '@google/genai': true
   esbuild: true
+  protobufjs: true
 
 # The root holds the shared toolchain (typescript, vitest, prettier, esbuild)
 # that every package inherits, so adding a dependency to the workspace root is
@@ -27,4 +29,3 @@ ignoreWorkspaceRootCheck: true
 # ERR_PNPM_UNEXPECTED_STORE against the node_modules already linked here. A
 # repo-local store keeps install self-contained. .pnpm-store is gitignored.
 storeDir: .pnpm-store
-

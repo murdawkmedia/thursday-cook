@@ -1,0 +1,3043 @@
+/**
+ * W10 — bash-guard: gate model bash calls by the commands that ACTUALLY
+ * RUN, parsed with unbash + the unbash-walker, with per-command verdicts
+ * loaded from DROP-IN rule files.
+ *
+ * Why unbash: a regex guard matches substrings, so `/path/git-guard.js`,
+ * `grep -r git .`, and `echo git` all false-positive. This guard parses the
+ * command into an AST, extracts every command that would run — including
+ * commands hidden inside wrappers (`sh -c`, `sudo`, `xargs`, `find -exec`),
+ * pipelines, subshells, and `$(...)` / backtick substitutions — then matches
+ * each command's BASENAME (path-stripped) against a rule set. `echo git
+ * status` is a string argument: it never matches. `bash -c "git status"`
+ * IS a git command: it matches.
+ *
+ * Rule drop-ins: one JSON file per guard in
+ * `$DSH_HOME/plugins/guards/<name>.json` (the personal bundle syncs a set
+ * from the repo). A file carries the commands it covers and a verdict:
+ *
+ *   {
+ *     "commands": ["git", "git-foo"],
+ *     "verdict": "deny",            // "deny" | "ask" | "allow"
+ *     "reason": "Raw git is denied. Useful mutations prompt first.",
+ *     "subcommands": {              // optional, per-subcommand refinement
+ *       "status": "allow",          // read-only verbs run without prompting
+ *       "worktree": "ask"           // useful mutations prompt the user
+ *     },
+ *     "translate": "grep"           // optional, built-in command translator
+ *   }
+ *
+ * A subcommands entry refines the base verdict by the invoked subcommand
+ * (the first non-option argument). Subcommands the map does not name
+ * inherit the base verdict, so an allow-list stays closed under every verb
+ * it does not name.
+ *
+ * A translate entry names a built-in translator that maps the whole matched
+ * command onto a preferred tool. The value must be a key of TRANSLATORS in
+ * ./bash-guard-translate. The translator turns `grep` into `rg` and `find` into
+ * `fd`. A translator that cannot map the command reports a blocker, and the
+ * guard denies the call with that blocker in the reason.
+ *
+ * The guard runs as its own `bash` tool over the `ctx.shell` seam, so a
+ * rewrite or a translation RUNS the replacement command directly: `evaluate`
+ * computes the exact replacement, the tool executes `outcome.command` instead
+ * of the model's input. An `ask` outcome prompts through `ctx.approval`, and
+ * the approval shows both the model's command and the command that would
+ * actually run; on approval the replacement runs, never the original. A deny
+ * never executes.
+ *
+ * Escalation: when the shell executor confines (`ctx.shell.sandboxMode` is
+ * set), the tool advertises `sandbox_permissions` + `justification` and
+ * resolves a strictly-wider request through `ctx.approval` before anything
+ * executes, the same fail-closed sequence the builtin bash tool uses. Without
+ * a confining executor those two arguments do not exist in the schema.
+ *
+ * Background: when the call sets `run_in_background`, the tool runs the SAME
+ * guard flow first (deny still throws, an approved ask still runs the
+ * replacement, escalation still applies), then preflights `ctx.jobs.start()`
+ * with the calling agent as owner BEFORE spawning, and starts the process with
+ * `ctx.shell.start()` instead of `run()`. The returned `ShellProcess` is
+ * adapted into the job runtime's cancel / done / incremental-output hooks. The
+ * job runtime owns ids, cross-session isolation, completion notices, waiting,
+ * and disposal cleanup; this plugin only maps bash exit and sandbox facts into
+ * the job outcome detail.
+ *
+ * Files are re-read on every call (they are tiny; no watcher needed).
+ * A file that does not parse is logged and skipped (fail-safe: its commands
+ * fall through to the default). A command with NO rule file is allowed
+ * (default-allow) — only listed commands are gated, which is the personal
+ * policy: the guard gates the tools the user chose to gate.
+ *
+ * Phase profiles: when aidos is mounted, bash-guard loads the base rules plus
+ * a `profile-<phase>/` overlay (e.g. profile-planning) chosen by aidos'
+ * bashContext(). A profile may set a wildcard ["*"] rule to deny-by-default
+ * (read-only planning) and allow-list the few read commands it permits. Scratch
+ * writes always pass: any command whose last path argument lands under /tmp/dsh
+ * or the aidos durable scratch is allowed in every phase.
+ *
+ * Verdicts (most-restrictive-wins across the whole command): deny > ask >
+ * allow > none. Fail-closed: a command that cannot be parsed (unbash
+ * reports errors) is DENIED, never let through unparsed.
+ *
+ * Seams:
+ *   - tool registration: defineTool from @deepseek-ai/dsh-tools
+ *   - execution: ctx.shell.resolve + ctx.shell.run (foreground)
+ *     or ctx.shell.start (background, adapted into ctx.jobs)
+ *   - approval: ctx.approval.request -> ApprovalOutcome
+ *   - escalation: strictly-wider table mirrored from dsh-sandbox WIDER_MODES
+ *   - AST parse + command extraction + wrapper expansion + basename:
+ *     unbash (webpro) + @cad0p/unbash-walker (MIT; extraction originally
+ *     from jdiamond/pi-guard, MIT)
+ *
+ * Mount on the HOST plane (web profile cordis.patch.yml or personal bundle
+ * patch), so every session in every preset is covered:
+ *
+ *   - id: bash-guard
+ *     name: /path/to/plugins/bash-guard.js
+ *     config: {}                # rules come from the drop-in files
+ */
+import { access, constants as fsConstants, mkdir, mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { stringify } from "yaml";
+import { join, resolve, sep, isAbsolute } from "node:path";
+import {
+  parse,
+  extractAllCommandsFromAST,
+  expandWrapperCommands,
+  getBasename,
+  getCommandArgs,
+  isStaticallyResolvable,
+} from "@cad0p/unbash-walker";
+import type { CommandRef } from "@cad0p/unbash-walker";
+import type { Command as UnbashCommand, Node as UnbashNode, Script as UnbashScript } from "@cad0p/unbash-walker";
+import type { Context } from "@deepseek-ai/cordis";
+import { defineTool } from "@deepseek-ai/dsh-tools";
+import type { ShellExecRequest } from "@deepseek-ai/dsh-shell";
+import { delegationDepthOf } from "@deepseek-ai/dsh-subagent";
+import z from "@deepseek-ai/schemastery";
+import { TRANSLATORS, shellQuote } from "./bash-guard-translate";
+
+export const name = "bash-guard";
+
+export const inject = ["shell", "jobs", "tools"];
+
+/** The sandbox mode vocabulary. dsh-shell does not re-export it, so this
+ * plugin carries the three string literals locally. */
+export type SandboxMode = "read-only" | "workspace-write" | "danger-full-access";
+
+/** The strictly-wider escalation table, mirrored from dsh-sandbox
+ * WIDER_MODES: a request must strictly widen the effective mode, and a
+ * non-widening request never prompts a human. */
+export const WIDER_MODES: Record<SandboxMode, readonly SandboxMode[]> = {
+  "read-only": ["workspace-write", "danger-full-access"],
+  "workspace-write": ["danger-full-access"],
+  "danger-full-access": [],
+};
+
+/** Every mode a confined call may escalate to (mirrors dsh-sandbox
+ * ESCALATION_TARGETS; read-only is the floor, nothing escalates to it). */
+export const ESCALATION_TARGETS: readonly SandboxMode[] = ["workspace-write", "danger-full-access"];
+
+/**
+ * Discriminators stamped on the approval reasons this plugin owns, so the
+ * card can tell a rewrite ask from an escalation ask without guessing from
+ * the shape. `kind: "bash-guard"` marks the rewrite/rule prompt;
+ * `kind: "escalation"` marks the sandbox-escalation prompt. The reader is
+ * plugins/tool-render/src/guard.ts, which keys its test on these literals;
+ * the contract between the two copies is pinned by bash-guard.test.ts,
+ * which runs the real builder output below through the real classifier.
+ */
+export const GUARD_APPROVAL_KIND = "bash-guard";
+export const ESCALATION_APPROVAL_KIND = "escalation";
+
+export interface GuardApprovalReasonFields {
+  summary: string;
+  wrote?: string;
+  runs: string;
+  why?: string;
+  mutating?: boolean;
+  changes?: string[];
+}
+
+/**
+ * Build the YAML reason for a bash-guard rewrite/rule approval. The `kind`
+ * is what marks it as a guard reason; everything else is the human-facing
+ * detail the guard banner renders.
+ */
+export function buildGuardApprovalReason(fields: GuardApprovalReasonFields): string {
+  const prompt: Record<string, string | boolean | string[]> = {
+    kind: GUARD_APPROVAL_KIND,
+    summary: fields.summary,
+  };
+  if (fields.wrote !== undefined) prompt.wrote = fields.wrote;
+  prompt.runs = fields.runs;
+  if (fields.mutating === true) prompt.mutating = true;
+  if (fields.changes !== undefined) prompt.changes = fields.changes;
+  if (fields.why !== undefined) prompt.why = fields.why;
+  return stringify(prompt);
+}
+
+export interface EscalationApprovalReasonFields {
+  standingMode: SandboxMode;
+  escalateTo: SandboxMode;
+  justification: string;
+  runs: string;
+}
+
+/**
+ * Build the YAML reason for a sandbox-escalation approval. The `kind` is
+ * what keeps it OUT of the guard set: it carries a `summary` like every
+ * other prompt this plugin builds, and a shape-matching classifier cannot
+ * tell them apart.
+ */
+export function buildEscalationApprovalReason(fields: EscalationApprovalReasonFields): string {
+  return stringify({
+    kind: ESCALATION_APPROVAL_KIND,
+    summary: `bash-guard: escalate from "${fields.standingMode}" to "${fields.escalateTo}"`,
+    justification: fields.justification,
+    runs: fields.runs,
+  });
+}
+
+/** Structural view of the approval seam (ctx.approval), typed locally so this
+ * plugin needs no dependency on the approval package. Only "allowed-once"
+ * grants; every other outcome fails closed. */
+interface ApprovalServiceLike {
+  request(req: {
+    agent: unknown;
+    toolName: string;
+    callId?: string;
+    reason: string;
+    signal?: AbortSignal;
+  }): Promise<"allowed-once" | "rejected" | "cancelled" | "unavailable">;
+}
+
+/** Structural view of the per-session sandbox policy resolver
+ * (ctx.sandboxPolicy): resolve() stamps the calling session onto the policy
+ * (mode, writable workspace root, session id) and reports the session's
+ * effective mode. */
+interface SandboxPolicyServiceLike {
+  resolve(input: { session?: unknown }): {
+    mode: SandboxMode;
+    workspaceRoot: string;
+    sessionId?: string;
+  };
+}
+
+/** Structural view of the background-job registry (ctx.jobs). Only the slice
+ * this plugin needs: start() with a bash-kind spec. The runtime preflights
+ * access and owner cleanup before invoking run(), and a throwing run() leaves
+ * nothing registered, which is the preflight-before-spawn ordering this
+ * plugin depends on. */
+interface JobsServiceLike {
+  start(spec: {
+    kind: "bash";
+    label: string;
+    owner?: unknown;
+    run(): {
+      cancel(reason?: string): void;
+      done: Promise<{
+        status: "completed" | "killed" | "failed";
+        detail?: string;
+        output?: string;
+      }>;
+      readOutput?(): string;
+    };
+  }): string;
+}
+
+export const Config = z.object({
+  guardsDir: z.string().default("$DSH_HOME/plugins/guards"),
+  hooksDir: z.string().default("$DSH_HOME/plugins/command-hooks"),
+  hookTimeoutMs: z.number().default(10_000),
+  // Left unset by default (not defaulted to ""): evaluate() falls back to
+  // DEFAULT_DENY_TEMPLATE/DEFAULT_ASK_TEMPLATE with `??`, which only skips a
+  // nullish value. A "" default here used to satisfy that check and silently
+  // format against an empty template, rendering a bare "Error: " on every
+  // deny/ask. Do not add a string default back without also changing the
+  // `??` fallback in evaluate().
+  denyMessage: z.string(),
+  askMessage: z.string(),
+});
+
+type BashGuardConfig = {
+  guardsDir?: string;
+  hooksDir?: string;
+  hookTimeoutMs?: number;
+  denyMessage?: string;
+  askMessage?: string;
+};
+
+type Verdict = "deny" | "ask" | "allow" | "none";
+interface RewriteRule {
+  /** Flags to remove when present. Matches exact token, or `flag=value` long form. */
+  drop?: string[];
+  /** Flags to insert after the command word, each only when it is absent. */
+  add?: { flag: string; value?: string }[];
+  /** If true, also drop the next token after a standalone flag (its value). Only when that next token does NOT start with "-". */
+  value?: boolean;
+  /** Shown in the log when the rewrite fires. */
+  because?: string;
+}
+
+interface GuardEntry {
+  commands: string[];
+  verdict: "deny" | "ask" | "allow";
+  reason?: string;
+  /** Rewrites and clean translations auto-run instead of asking. A translator blocker still denies. */
+  readOnly?: boolean;
+  /** Optional per-subcommand refinement; unnamed subcommands inherit verdict. */
+  subcommands?: Record<string, "deny" | "ask" | "allow">;
+  /** Optional flag-rewriting pass applied to matching commands before verdicting. */
+  rewrites?: RewriteRule[];
+  /** Names a built-in translator applied to matching commands before verdicting. */
+  translate?: string;
+}
+
+/** Resolve $DSH_HOME in a configured path. */
+function resolveHome(path: string): string {
+  if (!path.includes("$DSH_HOME")) return path;
+  const home = process.env.DSH_HOME ?? join(process.env.HOME ?? "", ".dsh");
+  return path.replaceAll("$DSH_HOME", home);
+}
+
+/**
+ * Load every rule drop-in in the guards dir. Returns a map of command
+ * basename -> { verdict, reason }. A malformed file is logged and skipped.
+ */
+async function loadRules(ctx: Context, dir: string): Promise<Map<string, GuardEntry>> {
+  const rules = new Map<string, GuardEntry>();
+  let names: string[];
+  try {
+    names = await readdir(dir);
+  } catch {
+    ctx.logger.debug(`bash-guard: rules directory not found at ${dir}; allowing all commands`);
+    return rules; // no dir yet => no rules => everything allowed
+  }
+  for (const name of names) {
+    if (!name.endsWith(".json")) continue;
+    try {
+      const text = await readFile(join(dir, name), "utf8");
+      const parsed: unknown = JSON.parse(text);
+      if (typeof parsed !== "object" || parsed === null) throw new Error("not an object");
+      const entry = parsed as Partial<GuardEntry>;
+      if (!Array.isArray(entry.commands) || entry.commands.length === 0)
+        throw new Error("missing commands[]");
+      if (entry.verdict !== "deny" && entry.verdict !== "ask" && entry.verdict !== "allow") {
+        throw new Error(`bad verdict: ${String(entry.verdict)}`);
+      }
+      if (entry.readOnly !== undefined && typeof entry.readOnly !== "boolean") {
+        throw new Error(`bad readOnly: ${String(entry.readOnly)}`);
+      }
+      const clean = entry.commands.filter((c) => typeof c === "string" && c.length > 0);
+      let subcommands: Record<string, "deny" | "ask" | "allow"> | undefined;
+      if (entry.subcommands !== undefined) {
+        if (typeof entry.subcommands !== "object" || entry.subcommands === null)
+          throw new Error("bad subcommands");
+        subcommands = {};
+        for (const [sub, verdict] of Object.entries(entry.subcommands)) {
+          if (verdict !== "deny" && verdict !== "ask" && verdict !== "allow") {
+            throw new Error(`bad subcommand verdict for "${sub}": ${String(verdict)}`);
+          }
+          subcommands[sub] = verdict;
+        }
+      }
+      let rewrites: RewriteRule[] | undefined;
+      if (entry.rewrites !== undefined) {
+        if (!Array.isArray(entry.rewrites)) throw new Error("bad rewrites");
+        rewrites = [];
+        for (const r of entry.rewrites) {
+          if (typeof r !== "object" || r === null) throw new Error("bad rewrite");
+          if (r.drop === undefined && r.add === undefined)
+            throw new Error("bad rewrite: needs drop or add");
+          const cleanRewrite: RewriteRule = {};
+          if (r.drop !== undefined) {
+            if (!Array.isArray(r.drop) || r.drop.length === 0) throw new Error("bad rewrite drop");
+            for (const d of r.drop) {
+              if (typeof d !== "string" || d.length === 0)
+                throw new Error("bad rewrite drop entry");
+            }
+            cleanRewrite.drop = r.drop.filter((d) => typeof d === "string" && d.length > 0);
+          }
+          if (r.add !== undefined) {
+            if (!Array.isArray(r.add) || r.add.length === 0) throw new Error("bad rewrite add");
+            cleanRewrite.add = [];
+            for (const a of r.add) {
+              if (
+                typeof a !== "object" ||
+                a === null ||
+                typeof a.flag !== "string" ||
+                a.flag.length === 0
+              ) {
+                throw new Error("bad rewrite add entry");
+              }
+              if (a.value !== undefined && typeof a.value !== "string") {
+                throw new Error("bad rewrite add value");
+              }
+              cleanRewrite.add.push(
+                a.value === undefined ? { flag: a.flag } : { flag: a.flag, value: a.value },
+              );
+            }
+          }
+          if (r.value !== undefined) {
+            if (typeof r.value !== "boolean") throw new Error("bad rewrite value");
+            cleanRewrite.value = r.value;
+          }
+          if (r.because !== undefined) {
+            if (typeof r.because !== "string") throw new Error("bad rewrite because");
+            cleanRewrite.because = r.because;
+          }
+          rewrites.push(cleanRewrite);
+        }
+      }
+      let translate: string | undefined;
+      if (entry.translate !== undefined) {
+        if (typeof entry.translate !== "string" || entry.translate.length === 0) {
+          throw new Error(`bad translate: ${String(entry.translate)}`);
+        }
+        if (!Object.hasOwn(TRANSLATORS, entry.translate)) {
+          throw new Error(`unknown translate: ${entry.translate}`);
+        }
+        translate = entry.translate;
+      }
+      for (const cmd of clean) {
+        const built: GuardEntry = {
+          commands: entry.commands,
+          verdict: entry.verdict,
+          reason: entry.reason,
+          subcommands,
+        };
+        if (rewrites) built.rewrites = rewrites;
+        if (translate) built.translate = translate;
+        if (entry.readOnly !== undefined) built.readOnly = entry.readOnly;
+        rules.set(cmd, built);
+      }
+
+      ctx.logger.debug(`bash-guard: loaded ${clean.length} command(s) from rule file ${name}`);
+    } catch (error) {
+      ctx.logger.warn(
+        `bash-guard: skipping malformed rule file ${name}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  return rules;
+}
+
+/**
+ * Merge the rule drop-ins from several dirs (base first, then the phase
+ * profile). A later dir overrides an earlier one for the same command, so a
+ * profile can tighten or loosen the base. A rule whose command list is ["*"]
+ * is the wildcard fallback: it matches any command not named by a specific
+ * rule (used by read-only profiles to deny-by-default).
+ */
+async function loadRulesMulti(ctx: Context, dirs: string[]): Promise<Map<string, GuardEntry>> {
+  const merged = new Map<string, GuardEntry>();
+  for (const dir of dirs) {
+    const rules = await loadRules(ctx, dir);
+    for (const [cmd, entry] of rules) merged.set(cmd, entry);
+  }
+  return merged;
+}
+
+/**
+ * Default message templates. The formatter substitutes these placeholders:
+ *   {command}  - the full bash command that was evaluated
+ *   {name}     - the primary matched command basename
+ *   {matches}  - a bulleted list of every matched command + subcommand + reason
+ *   {reason}   - the primary match's reason
+ *   {count}    - "1 filter" or "N filters"
+ *   {detail}   - a short parenthetical, e.g. "commit is blocked"
+ * A config override (denyMessage / askMessage) replaces the default.
+ *
+ * The two defaults differ on purpose. A DENIAL is read by the model, which
+ * needs the full reason to choose a different command, so it keeps the command
+ * and the bulleted rules. An APPROVAL is read by a person on a card that
+ * already shows the command underneath, so it is one scannable line.
+ */
+const DEFAULT_DENY_TEMPLATE =
+  "bash-guard: {name} denied by {count} ({detail})\n\n" +
+  "  {command}\n\n" +
+  "Matched rule(s):\n{matches}";
+const DEFAULT_ASK_TEMPLATE =
+  "bash-guard: {name} blocked by {count} ({detail}) — needs your approval";
+
+interface MatchLine {
+  name: string;
+  subcommand?: string;
+  reason: string;
+  /**
+   * A path argument of THIS command that failed the safe-root test, when one
+   * exists. Set only for rules with no per-subcommand map (rm and friends,
+   * where arguments are targets rather than verbs); a git-style rule keeps
+   * naming its subcommand instead. Reported in preference to the first
+   * argument, because naming an argument that PASSED sends the reader after
+   * the wrong path — the failure this field exists to prevent.
+   */
+  blockedPath?: string;
+}
+interface MessageContext {
+  command: string;
+  matches: MatchLine[];
+}
+
+/**
+ * Shorten one rule reason to something that fits a single scannable line.
+ * Prefer the subcommand, which is the concrete thing that was blocked, and fall
+ * back to the reason's first sentence.
+ */
+function shortDetail(match: MatchLine): string {
+  // A path that actually failed beats the first argument. The first argument
+  // is only the culprit by luck: `rm -rf <scratch> <outside>` would otherwise
+  // report the scratch path as "blocked" while the disqualifying one is never
+  // shown.
+  if (match.blockedPath) return `${match.blockedPath} is outside every scratch root`;
+  if (match.subcommand) return `${match.subcommand} is blocked`;
+  const first = match.reason.split(/(?<=[.!?])\s/u)[0] ?? match.reason;
+  const trimmed = first.trim().replace(/[.]$/u, "");
+  return trimmed.length > 60 ? `${trimmed.slice(0, 59)}…` : trimmed;
+}
+
+/** Substitute {command}, {name}, {matches}, {reason}, {count}, {detail}. */
+function formatMessage(template: string, ctx: MessageContext): string {
+  const matchesText = ctx.matches
+    .map((m) => {
+      const sub = m.subcommand ? ` (${m.subcommand})` : "";
+      return `  • ${m.name}${sub}: ${m.reason}`;
+    })
+    .join("\n");
+  const primary = ctx.matches[0];
+  // Two details at most. Past that the line stops being scannable, which is the
+  // whole point of the short form.
+  const details = ctx.matches.slice(0, 2).map(shortDetail);
+  if (ctx.matches.length > 2) details.push(`+${ctx.matches.length - 2} more`);
+  return template.replace(
+    /(\{command\}|\{matches\}|\{name\}|\{reason\}|\{count\}|\{detail\})/g,
+    (token) => {
+      if (token === "{command}") return ctx.command;
+      if (token === "{matches}") return matchesText;
+      if (token === "{name}") return primary?.name ?? "unknown";
+      if (token === "{count}")
+        return `${ctx.matches.length} filter${ctx.matches.length === 1 ? "" : "s"}`;
+      if (token === "{detail}") return details.join(", ") || "no detail";
+      return primary?.reason ?? "";
+    },
+  );
+}
+
+/** Build the match lines for a set of hits, deduplicated by (name, subcommand, reason). */
+function matchLines(
+  hits: { name: string; rule: GuardEntry; ref: CommandRef }[],
+  safePaths: string[] = [],
+  workspaceRoot?: string,
+): MatchLine[] {
+  const seen = new Set<string>();
+  const out: MatchLine[] = [];
+  for (const h of hits) {
+    // Only for rules whose arguments are TARGETS rather than verbs. A rule
+    // with a subcommands map (git) is better described by its subcommand, so
+    // naming a path there would be a regression.
+    const blockedPath =
+      safePaths.length > 0 && h.rule.subcommands === undefined
+        ? firstNonScratchPath(h.ref, safePaths, workspaceRoot)
+        : undefined;
+    const line: MatchLine = {
+      name: h.name,
+      subcommand: firstSubcommand(getCommandArgs(h.ref)),
+      reason: h.rule.reason ?? "(no reason supplied by the rule)",
+      ...(blockedPath === undefined ? {} : { blockedPath }),
+    };
+    const key = `${line.name}\0${line.subcommand ?? ""}\0${line.reason}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(line);
+  }
+  return out;
+}
+/** Most restrictive wins: deny > ask > allow > none. */
+function mostRestrictive(verdicts: Verdict[]): Verdict {
+  if (verdicts.includes("deny")) return "deny";
+  if (verdicts.includes("ask")) return "ask";
+  if (verdicts.includes("allow")) return "allow";
+  return "none";
+}
+
+/**
+ * The subcommand token of a parsed command's argv: the first argument that
+ * is not an option. Git globals that take a separate value (`-C <path>`,
+ * `--git-dir <path>`, `--work-tree <path>`, `--namespace <path>`) would
+ * otherwise make their value read as the subcommand and force the stricter
+ * base verdict. Those values are skipped.
+ */
+const GIT_GLOBALS_WITH_VALUE = new Set(["-C", "--git-dir", "--work-tree", "--namespace"]);
+
+function firstSubcommand(args: string[]): string | undefined {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === "--") break;
+    if (GIT_GLOBALS_WITH_VALUE.has(arg)) {
+      i++;
+      continue;
+    }
+    if (arg.startsWith("-")) continue;
+    return arg;
+  }
+  return undefined;
+}
+/**
+ * Verdict for one matched command: the rule's per-subcommand verdict when it
+ * names the invoked subcommand, else the rule's base verdict.
+ */
+function verdictFor(rule: GuardEntry, ref: CommandRef): Verdict {
+  if (rule.subcommands === undefined) return rule.verdict;
+  const sub = firstSubcommand(getCommandArgs(ref));
+  const refined = sub !== undefined ? rule.subcommands[sub] : undefined;
+  return refined ?? rule.verdict;
+}
+
+/** The path-like arguments of a set of command refs (options excluded). */
+function pathLikeArgs(refs: CommandRef[]): string[] {
+  const out: string[] = [];
+  for (const ref of refs) {
+    for (const arg of getCommandArgs(ref)) {
+      if (arg.startsWith("-")) continue;
+      if (
+        arg.startsWith("/") ||
+        arg.includes("/") ||
+        arg.startsWith("./") ||
+        arg.startsWith("../") ||
+        /\.[A-Za-z0-9]+$/.test(arg)
+      ) {
+        out.push(arg);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * True when EVERY path-like argument of the command lands under one of the
+ * safe scratch roots. Used to always allow writes that target scratch, in any
+ * phase, while still gating commands whose target is outside scratch.
+ *
+ * #90 (relative-path item, CLOSED with a reason — no defect). When
+ * workspaceRoot is undefined (aidos.bashContext threw), a relative path is
+ * returned unchanged and therefore matches no safe root, so the command
+ * ASKS. That fail-closed fallback is correct: there is nothing sound to
+ * resolve against — the server's own cwd is not the agent's workspace — and
+ * guessing risks exempting a deletion that is not scratch. The only cost is
+ * a prompt, never a silent run; with a root available the same relative
+ * path resolves and is exempt. Pinned in bash-guard-rm.test.ts.
+ */
+function normalizeScratchPath(p: string, workspaceRoot?: string): string {
+  if (isAbsolute(p)) return resolve(p);
+  if (workspaceRoot) return resolve(join(workspaceRoot, p));
+  return p;
+}
+function isUnderScratch(target: string, root: string): boolean {
+  return target === root || target.startsWith(root + sep);
+}
+/**
+ * #90 (glob item, CLOSED with a reason — no defect). An unquoted absolute
+ * glob such as `/tmp/dsh/aidos/*.index` is matched LITERALLY here: the `*`
+ * is never expanded, and the fixed prefix decides. That is sound because
+ * expansion can only produce paths under the fixed prefix, so a glob rooted
+ * in scratch can never delete outside it, while a glob rooted outside
+ * scratch still fails — and firstNonScratchPath skips scratch-covered globs,
+ * so a refusal never names one as the offender. `..` inside the pattern is
+ * normalized by resolve() before the prefix test, so `/tmp/dsh/../etc/*`
+ * still asks. Pinned in bash-guard-rm.test.ts.
+ */
+function scratchAllowed(refs: CommandRef[], safePaths: string[], workspaceRoot?: string): boolean {
+  const paths = pathLikeArgs(refs);
+  if (paths.length === 0) return false;
+  return paths.every((p) => {
+    const n = normalizeScratchPath(p, workspaceRoot);
+    return safePaths.some((sp) => isUnderScratch(n, sp));
+  });
+}
+/**
+ * The first path argument of ONE command that does not land under a safe
+ * scratch root, or undefined when every path does (or there are none).
+ *
+ * Exists so a refusal can name the argument that actually disqualified the
+ * command. Reporting the first argument instead is wrong whenever the offender
+ * is not first, and it cost two people a false investigation: a cleanup whose
+ * every rm target was scratch was refused with a SCRATCH path named, while the
+ * real disqualifiers sat in neighbouring commands.
+ */
+function firstNonScratchPath(
+  ref: CommandRef,
+  safePaths: string[],
+  workspaceRoot?: string,
+): string | undefined {
+  for (const p of pathLikeArgs([ref])) {
+    const n = normalizeScratchPath(p, workspaceRoot);
+    if (!safePaths.some((sp) => isUnderScratch(n, sp))) return p;
+  }
+  return undefined;
+}
+
+/** Characters the shell expands itself when a word reaches it unquoted. */
+const GLOB_CHARS = ["*", "?", "[", "]", "{", "}", "~"];
+
+/**
+ * Words that carry a GLOB_CHARS character but that the shell leaves alone.
+ * Bash expands a brace only when the braces hold a comma or a range, so a bare
+ * `{}` reaches the command as written. `find -exec` uses `{}` as its result
+ * placeholder, so treating it as a glob would skip every -exec translation.
+ */
+const LITERAL_WORDS = new Set(["{}"]);
+
+/**
+ * True when one command ref can be spliced back into `command` safely.
+ *
+ * The splice replaces the byte range that runs from the command word to the
+ * last suffix word. Every one of those offsets must address `command` itself,
+ * and every word must survive a round trip through shellQuote.
+ *
+ * A ref that came out of expandWrapperCommands fails the first test.
+ * expandWrapperCommands rebuilds the inner command text and parses that as a
+ * fresh source, so the ref carries offsets into the rebuilt string and not into
+ * the outer command. A top-level ref carries the outer command as its source.
+ *
+ * A word that is not statically resolvable fails, because only the shell can
+ * compute its value.
+ *
+ * An unquoted glob fails too. getCommandArgs hands back the unquoted value, so
+ * shellQuote would put quotes around the glob and stop the shell from expanding
+ * it. A quoted glob is safe, because its text still carries the original
+ * quotes, which is why the test compares the text against the value.
+ */
+function translatableRef(
+  ref: CommandRef,
+  command: string,
+): { ok: true } | { ok: false; why: string } {
+  if (ref.source !== command) {
+    return {
+      ok: false,
+      why: "it sits inside a wrapper, so its offsets address a rebuilt string",
+    };
+  }
+  if (ref.node.name === undefined) return { ok: false, why: "it has no command word" };
+  for (const word of [ref.node.name, ...ref.node.suffix]) {
+    if (!isStaticallyResolvable(word)) {
+      return { ok: false, why: `\`${word.text}\` depends on a shell expansion` };
+    }
+    if (
+      word.text === (word.value ?? word.text) &&
+      !LITERAL_WORDS.has(word.text) &&
+      GLOB_CHARS.some((c) => word.text.includes(c))
+    ) {
+      return { ok: false, why: `the shell expands \`${word.text}\` before the command runs` };
+    }
+  }
+  return { ok: true };
+}
+/**
+ * The decision the guard reaches for one command.
+ *
+ * `command` is always the string that should execute: the model's own command
+ * for a plain allow, the rewritten or translated form otherwise. `rewritten`
+ * is true only when `command` differs from the model's input. `reason` is
+ * present whenever a matched rule had a non-allow verdict. An `ask` also
+ * carries `original`, the model's unmodified command.
+ */
+export type GuardOutcome =
+  | { action: "run"; command: string; rewritten: boolean; reason?: string; ranNote?: string }
+  | {
+      action: "ask";
+      command: string;
+      original: string;
+      rewritten: boolean;
+      reason?: string;
+      ranNote?: string;
+      notes?: string[];
+      mutatingWhy?: string[];
+    }
+  // `escapable: true` marks a deny that came from a RULE verdict — the only
+  // denies a pre-command hook may override. Parse failures and translation
+  // blockers stay fail-closed: an unparsed or untranslated command must
+  // never run on a hook's say-so.
+  | { action: "deny"; reason: string; escapable?: boolean };
+
+/**
+ * Build the message that hands the model an exact replacement command.
+ *
+ * The harness deep-freezes exec.arguments, so the replacement travels in the
+ * message instead. The model runs it verbatim on its next turn. The output is
+ * written for the model, so the approval card no longer slices this text; it
+ * receives the structured parts instead.
+ */
+function suggestionMessage(suggested: string, notes: string[], mutatingWhy: string[]): string {
+  let reason = `bash-guard: that command is not run directly. Run this instead:\n\n  ${suggested}\n`;
+  if (mutatingWhy.length > 0) {
+    reason += `\nThis command changes files. Ask the user before you run it.\n`;
+    for (const why of mutatingWhy) reason += `  ${why}\n`;
+  }
+  if (notes.length > 0) {
+    reason += `\nWhy: ${notes[0]}\n`;
+    for (const note of notes.slice(1)) reason += `     ${note}\n`;
+  }
+  return reason;
+}
+
+/**
+ * Build the note appended AFTER the replacement has already run.
+ *
+ * `suggestionMessage` tells the model to run the replacement itself, which is
+ * right for a deny. On the run path, and after an approved ask, the guard has
+ * ALREADY run the replacement, so that wording is false and invites the model
+ * to run the command a second time. This message reports what ran and keeps
+ * the teaching note. It carries no `bash-guard:` prefix, because the caller
+ * adds one.
+ */
+function ranMessage(suggested: string, notes: string[]): string {
+  let text = `ran this instead:\n\n  ${suggested}\n`;
+  if (notes.length > 0) {
+    text += `\nWhy: ${notes[0]}\n`;
+    for (const note of notes.slice(1)) text += `     ${note}\n`;
+  }
+  return text;
+}
+
+/**
+ * Outcome for a rewrite or a clean translation. A readOnly rule auto-runs the
+ * replacement. Any other rule asks with the replacement attached.
+ *
+ * `readOnly` sits on the RULE, but a single rule covers every invocation of its
+ * command, and not every invocation is read-only. `find` is the case that
+ * matters: `guards/find.json` is marked readOnly because finding files reads,
+ * yet `find . -delete` and `find . -exec rm {} +` mutate. The translator
+ * already detects those and reports them in `mutatingWhy`. So a non-empty
+ * `mutatingWhy` overrides the rule and forces an ask, whatever the flag says.
+ * Without this, marking find readOnly would silently auto-run a delete.
+ */
+function rewriteOutcome(
+  suggested: string,
+  original: string,
+  notes: string[],
+  mutatingWhy: string[],
+  readOnly: boolean,
+): GuardOutcome {
+  const reason = suggestionMessage(suggested, notes, mutatingWhy);
+  const ranNote = ranMessage(suggested, notes);
+  const rewritten = suggested !== original;
+  if (readOnly && mutatingWhy.length === 0) {
+    return { action: "run", command: suggested, rewritten, reason, ranNote };
+  }
+  return {
+    action: "ask",
+    command: suggested,
+    original,
+    rewritten,
+    reason,
+    ranNote,
+    notes,
+    mutatingWhy,
+  };
+}
+
+/** True when a rewrite `add` flag is already present in the command's words. */
+function flagPresent(ref: CommandRef, flag: string): boolean {
+  return ref.node.suffix.some((w) => w.text === flag || w.text.startsWith(flag + "="));
+}
+
+/**
+ * True when this ref's recorded offsets really index into `command`.
+ *
+ * The rewrite pass edits `command` by absolute byte offset. That holds for a
+ * top-level command and for a wrapper such as `sh -c "rg -r foo"`, whose inner
+ * words still sit at real offsets. It does NOT hold inside a command
+ * substitution: for `for s in $(rg -o 'p' -r '$1' f.ts)` the walker reports
+ * positions from an inner parse, so `name.text` is "rg" while
+ * `command.slice(name.pos, name.end)` is "fo". Editing at those offsets
+ * shreds bytes nobody wrote — the old behaviour turned `echo "A"` into `eo`.
+ *
+ * A ref that fails this check is skipped rather than denied. Its rule's base
+ * verdict still applies, so the command runs exactly as it would with no
+ * rewrite rule at all. Denying instead would regress every `allow` rule that
+ * only carries a flag rewrite.
+ */
+function offsetsAddressCommand(command: string, ref: CommandRef): boolean {
+  const name = ref.node.name;
+  if (command.slice(name.pos, name.end) !== name.text) return false;
+  return ref.node.suffix.every((w) => command.slice(w.pos, w.end) === w.text);
+}
+
+/** The hits whose rules carry rewrites, in match order. */
+function rewritingHits(hits: { rule: GuardEntry }[]): { rule: GuardEntry }[] {
+  return hits.filter((h) => h.rule.rewrites !== undefined);
+}
+
+/**
+ * A rewrite or translation auto-runs only when every contributing rule is
+ * readOnly. Fail closed on an empty list: `[].every(...)` is true in
+ * JavaScript, so without the length check a caller that passed no hits would
+ * get an auto-run. Both current callers filter to a non-empty set, but this is
+ * the guard, so the default must never be "run".
+ */
+function isReadOnly(hits: { rule: GuardEntry }[]): boolean {
+  return hits.length > 0 && hits.every((h) => h.rule.readOnly === true);
+}
+
+/** Put the matched rule's reason ahead of the rewrite notes. */
+function withRuleReason(hits: { rule: GuardEntry }[], notes: string[]): string[] {
+  const reason = hits[0]?.rule.reason;
+  return reason === undefined ? notes : [reason, ...notes];
+}
+
+/** Evaluate a command and return the outcome. The function never returns a
+ * null or an undefined result: a plain allow is a `run` outcome that carries
+ * the model's own command with `rewritten: false`. Nothing is ever written
+ * back to the model's arguments: a rewrite or a translation becomes an outcome
+ * whose `command` carries the replacement. */
+export async function evaluate(
+  ctx: Context,
+  dirs: string[],
+  command: string,
+  safePaths: string[],
+  workspaceRoot: string | undefined,
+  templates: { deny?: string; ask?: string },
+): Promise<GuardOutcome> {
+  // Caveats collected by the translation pass. They ride the deny message.
+  const notes: string[] = [];
+  // Parse (fail-closed)
+  let script;
+  try {
+    script = parse(command);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    ctx.logger.warn(`bash-guard: parse error in command; denying: ${command} (error: ${errorMsg})`);
+    return {
+      action: "deny",
+      reason: `bash-guard: could not parse the command; refusing to run it unparsed. ${errorMsg}`,
+    };
+  }
+  if (script.errors && script.errors.length > 0) {
+    const messages = script.errors.map((e) => e.message).join("; ");
+    ctx.logger.warn(`bash-guard: script parse errors; denying: ${command} (errors: ${messages})`);
+    return {
+      action: "deny",
+      reason: `bash-guard: parse errors in command; refusing to run it unparsed. ${messages}`,
+    };
+  }
+
+  const refs = extractAllCommandsFromAST(script, command);
+  const { commands } = expandWrapperCommands(refs);
+  const all = [...refs, ...commands];
+  ctx.logger.debug(`bash-guard: extracted ${all.length} command(s) from: ${command}`);
+
+  // Scratch escape: a command whose path-like arguments all land under a safe
+  // scratch root is always allowed, in every phase. Scratch writes are
+  // ephemeral and sandbox-bounded, so bash-guard never gates them — the agent
+  // (and especially a subagent) can spool to /tmp/dsh or the aidos durable
+  // scratch at any time.
+  //
+  // The exemption is scoped PER COMMAND, not across the chain. It used to be
+  // chain-wide, which meant a neighbour that merely READ a path outside
+  // scratch revoked it: `rm -rf /tmp/dsh/a /tmp/dsh/b; du -sh <repo>/.git/x;
+  // cd <repo> && git log` prompted for the rm even though every rm target was
+  // scratch, contradicting guards/rm.json's own promise that scratch
+  // deletions never ask. A `du` and a `cd` are not deletions and must not
+  // decide whether a deletion is exempt.
+  //
+  // Per-command scoping keeps the safety property intact: in
+  // `rm /tmp/dsh/x && rm /etc/y` the second rm is judged on its own targets
+  // and still asks. Only the command that is wholly inside scratch goes free.
+  if (safePaths.length > 0 && scratchAllowed(all, safePaths, workspaceRoot)) {
+    ctx.logger.info(`bash-guard: scratch write allowed: ${command}`);
+    return { action: "run", command, rewritten: false };
+  }
+  const rules = await loadRulesMulti(ctx, dirs);
+  const hits = all
+    .map((ref) => {
+      const name = getBasename(ref);
+      const rule = rules.get(name) ?? rules.get("*");
+      if (rule === undefined) return undefined;
+      // Per-command scratch exemption: this command touches only scratch, so
+      // it carries no hit regardless of what its neighbours do. Commands with
+      // no path arguments are unaffected (scratchAllowed is false for them)
+      // and fall through to their own rule as before.
+      if (safePaths.length > 0 && scratchAllowed([ref], safePaths, workspaceRoot)) {
+        ctx.logger.info(`bash-guard: scratch-only command exempt: ${name}`);
+        return undefined;
+      }
+      return { name, rule, ref, verdict: verdictFor(rule, ref) };
+    })
+    .filter(
+      (h): h is { name: string; rule: GuardEntry; ref: CommandRef; verdict: Verdict } =>
+        h !== undefined,
+    );
+
+  // Rewrite pass. A translate rule owns the whole command, so it wins: only
+  // run the flag-level rewrite when no translator claimed this command.
+  if (!hits.some((h) => h.rule.translate) && hits.some((h) => h.rule.rewrites)) {
+    // Collect edits from EVERY hit that carries rewrites, then rebuild the
+    // string once. Positions are absolute offsets into the original command,
+    // so wrapper-internal refs (e.g. sh -c "rg -r foo") apply too: their
+    // suffix words still sit at real offsets inside `command`. A drop is an
+    // empty replacement over a byte range. An add inserts after the command
+    // word and only when its flag is absent, so it is idempotent.
+    const edits: { start: number; end: number; text: string; because?: string }[] = [];
+    let addMatched = false;
+    for (const hit of hits) {
+      if (!hit.rule.rewrites) continue;
+      // Editing by offset is only safe when the offsets address this string.
+      // A ref inside a command substitution reports inner-parse positions.
+      if (!offsetsAddressCommand(command, hit.ref)) {
+        ctx.logger.debug(
+          `bash-guard: skipping rewrite for ${hit.name}; its offsets do not address the command (nested substitution)`,
+        );
+        continue;
+      }
+      for (const rw of hit.rule.rewrites) {
+        for (let i = 0; i < hit.ref.node.suffix.length; i++) {
+          const word = hit.ref.node.suffix[i];
+          for (const flag of rw.drop ?? []) {
+            if (word.text === flag) {
+              // Standalone flag: drop it, and its next token when that token
+              // holds the flag's value.
+              edits.push({ start: word.pos, end: word.end, text: "", because: rw.because });
+              if (rw.value && i + 1 < hit.ref.node.suffix.length) {
+                const next = hit.ref.node.suffix[i + 1];
+                if (!next.text.startsWith("-")) {
+                  edits.push({ start: next.pos, end: next.end, text: "" });
+                }
+              }
+            } else if (word.text.startsWith(flag + "=")) {
+              // Long flag with an inline value: --replace=FOO drops whole.
+              edits.push({ start: word.pos, end: word.end, text: "", because: rw.because });
+            } else if (
+              rw.value &&
+              flag.length === 2 &&
+              word.text.length > 2 &&
+              word.text.startsWith(flag)
+            ) {
+              // Short-flag cluster with an attached value, e.g. rg -rln: rg
+              // parses that as -r plus the value "ln", so the whole word is
+              // flag+value and all of it goes. The `rw.value` guard keeps this
+              // branch to value-taking drop flags: a bare no-value letter (say
+              // -rn where r means recursion) parses as two flags, and rg -n foo
+              // stays a plain search. Dropping a no-value letter with its
+              // cluster would eat unrelated flags. Multi-flag
+              // clusters that end in a value flag, like -xr foo, hit the
+              // standalone branch above: the -x survives, -r and foo go.
+              edits.push({ start: word.pos, end: word.end, text: "", because: rw.because });
+            }
+          }
+        }
+        if (rw.add !== undefined) {
+          addMatched = true;
+          for (const a of rw.add) {
+            if (flagPresent(hit.ref, a.flag)) continue;
+            // The leading space separates the flag from the command word, so
+            // `jq .` becomes `jq --indent 2 .`.
+            let text = ` ${a.flag}`;
+            if (a.value !== undefined) text += ` ${shellQuote(a.value)}`;
+            const at = hit.ref.node.name.end;
+            // extractAllCommandsFromAST and expandWrapperCommands can hand back
+            // the same ref twice, so an identical insert at the same offset is
+            // a duplicate, not a second flag.
+            if (edits.some((e) => e.start === at && e.text === text)) continue;
+            edits.push({ start: at, end: at, text, because: rw.because });
+          }
+        }
+      }
+    }
+    if (edits.length > 0) {
+      edits.sort((a, b) => a.start - b.start || a.end - b.end);
+      let rewritten = "";
+      let lastEnd = 0;
+      const logBecauses: string[] = [];
+      for (const e of edits) {
+        if (e.start < lastEnd) continue;
+        // Swallow the space that separated a dropped flag from the word before
+        // it. Without this the suggestion carries a doubled space, and the
+        // model copies it verbatim. Only the gap between words is touched, so
+        // a quoted argument holding two spaces is left alone. Insertions keep
+        // their own leading space.
+        let from = e.start;
+        if (e.text === "" && from > lastEnd && command[from - 1] === " ") from -= 1;
+        rewritten += command.slice(lastEnd, from) + e.text;
+        lastEnd = e.end;
+        if (e.because && !logBecauses.includes(e.because)) {
+          logBecauses.push(e.because);
+        }
+      }
+      rewritten += command.slice(lastEnd);
+      ctx.logger.debug(
+        `bash-guard: rewrite (${logBecauses.join("; ")}) ${command} -> ${rewritten}`,
+      );
+      return rewriteOutcome(
+        rewritten,
+        command,
+        withRuleReason(rewritingHits(hits), logBecauses),
+        [],
+        isReadOnly(rewritingHits(hits)),
+      );
+    }
+    // An add whose flag was already present changed nothing, but the rule did
+    // match, so the verdict still rides this outcome instead of falling
+    // through to the base rule verdict.
+    if (addMatched) {
+      const rwHits = rewritingHits(hits);
+      return rewriteOutcome(command, command, withRuleReason(rwHits, []), [], isReadOnly(rwHits));
+    }
+  }
+
+  // Translation pass. A rule may name a built-in
+  // translator that maps a whole matched command onto a preferred tool, for
+  // example `grep` onto `rg`. The splice writes back into the original command
+  // string, so only a ref that translatableRef accepts may take part. A ref
+  // from a wrapper expansion carries offsets into a rebuilt string, so it is
+  // skipped.
+  if (hits.some((h) => h.rule.translate)) {
+    const ranges: {
+      start: number;
+      end: number;
+      text: string;
+      lines: string[];
+      why?: string;
+    }[] = [];
+    for (const hit of hits) {
+      const key = hit.rule.translate;
+      if (key === undefined) continue;
+      const translator = TRANSLATORS[key];
+      if (translator === undefined) {
+        ctx.logger.warn(`bash-guard: no translator named "${key}"; leaving ${hit.name} as written`);
+        continue;
+      }
+      const node = hit.ref.node;
+      // Check the splice BEFORE translating. A hit that fails here must fall
+      // through to the rule's own base verdict. It must not raise a deny that
+      // names a translator blocker, because the real reason is different.
+      const splice = translatableRef(hit.ref, command);
+      if (splice.ok === false) {
+        ctx.logger.debug(`bash-guard: not translating ${hit.name} in ${command}: ${splice.why}`);
+        continue;
+      }
+      const outcome = translator(getCommandArgs(hit.ref), hit.name);
+      if (outcome.kind === "blocked") {
+        const text = command.slice(node.pos, node.end);
+        ctx.logger.warn(`bash-guard: translation blocked for ${hit.name}: ${outcome.why}`);
+        return {
+          action: "deny",
+          reason: `bash-guard: could not translate \`${text}\`. ${outcome.why} Run the rg or fd equivalent yourself.`,
+        };
+      }
+      const start = node.name.pos;
+      const end = node.suffix.length > 0 ? node.suffix[node.suffix.length - 1].end : node.name.end;
+      // A redirect parked between the command word and the last argument would
+      // have to be re-emitted inside the replacement. That is not worth the bug
+      // surface, so deny instead.
+      if (node.redirects.some((r) => r.pos >= start && r.pos < end)) {
+        return {
+          action: "deny",
+          reason: `bash-guard: could not translate \`${command.slice(start, end)}\`. A redirect sits between the arguments. Run the rg or fd equivalent yourself.`,
+        };
+      }
+      // suggestionDeny prints the replacement itself, so only the caveats are
+      // collected here.
+      const lines: string[] = [];
+      for (const note of outcome.notes) {
+        if (note.length > 0) lines.push(note);
+      }
+      ranges.push({
+        start,
+        end,
+        text: outcome.argv.map(shellQuote).join(" "),
+        lines,
+        why: outcome.kind === "ask" ? outcome.why : undefined,
+      });
+    }
+    if (ranges.length > 0) {
+      ranges.sort((a, b) => a.start - b.start);
+      let translated = "";
+      let lastEnd = 0;
+      const whys: string[] = [];
+      for (const range of ranges) {
+        if (range.start < lastEnd) continue;
+        translated += command.slice(lastEnd, range.start) + range.text;
+        lastEnd = range.end;
+        notes.push(...range.lines);
+        if (range.why !== undefined) whys.push(range.why);
+      }
+      translated += command.slice(lastEnd);
+      ctx.logger.info(`bash-guard: suggesting \`${translated}\` instead of \`${command}\``);
+      // A translator blocker already returned above, so this is a clean
+      // translation. The readOnly gate decides run versus ask; the listener
+      // maps the ask back onto a deny, because it cannot rewrite the frozen
+      // arguments and an approval would run the ORIGINAL command.
+      const translateHits = hits.filter((h) => h.rule.translate !== undefined);
+      return rewriteOutcome(
+        translated,
+        command,
+        withRuleReason(translateHits, notes),
+        whys,
+        isReadOnly(translateHits),
+      );
+    }
+  }
+
+  if (all.length === 0) {
+    ctx.logger.debug(`bash-guard: no actual commands found in: ${command}`);
+    return { action: "run", command, rewritten: false };
+  }
+
+  if (hits.length === 0) {
+    ctx.logger.debug(`bash-guard: no rules matched for: ${command}`);
+    return { action: "run", command, rewritten: false };
+  }
+
+  const verdicts = hits.map((h) => h.verdict);
+  const overall = mostRestrictive(verdicts);
+  switch (overall) {
+    case "deny": {
+      const denying = hits.filter((h) => h.verdict === "deny");
+      const reason = formatMessage(templates.deny ?? DEFAULT_DENY_TEMPLATE, {
+        command,
+        matches: matchLines(denying, safePaths, workspaceRoot),
+      });
+      const ruleNames = [...new Set(denying.map((h) => h.name))].join(", ");
+      ctx.logger.warn(`bash-guard: command denied by rules [${ruleNames}]: ${command}`);
+      return { action: "deny", reason, escapable: true };
+    }
+    case "ask": {
+      const asking = hits.filter((h) => h.verdict === "ask");
+      const reason = formatMessage(templates.ask ?? DEFAULT_ASK_TEMPLATE, {
+        command,
+        matches: matchLines(asking, safePaths, workspaceRoot),
+      });
+      const ruleNames = [...new Set(asking.map((h) => h.name))].join(", ");
+      ctx.logger.warn(`bash-guard: command asks for approval by rules [${ruleNames}]: ${command}`);
+      return { action: "ask", command, original: command, rewritten: false, reason };
+    }
+    case "allow":
+    case "none":
+    default:
+      ctx.logger.debug(`bash-guard: command allowed: ${command}`);
+      return { action: "run", command, rewritten: false };
+  }
+}
+
+/** One pipeline stage's status: its exit code, plus the stage's program name
+ * when the command is a single simple pipeline. Names are omitted rather
+ * than guessed for anything more complex. */
+export interface PipeStageStatus {
+  name?: string;
+  exitCode: number;
+}
+
+export interface PipeCapturePlan {
+  /** The command contains at least one statement-level pipeline, so
+   * wrapping it for PIPESTATUS capture can report stage statuses. */
+  hasPipe: boolean;
+  /** Stage program names from the pipeline node itself — only when the whole
+   * command is one simple pipeline. Null otherwise. */
+  names: string[] | null;
+  /** Stage program names of the script's LAST pipeline, when those names can
+   * honestly be attached to what PIPESTATUS will hold once the script
+   * finishes: the script must be a flat sequence whose FINAL statement is
+   * that pipeline (see finalPipelineNaming). Null otherwise. */
+  finalNames: string[] | null;
+  /** The leading command of that last pipeline, when finalNames is set. */
+  finalLeading: string | null;
+  /** Stage program names of the FINAL statement's pipeline when that final
+   * statement is an &&/|| chain ending in a simple pipeline (see
+   * lastChainPipelineNaming). Attribution is explicitly UNCONFIRMED: the
+   * chain may have short-circuited before the pipeline ran, so these names
+   * must only ever render beside a warning, never as fact. Null whenever
+   * the final statement is not such a chain — including when it is
+   * backgrounded (see the #142 rule below: under `&` the codes are empty
+   * or stale, so even a warned candidate would pair names with garbage). */
+  unconfirmedNames: string[] | null;
+  /** The leading command of that candidate pipeline, when set. */
+  unconfirmedLeading: string | null;
+  /** Any backgrounded statement (`cmd &`) in a position whose commands the
+   * DEBUG trap would observe. BASH_COMMAND carries no `&` marker (live
+   * probe, GNU bash 5.3.9, ticket #143: `sleep 0.2 &` records as bare
+   * `sleep 0.2` with the previous pipeline's codes), so a backgrounded
+   * statement's per-statement records are indistinguishable from foreground
+   * fact. Any `&` therefore degrades the whole command to the legacy
+   * final-pipeline report rather than risk pairing stale codes with names.
+   * Stricter than #142 by design: #142 keeps finalNames for a backgrounded
+   * statement BEFORE the last pipeline, and that still holds — this flag
+   * gates only the NEW per-statement text, never the legacy pipeStages. */
+  hasBackground: boolean;
+  /** Any &&/|| chain in statement position. Decides the degraded report's
+   * honesty floor (ticket #144b): a chain's final pipeline may never have
+   * run, so bare unlabelled numbers are withheld for chained commands while
+   * chain-free ones keep today's bare render. Never gates the per-statement
+   * text — a && chain's every operand fires the trap with its own status
+   * (live probe, ticket #143), so chains are fully factual when captured. */
+  hasChain: boolean;
+  /** Any subshell or coprocessor statement. The trap fires nothing for
+   * `( ... )` — neither the statement nor its interior (live probe, ticket
+   * #143) — so a script containing one degrades rather than print an
+   * all-clear that never looked inside. See hasInvisibleStatement. */
+  hasHiddenStatements: boolean;
+  /** Whether the command is worth wrapping at all: piped commands (stage
+   * codes) plus compound commands whose statements deserve attribution
+   * (per-statement codes). A lone simple command — or a lone definition,
+   * subshell, or test, which the trap cannot observe usefully — stays
+   * unwrapped exactly as before, so trivial calls keep their bare report. */
+  needsWrap: boolean;
+}
+
+/**
+ * One shared descent for the four statement-level scans below
+ * (containsPipeline, hasBackgroundStatement, hasInvisibleStatement,
+ * hasChainConditional). The descent is the UNION of what the four used to
+ * walk: sequences, &&/|| chains, if/while/for/select bodies, brace groups,
+ * subshells, functions, coprocs, and case arms. Word interiors ($( ... ),
+ * <( ... )) are never descended into by any scan — a pipeline, `&`, or
+ * chain hidden there keeps the legacy behavior instead of a wrong one —
+ * and lone words, tests, and arithmetic commands end every scan.
+ *
+ * Each scan keeps its own refusal point in its leaf verdict: `true` claims
+ * the node and short-circuits, `false` refuses the whole subtree (it is
+ * not entered), and `"descend"` walks the node's statement children with
+ * the shared descent. A scan that used to stop at a node type refuses it
+ * here, so the union descent cannot widen what any scan matches: e.g.
+ * hasBackgroundStatement refuses Subshell/Function/Coproc (a `&` inside
+ * never reaches the trap), hasInvisibleStatement claims Subshell/Coproc
+ * at once, and hasChainConditional claims AndOr at once.
+ */
+type TreeVerdict = true | false | "descend";
+
+function matchInTree(
+  root: UnbashScript | UnbashNode,
+  decide: (node: UnbashScript | UnbashNode) => TreeVerdict,
+): boolean {
+  const walk = (node: UnbashScript | UnbashNode): boolean => {
+    const verdict = decide(node);
+    if (verdict !== "descend") return verdict;
+    switch (node.type) {
+      case "Script":
+      case "CompoundList":
+        return node.commands.some((s) => walk(s));
+      case "Statement":
+        return walk(node.command);
+      case "AndOr":
+        return node.commands.some((c) => walk(c));
+      case "If":
+        return (
+          walk(node.clause) ||
+          walk(node.then) ||
+          (node.else !== undefined && walk(node.else))
+        );
+      case "While":
+        return walk(node.clause) || walk(node.body);
+      case "For":
+      case "Select":
+      case "ArithmeticFor":
+        return walk(node.body);
+      case "Subshell":
+      case "BraceGroup":
+        return walk(node.body);
+      case "Function":
+      case "Coproc":
+        return walk(node.body);
+      case "Case":
+        return node.items.some((item) => walk(item.body));
+      default:
+        return false;
+    }
+  };
+  return walk(root);
+}
+
+/** Whether a statement-level tree contains a Pipeline node. Word interiors
+ * ($( ... ), <( ... )) are not descended into: a pipeline hidden there keeps
+ * the legacy behavior instead of a wrong one. */
+function containsPipeline(node: UnbashScript | UnbashNode): boolean {
+  return matchInTree(node, containsPipelineVerdict);
+}
+
+/** Leaf verdict for containsPipeline: only a Pipeline claims; a Command or
+ * anything unrecognized (tests, arithmetic, negation wrappers) refuses. */
+function containsPipelineVerdict(node: UnbashScript | UnbashNode): TreeVerdict {
+  switch (node.type) {
+    case "Pipeline":
+      return true;
+    case "Command":
+      return false;
+    case "Script":
+    case "CompoundList":
+    case "Statement":
+    case "AndOr":
+    case "If":
+    case "While":
+    case "For":
+    case "Select":
+    case "ArithmeticFor":
+    case "Subshell":
+    case "BraceGroup":
+    case "Function":
+    case "Coproc":
+    case "Case":
+      return "descend";
+    default:
+      return false;
+  }
+}
+
+/**
+ * The LAST pipeline of a flat statement sequence, when that pipeline is also
+ * the sequence's FINAL statement. PIPESTATUS is overwritten by every
+ * execution — a plain command after the pipeline reduces it to that one
+ * command's single code — so anything after the pipeline makes the names
+ * unattributable. Any control flow (if/while/case/subshell/function/...)
+ * or conditional (&&/||) anywhere disqualifies the script too: with
+ * branching, which pipeline runs LAST is not decidable from the source,
+ * and a confidently wrong label is worse than none. A statement backgrounded
+ * at or after the last pipeline (`cmd &`) disqualifies as well: the &
+ * returns control immediately, and the probe on ticket #142 (bash 5.3.9)
+ * showed the epilogue's PIPESTATUS is then empty or stale.
+ */
+function finalPipelineNaming(
+  command: string,
+  script: UnbashScript,
+): { names: string[]; leading: string } | null {
+  let last: Extract<UnbashNode, { type: "Pipeline" }> | undefined;
+  let trailing = false;
+  let flat = true;
+  const walk = (node: UnbashScript | UnbashNode): void => {
+    if (!flat) return;
+    switch (node.type) {
+      case "Script":
+      case "CompoundList":
+        for (const s of node.commands) {
+          const before = last;
+          walk(s);
+          if (last !== before) {
+            // This statement held a new, later pipeline: anything BEFORE it
+            // no longer counts as trailing.
+            trailing = false;
+          } else if (before !== undefined) {
+            // A statement that ran after the current last pipeline: PIPESTATUS
+            // will no longer hold that pipeline's stages.
+            trailing = true;
+          }
+        }
+        return;
+      case "Statement":
+        walk(node.command);
+        // A backgrounded statement AT OR AFTER the last pipeline (`cmd &`,
+        // including `cmd1 | cmd2 &`) disqualifies: the & returns control
+        // immediately and the epilogue's PIPESTATUS is either EMPTY (nothing
+        // ever wrote it) or STALE — still describing an earlier FOREGROUND
+        // pipeline (live probe, GNU bash 5.3.9, recorded on ticket #142:
+        // `false | cat &` -> [], `true | false; false | cat &` -> [0 1]).
+        // A backgrounded statement BEFORE the last pipeline is left alone:
+        // the foreground pipeline overwrites PIPESTATUS afterwards either
+        // way, so naming it stays honest.
+        if (
+          // `cmd &` at/after the last pipeline: PIPESTATUS is empty or stale
+          // (#142 probe, bash 5.3.9). Inline so the BUNDLE carries the reason
+          // too -- esbuild drops standalone comments here, and the artifact is
+          // what a reader lands in when debugging a live guard decision.
+          node.background === true &&
+          last !== undefined &&
+          node.pos >= last.pos
+        ) {
+          flat = false;
+        }
+        return;
+      case "Pipeline":
+        last = node;
+        return;
+      case "Command":
+        return;
+      default:
+        // AndOr, If, While, For, Select, ArithmeticFor, Subshell, BraceGroup,
+        // Function, Coproc, Case, TestCommand, ArithmeticCommand: the last
+        // executed pipeline is no longer a source-order fact.
+        flat = false;
+    }
+  };
+  walk(script);
+  if (!flat || last === undefined || trailing) return null;
+  const stages = last.commands;
+  if (stages.length === 0 || !stages.every((s) => s.type === "Command")) return null;
+  const names = stages.map((stage) =>
+    // Group 0: the group id only links operators for display, and a basename
+    // needs just the node and its source string.
+    getBasename({ node: stage as UnbashCommand, source: command, group: 0 }),
+  );
+  const leading = names[0];
+  return leading !== undefined && leading !== "" ? { names, leading } : null;
+}
+
+/**
+ * Any backgrounded statement the DEBUG trap could observe. The descent
+ * mirrors containsPipeline: subshells, functions and word interiors never
+ * fire the trap (live probes, GNU bash 5.3.9, ticket #143 — a sourced file's
+ * body, a function body, `( ... )`, and `$( ... )` all run silent), so a `&`
+ * hidden in those positions cannot poison the per-statement stream and is
+ * ignored. Everything else — sequences, &&/|| chains, if/while/for bodies,
+ * brace groups — fires, so a `&` there degrades the per-statement text
+ * (see PipeCapturePlan.hasBackground). `&&` is AndOr, not background, and
+ * never trips this scan.
+ */
+function hasBackgroundStatement(script: UnbashScript): boolean {
+  return matchInTree(script, (node) => {
+    switch (node.type) {
+      case "Statement":
+        // A backgrounded statement claims at once; otherwise descend into
+        // its command. Subshell, Function, Coproc, TestCommand,
+        // ArithmeticCommand and anything unrecognized refuse: their
+        // interiors never reach the trap, so a `&` inside cannot poison it.
+        return node.background === true ? true : "descend";
+      case "Pipeline":
+      case "Command":
+        return false;
+      case "Script":
+      case "CompoundList":
+      case "AndOr":
+      case "If":
+      case "While":
+      case "For":
+      case "Select":
+      case "ArithmeticFor":
+      case "BraceGroup":
+      case "Case":
+        return "descend";
+      default:
+        return false;
+    }
+  });
+}
+
+/**
+ * Any subshell or coprocessor statement the DEBUG trap cannot see. A
+ * top-level `( ... )` fires NO trap at all — neither for itself nor for its
+ * interior (live probe, GNU bash 5.3.9, ticket #143: `(false | cat)` leaves
+ * zero records, and its exit status surfaces nowhere in the stream). The
+ * per-statement report claims every top-level statement, so a script with
+ * such a statement degrades to the legacy report rather than printing an
+ * all-clear that never looked inside the subshell. Function bodies are
+ * included in the descent: a call records one summary line, but a subshell
+ * inside the body would still be invisible. Word interiors (`$( ... )`)
+ * are excluded like everywhere else: they contribute no statements, and
+ * the enclosing statement's own record stays factual.
+ */
+function hasInvisibleStatement(script: UnbashScript): boolean {
+  return matchInTree(script, (node) => {
+    switch (node.type) {
+      case "Subshell":
+      case "Coproc":
+        return true;
+      case "Pipeline":
+      case "Command":
+        return false;
+      case "Script":
+      case "CompoundList":
+      case "Statement":
+      case "AndOr":
+      case "If":
+      case "While":
+      case "For":
+      case "Select":
+      case "ArithmeticFor":
+      case "BraceGroup":
+      case "Function":
+      case "Case":
+        // Function bodies ARE descended into: a call records one summary
+        // line, but a subshell inside the body would still be invisible.
+        return "descend";
+      default:
+        return false;
+    }
+  });
+}
+
+/**
+ * Any &&/|| chain in statement position. The descent mirrors
+ * containsPipeline: word interiors never fire the trap, so a chain hidden
+ * in `$( ... )` cannot short-circuit the top-level stream and is ignored.
+ */
+function hasChainConditional(script: UnbashScript): boolean {
+  return matchInTree(script, (node) => {
+    switch (node.type) {
+      case "AndOr":
+        return true;
+      case "Pipeline":
+      case "Command":
+        return false;
+      case "Script":
+      case "CompoundList":
+      case "Statement":
+      case "If":
+      case "While":
+      case "For":
+      case "Select":
+      case "ArithmeticFor":
+      case "BraceGroup":
+      case "Case":
+        // Subshell, Function, Coproc and anything unrecognized refuse:
+        // word interiors never fire the trap, so a chain hidden in
+        // `$( ... )` cannot short-circuit the top-level stream.
+        return "descend";
+      default:
+        return false;
+    }
+  });
+}
+
+/**
+ * Whether a pipe-free command still deserves the capture wrap: sequences
+ * (`a; b`), chains (`a && b`), and branch/loop/brace singles, whose every
+ * statement fires the trap and can be attributed. A lone simple command
+ * needs no attribution (its exit code says everything), and lone
+ * definitions, subshells, coprocs and tests would only degrade into noise,
+ * so those stay unwrapped. Piped commands wrap regardless (hasPipe).
+ */
+function hasWrappableSteps(script: UnbashScript): boolean {
+  if (script.commands.length > 1) return true;
+  if (script.commands.length === 0) return false;
+  const only = script.commands[0];
+  const inner = only !== undefined && only.type === "Statement" ? only.command : undefined;
+  return (
+    inner !== undefined &&
+    (inner.type === "AndOr" ||
+      inner.type === "If" ||
+      inner.type === "While" ||
+      inner.type === "For" ||
+      inner.type === "Select" ||
+      inner.type === "ArithmeticFor" ||
+      inner.type === "BraceGroup")
+  );
+}
+
+/**
+ * The candidate pipeline of an &&/|| chain whose FINAL operand is a simple
+ * pipeline — ticket #144b's case (`cd X && cp Y && npx vitest | tail -5`).
+ * finalPipelineNaming deliberately declines these (if an early operand
+ * fails, the pipeline never runs, so the last-executed pipeline is not
+ * decidable from source), and that disqualification STANDS: this function
+ * does not claim the pipeline ran. It names the pipeline the numbers
+ * describe IF it ran, so the degraded report can print the stages beside
+ * an explicit unconfirmed-attribution warning instead of bare numbers no
+ * reader can place. Narrow on purpose: only a final AndOr operand that is
+ * itself a simple Pipeline qualifies — a final subshell, brace group, or
+ * anything else leaves the candidate null and the numbers withheld. A
+ * backgrounded chain (`a && b | c &`) declines too: under `&` the codes
+ * are empty or stale (probe on ticket #142), so even a warned candidate
+ * would pair names with garbage — the #142 invariant (nothing rather than
+ * something plausible) applies to candidates as well.
+ */
+function lastChainPipelineNaming(
+  command: string,
+  script: UnbashScript,
+): { names: string[]; leading: string } | null {
+  if (script.commands.length === 0) return null;
+  const lastStatement = script.commands[script.commands.length - 1];
+  if (lastStatement === undefined || lastStatement.type !== "Statement") return null;
+  if (lastStatement.background === true) return null;
+  let node: UnbashNode = lastStatement.command;
+  // Descend through a trailing &&/|| chain to its final operand. Anything
+  // else as the final statement (plain pipeline, subshell, brace group,
+  // control flow) is not this function's case: plain pipelines are named
+  // by the confirmed paths, the rest stay unnamed. At least one AndOr
+  // descent is required — without it this was never a chain.
+  let descended = false;
+  while (node.type === "AndOr") {
+    if (node.commands.length === 0) return null;
+    const lastOperand = node.commands[node.commands.length - 1];
+    if (lastOperand === undefined) return null;
+    node = lastOperand;
+    descended = true;
+  }
+  if (!descended) return null;
+  if (node.type !== "Pipeline") return null;
+  if (node.commands.length === 0 || !node.commands.every((s) => s.type === "Command")) {
+    return null;
+  }
+  const names = node.commands.map((stage) =>
+    // Group 0: the group id only links operators for display, and a basename
+    // needs just the node and its source string.
+    getBasename({ node: stage as UnbashCommand, source: command, group: 0 }),
+  );
+  const leading = names[0];
+  return leading !== undefined && leading !== "" ? { names, leading } : null;
+}
+
+/**
+ * Decide whether a command is worth wrapping for PIPESTATUS capture, and
+ * which stage names the capture may claim. Names come from the pipeline
+ * NODE — never from the flat extractAllCommandsFromAST list, which mixes in
+ * subshells, command substitutions and wrapper expansions and so does not
+ * correspond positionally to one pipeline's stages. A command that is not a
+ * single simple pipeline still captures (its last pipeline's bare codes),
+ * but `names` are null: a confidently mislabelled stage is worse than an
+ * unnamed one. When the script is a flat sequence ENDING in a simple
+ * pipeline, `finalNames`/`finalLeading` name that pipeline — the one
+ * PIPESTATUS actually holds — so a compound command's report can say which
+ * pipeline its codes belong to.
+ */
+export function planPipeCapture(command: string): PipeCapturePlan {
+  // Unannotated like evaluate()'s own parse: the inferred ParsedScript
+  // carries the optional errors list the plain Script type does not.
+  let script;
+  try {
+    script = parse(command);
+  } catch {
+    return {
+      hasPipe: false,
+      names: null,
+      finalNames: null,
+      finalLeading: null,
+      unconfirmedNames: null,
+      unconfirmedLeading: null,
+      hasBackground: false,
+      hasChain: false,
+      hasHiddenStatements: false,
+      needsWrap: false,
+    };
+  }
+  if (script.errors !== undefined && script.errors.length > 0) {
+    return {
+      hasPipe: false,
+      names: null,
+      finalNames: null,
+      finalLeading: null,
+      unconfirmedNames: null,
+      unconfirmedLeading: null,
+      hasBackground: false,
+      hasChain: false,
+      hasHiddenStatements: false,
+      needsWrap: false,
+    };
+  }
+  let names: string[] | null = null;
+  if (script.commands.length === 1) {
+    const only = script.commands[0];
+    const inner = only !== undefined && only.type === "Statement" ? only.command : undefined;
+    if (
+      inner !== undefined &&
+      inner.type === "Pipeline" &&
+      // A backgrounded pipeline (`cmd &`) must not claim names either: the
+      // epilogue's PIPESTATUS is empty or stale under `&` (probe on ticket
+      // #142), so the names would not match the reported codes.
+      only.background !== true &&
+      inner.commands.length > 0 &&
+      inner.commands.every((stage) => stage.type === "Command")
+    ) {
+      names = inner.commands.map((stage) =>
+        // Group 0: the group id only links operators for display, and a
+        // basename needs just the node and its source string.
+        getBasename({ node: stage as UnbashCommand, source: command, group: 0 }),
+      );
+    }
+  }
+  const final = finalPipelineNaming(command, script);
+  // The &&/||-final candidate is independent of the confirmed paths: it is
+  // only ever rendered beside an unconfirmed-attribution warning (see the
+  // degraded report below), so computing it here claims nothing by itself.
+  const chain = lastChainPipelineNaming(command, script);
+  const hasPipe = containsPipeline(script);
+  return {
+    hasPipe,
+    names,
+    finalNames: final?.names ?? null,
+    finalLeading: final?.leading ?? null,
+    unconfirmedNames: chain?.names ?? null,
+    unconfirmedLeading: chain?.leading ?? null,
+    hasBackground: hasBackgroundStatement(script),
+    hasChain: hasChainConditional(script),
+    hasHiddenStatements: hasInvisibleStatement(script),
+    needsWrap: hasPipe || hasWrappableSteps(script),
+  };
+}
+
+/**
+ * Decide the reported exit code from one pipeline's stage statuses: the
+ * rightmost non-zero stage, except that a 141 (SIGPIPE) is forgiven when a
+ * downstream stage exists and every stage after it exited 0 — the benign
+ * `producer | head/tail` idiom, where the producer dies only because the
+ * consumer already has what it needs. A lone 141 with no downstream stage
+ * is genuine and still reported.
+ */
+export function decidePipeExit(stages: number[]): number {
+  const effective = stages.map((code, i) =>
+    code === 141 &&
+    i + 1 < stages.length &&
+    stages.slice(i + 1).every((later) => later === 0)
+      ? 0
+      : code,
+  );
+  for (let i = effective.length - 1; i >= 0; i--) {
+    if (effective[i] !== 0) return effective[i] as number;
+  }
+  return 0;
+}
+
+/** Render stage statuses the way the model reads them: `vite 1, grep 0` when
+ * named, bare codes when the names were omitted rather than guessed. */
+export function formatPipeStages(stages: PipeStageStatus[]): string {
+  return stages
+    .map((s) =>
+      s.name !== undefined && s.name !== "" ? `${s.name} ${s.exitCode}` : `${s.exitCode}`,
+    )
+    .join(", ");
+}
+
+/**
+ * One per-statement record from the DEBUG-trap capture file: the command
+ * that just completed (BASH_COMMAND is the command about to run, so the
+ * handler records the PREVIOUS one) and the exit codes saved on entry
+ * (PIPESTATUS of that same previous command — see the pairing note on
+ * attributeStepStatements).
+ */
+export interface StepRecord {
+  command: string;
+  codes: number[];
+}
+
+/** One top-level statement with its OWN exit codes, after grouping. */
+export interface AttributedStatement {
+  /** Stage texts for a pipeline, one text for a single command. */
+  stages: string[];
+  codes: number[];
+}
+
+export interface StepCapture {
+  complete: boolean;
+  /** Grouped statements, ending in the final statement. Empty unless complete. */
+  statements: AttributedStatement[];
+  /** The EXIT trap's `$?`: authoritative for the command's own exit. */
+  endRc: number;
+  /** Why the capture degraded, for the coverage-lost note. Absent when complete. */
+  lossReason?: string;
+}
+
+/** A first-line match for a user-installed trap command. The guard's own
+ * install lines carry the `__dsh_` namespace and are dropped before this
+ * scan ever sees them, so any `trap ...` record here is the user's. */
+const USER_TRAP_QUERY = /^\s*trap\s+-(p|l)(\s|$)/;
+const USER_TRAP_TAMPER = /^\s*(command\s+|builtin\s+)?trap(\s|;|$)/;
+/** `set -T` / `set -eT` / `set -o functrace`: enabling functrace changes the
+ * trap's scope (it descends into functions) and corrupts the stream shape
+ * (live probe, ticket #143). Disabling (`+T`, `+o functrace`) is harmless. */
+const USER_FUNCTRACE_TAMPER = [/^\s*set\s+-[A-Za-z]*T/, /^\s*set\s+.*-o\s+functrace\b/];
+
+/**
+ * Parse the DEBUG-trap steps file into per-statement records. Returns
+ * complete:false (with a lossReason) whenever the stream cannot be trusted:
+ * no END marker (the user's EXIT trap replaced ours, or the shell never
+ * reached it via `exec`/signal), a user DEBUG-trap install or clear after
+ * our install, user-enabled functrace, or an empty stage record.
+ */
+export function parseStepCapture(text: string): StepCapture {
+  const lines = text.split("\n");
+  // The file must END with the EXIT trap's marker (a trailing newline after
+  // it is fine). Anything else means the EXIT handler never ran.
+  let endIndex = lines.length - 1;
+  while (endIndex >= 0 && lines[endIndex]?.trim() === "") endIndex--;
+  const endLine = endIndex >= 0 ? lines[endIndex] : undefined;
+  const endMatch = endLine !== undefined ? /^END rc=(\d+)\s*$/.exec(endLine) : null;
+  if (endMatch === null || endMatch[1] === undefined) {
+    return {
+      complete: false,
+      statements: [],
+      endRc: 0,
+      lossReason: "the command replaced the EXIT trap, or never reached it",
+    };
+  }
+  const endRc = Number(endMatch[1]);
+  const records: StepRecord[] = [];
+  const recordStart = /^\[([\d ]*)\] :: ?(.*)$/;
+  for (const line of lines.slice(0, endIndex)) {
+    const match = recordStart.exec(line);
+    if (match !== null) {
+      const rawCodes = (match[1] ?? "").trim();
+      const codes =
+        rawCodes === ""
+          ? []
+          : rawCodes
+              .split(/\s+/)
+              .map((s) => Number(s))
+              .filter((n) => Number.isInteger(n));
+      records.push({ command: match[2] ?? "", codes });
+    } else if (records.length > 0 && line !== "") {
+      // A multiline BASH_COMMAND (heredoc, multi-line string): continuation
+      // lines belong to the open record. Truly stray lines cannot occur —
+      // only our handler writes this file — so anything else appends.
+      records[records.length - 1]!.command += `\n${line}`;
+    }
+  }
+  // Our own installation and epilogue lines fire the trap like any named
+  // command. They carry the reserved `__dsh_` namespace; drop them before
+  // any other decision so they can never read as user statements. (On the
+  // normal path this also removes the EXIT-trap flush and the EOF quirk
+  // firing, which both carry epilogue text — the final user statement's
+  // record is the one written at the epilogue's first firing.)
+  const installedDropped = records.filter((r) => !r.command.includes("__dsh_"));
+  // A literal trailing `exit N` terminates the shell, so its firing record,
+  // the quirk record and the flush record triple up on the same text. Only
+  // the last copy (the flush, overridden with END rc below) may stay: an
+  // earlier copy carries the previous pipeline's codes and would false-close
+  // a group with the `exit` as a phantom stage. (`eval exit N` and friends
+  // keep today's behavior — the override below covers literal `exit` only,
+  // and anything else falls back to naming the final statement.)
+  const EXIT_RECORD = /^\s*exit(\s|;|$)/;
+  const lastExitIndex = (() => {
+    let found = -1;
+    installedDropped.forEach((r, i) => {
+      if (EXIT_RECORD.test(r.command.split("\n")[0] ?? "")) found = i;
+    });
+    return found;
+  })();
+  const userRecords =
+    lastExitIndex < 0
+      ? installedDropped
+      : installedDropped.filter(
+          (r, i) => i === lastExitIndex || !EXIT_RECORD.test(r.command.split("\n")[0] ?? ""),
+        );
+  // A script that installs its own DEBUG/EXIT trap, or clears ours, keeps
+  // running fine — but every statement after that point is unattributed, so
+  // the capture degrades instead of claiming coverage it does not have. A
+  // read-only `trap -p` / `trap -l` query changes nothing and is allowed.
+  for (const record of userRecords) {
+    const firstLine = record.command.split("\n")[0] ?? "";
+    if (USER_TRAP_TAMPER.test(firstLine) && !USER_TRAP_QUERY.test(firstLine)) {
+      return {
+        complete: false,
+        statements: [],
+        endRc,
+        lossReason: "the command replaced or cleared the capture traps",
+      };
+    }
+    if (USER_FUNCTRACE_TAMPER.some((pattern) => pattern.test(firstLine))) {
+      return {
+        complete: false,
+        statements: [],
+        endRc,
+        lossReason: "the command enabled functrace, which changes the capture scope",
+      };
+    }
+  }
+  if (userRecords.length === 0) {
+    return {
+      complete: false,
+      statements: [],
+      endRc,
+      lossReason: "no per-statement records were captured",
+    };
+  }
+  // The shell fires DEBUG once more for the final command just before the
+  // EXIT trap (live probe, GNU bash 5.3.9, ticket #143), so the final record
+  // arrives twice: once from that firing, once from the EXIT flush. Both
+  // saves happen after the final statement completed with nothing real
+  // between them, so the pair is always identical and the second copy drops.
+  // Only this KNOWN pair collapses: a genuine `false; false` repeat keeps
+  // both records (the first carries the earlier statement's codes), and only
+  // an exact duplicate of the final record is ever removed.
+  const deduped = [...userRecords];
+  const last = deduped[deduped.length - 1]!;
+  const secondLast = deduped[deduped.length - 2];
+  if (
+    secondLast !== undefined &&
+    secondLast.command === last.command &&
+    secondLast.codes.length === last.codes.length &&
+    secondLast.codes.every((code, i) => code === last.codes[i])
+  ) {
+    deduped.pop();
+  }
+  const statements = attributeStepStatements(deduped, endRc);
+  if (statements === null) {
+    return {
+      complete: false,
+      statements: [],
+      endRc,
+      lossReason: "the capture stream does not group into statements",
+    };
+  }
+  return { complete: true, statements, endRc };
+}
+
+/**
+ * Group per-firing records into statements with their OWN exit codes.
+ *
+ * Pairing is DIRECT, not shifted: the handler records the PREVIOUS command
+ * (BASH_COMMAND is the command about to run, useless for attribution) beside
+ * the PIPESTATUS saved on entry — which is that previous command's own
+ * stages, because nothing else completed between its run and this firing.
+ * So record[i].codes IS record[i].command's own codes, with exactly one
+ * systematic exception: a pipeline fires once per STAGE, and a non-final
+ * stage is still running when the next stage's firing saves — its record
+ * carries STALE codes belonging to an earlier statement. Those records are
+ * never read: walking backward, a record with N > 1 codes ENDS an N-stage
+ * pipeline (the array was saved after its last stage completed, so it lands
+ * ON that stage), and the N most recent commands take those codes.
+ * Arity-1 records are single statements with the codes they carry.
+ *
+ * Consequences this encoding relies on (all live-probed, ticket #143):
+ * - The final record's codes are always the final statement's own: on the
+ *   normal path it is written at the epilogue's first firing (after the
+ *   final statement completed; the epilogue's own firings are filtered by
+ *   namespace), and on a mid-script `exit` path it is the EXIT flush.
+ * - The save MUST be the handler's first expansion: a save placed after
+ *   even one handler command reads all zeros.
+ * - A trailing literal `exit N` record carries the previous pipeline's
+ *   codes (`exit` does not reset PIPESTATUS), so it is overridden with the
+ *   EXIT trap's authoritative `$?` (earlier `exit` copies are dropped in
+ *   parseStepCapture so the stale one cannot false-close a group).
+ *
+ * Returns null when the stream cannot group (an empty stage record, or a
+ * stage count running past the observed commands) — the caller degrades.
+ */
+function attributeStepStatements(records: StepRecord[], endRc: number): AttributedStatement[] | null {
+  const n = records.length;
+  const last = records[n - 1]!;
+  if (last.codes.length === 0) return null;
+  // A trailing `exit N`: its record holds the previous pipeline's codes, not
+  // the exit status. The END marker is authoritative for what the command
+  // asked for, so the record takes it.
+  const lastFirstLine = last.command.split("\n")[0] ?? "";
+  const codes: number[][] = records.map((r) => r.codes);
+  if (/^\s*exit(\s|;|$)/.test(lastFirstLine)) {
+    codes[n - 1] = [endRc];
+  }
+  if (n === 1) {
+    // A single-statement script: the lone record carries its own codes.
+    return [{ stages: [records[0]!.command], codes: codes[0]! }];
+  }
+  // Direct pairing (see above): record j carries its own command's codes,
+  // except non-final stages, which are consumed unread by the group their
+  // last stage closes. Record 0 needs no special case: the first firing's
+  // record carries install text and is filtered before grouping, so every
+  // surviving record describes a real completed command.
+  const consumed = new Array<boolean>(n).fill(false);
+  const byIndex = new Map<number, AttributedStatement>();
+  for (let j = n - 1; j >= 0; j--) {
+    if (consumed[j] === true) continue;
+    const ownCodes = codes[j]!;
+    if (ownCodes.length === 0) return null;
+    if (ownCodes.length === 1) {
+      byIndex.set(j, { stages: [records[j]!.command], codes: ownCodes });
+    } else {
+      const size = ownCodes.length;
+      const start = j - size + 1;
+      if (start < 0) return null;
+      for (let k = start; k <= j; k++) {
+        if (consumed[k] === true) return null;
+      }
+      const stages: string[] = [];
+      for (let k = start; k <= j; k++) {
+        consumed[k] = true;
+        stages.push(records[k]!.command);
+      }
+      byIndex.set(start, { stages, codes: ownCodes });
+      j = start;
+    }
+  }
+  const statements: AttributedStatement[] = [];
+  for (let i = 0; i < n; i++) {
+    const statement = byIndex.get(i);
+    if (statement !== undefined) statements.push(statement);
+  }
+  return statements;
+}
+
+/**
+ * The degraded codes line: what the legacy final-pipeline report may print
+ * when per-statement capture is unavailable. Returns "" when nothing may
+ * print. Pure (no I/O) so the honesty rules pin directly under test.
+ *
+ * - A confidently named pipeline prints its stages (single-pipeline `names`
+ *   or flat-final `finalNames` — the one PIPESTATUS actually holds).
+ * - An &&/|| chain ending in a pipeline prints the candidate stages ONLY
+ *   beside the unconfirmed-attribution warning, and only when the stage
+ *   count matches the codes (a short-circuited chain leaves an earlier
+ *   single command's codes, which cannot be this pipeline's).
+ * - A chained command with no matching candidate withholds the numbers
+ *   entirely: bare unlabelled codes are the one actively misleading render.
+ * - Chain-free unnamed commands (brace group, branch, subshell) keep
+ *   today's bare render.
+ */
+export function renderDegradedCodesLine(
+  pipeStages: PipeStageStatus[],
+  plan: PipeCapturePlan,
+): string {
+  const stageNames = plan.names !== null ? plan.names : plan.finalNames;
+  if (stageNames !== null) {
+    return `[exit codes: ${formatPipeStages(pipeStages)}]`;
+  }
+  if (
+    plan.unconfirmedNames !== null &&
+    plan.unconfirmedNames.length === pipeStages.length
+  ) {
+    const unconfirmed = pipeStages.map((stage, i) => ({
+      ...stage,
+      name: plan.unconfirmedNames![i] as string,
+    }));
+    return (
+      `[exit codes (unconfirmed — the \`&&\`/\`||\` chain may have ` +
+      `short-circuited; these name the final pipeline ` +
+      `(led by \`${plan.unconfirmedLeading}\`) only if it ran): ` +
+      `${formatPipeStages(unconfirmed)}]`
+    );
+  }
+  if (!plan.hasChain) {
+    return `[exit codes: ${formatPipeStages(pipeStages)}]`;
+  }
+  return "";
+}
+
+/**
+ * The degraded scope note: PIPESTATUS holds the LAST pipeline only. On a
+ * successful compound run the note carries the final pipeline's stage codes
+ * (ticket #144a) — scope plus its data, never scope alone. A coverage loss
+ * appends its reason. Returns "" when no note prints (single pipelines, or
+ * no capture at all). Pure, for the same reason as renderDegradedCodesLine.
+ */
+export function renderDegradedScopeNote(
+  pipeStages: PipeStageStatus[],
+  plan: PipeCapturePlan,
+  reportedExit: number | null,
+  stepLossReason: string | undefined,
+): string {
+  if (plan.names !== null) return "";
+  const carryingCodes = reportedExit === 0 ? `: ${formatPipeStages(pipeStages)}` : "";
+  return (
+    `[exit codes cover the final pipeline only` +
+    (plan.finalLeading !== null
+      ? ` (last pipeline led by \`${plan.finalLeading}\`${carryingCodes})`
+      : carryingCodes !== ""
+        ? ` (${carryingCodes.slice(2)})`
+        : "") +
+    `; earlier lines of a compound command were not captured` +
+    (stepLossReason !== undefined ? `; per-statement capture was lost (${stepLossReason})` : "") +
+    `]`
+  );
+}
+
+/** First line, capped: multiline BASH_COMMANDs (heredocs) render as one. */
+function shortCommandText(command: string, maxLength = 120): string {
+  const firstLine = command.split("\n")[0] ?? "";
+  return firstLine.length > maxLength ? `${firstLine.slice(0, maxLength)}…` : firstLine;
+}
+
+/** Render one grouped statement the way the model reads it. */
+function renderAttributedStatement(statement: AttributedStatement): string {
+  const renderedStages = statement.stages.map((stage) => `\`${shortCommandText(stage)}\``);
+  const renderedCodes = statement.codes.join(", ");
+  if (renderedStages.length === 1) return `${renderedStages[0]} ${renderedCodes}`;
+  return `${renderedStages.join(" | ")} → ${renderedCodes}`;
+}
+
+/**
+ * Render the complete per-statement capture. Success is one line (every
+ * statement's code is data, so the scope never stands alone — ticket #144a);
+ * failure names each failing statement (ticket #143's attribution). A
+ * nonzero exit with no failing statement (explicit `exit N` is overridden
+ * into its record, so this is the `!`-negation shape) falls back to naming
+ * the final statement beside the authoritative exit.
+ */
+export function renderStepReport(statements: AttributedStatement[], endRc: number): string {
+  const failed = statements.filter((s) => decidePipeExit(s.codes) !== 0);
+  if (failed.length === 0 && endRc === 0) {
+    return `[exit codes: all ${statements.length} statements exited 0]`;
+  }
+  const rendered = failed.map((s) => renderAttributedStatement(s));
+  if (rendered.length === 0 && statements.length > 0) {
+    // A nonzero exit with no failing statement of its own (`!`-negation and
+    // friends invert the verdict after the fact): name the final statement
+    // beside the authoritative exit rather than print bare scope.
+    const final = statements[statements.length - 1]!;
+    rendered.push(`${renderAttributedStatement(final)} (final statement; command exited ${endRc})`);
+  }
+  return `[exit codes (${failed.length} of ${statements.length} statements failed): ${rendered.join("; ")}]`;
+}
+
+/** Render one completed foreground run into the text the model receives. */
+function renderShellResult(result: {
+  exitCode: number | null;
+  signal: string | null;
+  timedOut: boolean;
+  timeoutMs: number;
+  stdout: { text: string };
+  stderr: { text: string };
+  sandbox?: { denied: boolean; mode: SandboxMode };
+}): string {
+  let body = result.stdout.text;
+  const stderr = result.stderr.text;
+  if (stderr.length > 0) {
+    if (body.length > 0 && !body.endsWith("\n")) body += "\n";
+    body += `[stderr]\n${stderr}`;
+  }
+  if (body.length === 0) body = "(no output)";
+  const markers: string[] = [];
+  if (result.sandbox?.denied) {
+    markers.push(`[sandbox: file access denied under ${result.sandbox.mode} mode]`);
+  }
+  if (result.timedOut) markers.push(`[timed out after ${result.timeoutMs}ms]`);
+  if (result.signal !== null) markers.push(`[killed by signal: ${result.signal}]`);
+  else if (result.exitCode !== 0) markers.push(`[exit code: ${result.exitCode}]`);
+  if (markers.length === 0) return body;
+  if (!body.endsWith("\n")) body += "\n";
+  return body + markers.join("\n");
+}
+
+/** Render the terminal bash facts of a background process into the job
+ * outcome detail, with the same markers the foreground path prints. */
+function renderProcessDetail(proc: {
+  exitCode: number | null;
+  signal: NodeJS.Signals | null;
+  sandbox?: { denied: boolean; mode: SandboxMode };
+}): { status: "completed" | "killed" | "failed"; detail?: string } {
+  const markers: string[] = [];
+  if (proc.sandbox?.denied) {
+    markers.push(`[sandbox: file access denied under ${proc.sandbox.mode} mode]`);
+  }
+  if (proc.signal !== null) {
+    markers.push(`[killed by signal: ${proc.signal}]`);
+    return { status: "killed", detail: markers.join("\n") };
+  }
+  if (proc.exitCode !== 0) markers.push(`[exit code: ${proc.exitCode}]`);
+  return { status: "completed", detail: markers.length > 0 ? markers.join("\n") : undefined };
+}
+
+/** Format one incremental read of a background process into job output text,
+ * adding the truncation and spill notices the producer owes the reader. */
+function renderProcessDelta(read: {
+  delta: string;
+  lossy: boolean;
+  stdoutSpillPath?: string;
+  stderrSpillPath?: string;
+}): string {
+  if (!read.lossy) return read.delta;
+  let text = "[output truncated; unread bytes are gone]";
+  if (read.stdoutSpillPath !== undefined) text += `\n[full stdout: ${read.stdoutSpillPath}]`;
+  if (read.stderrSpillPath !== undefined) text += `\n[full stderr: ${read.stderrSpillPath}]`;
+  if (read.delta.length > 0) text += `\n${read.delta}`;
+  return text;
+}
+
+// ── Pre-command hooks: the escape hatch ────────────────────────────────────
+//
+// Owner spec 2026-09-24, semantics confirmed ("escape hatch"): the rule layer
+// stays the default policy. When — and only when — the rules gate a command
+// (an ask, or a deny that carries escapable:true), every executable FILE in
+// hooksDir is offered the decision, in name order:
+//
+//   hook <depth> <command>     cwd = the command's resolved workdir, when one
+//                              is known; the harness cwd otherwise
+//     env DSH_HOOK_PROFILE     the aidos bash profile, or "none"
+//     env DSH_HOOK_VERDICT     "ask" | "deny" — what the rules decided
+//
+//   exit 0   → the command runs, no approval prompt (first such hook wins;
+//              later hooks are not consulted)
+//   nonzero  → this hook passes; the block stands unless a later hook allows
+//
+// A hook that cannot run at all (spawn failure, timeout, killed by the tool
+// call's abort) can never allow — fail closed — and never denies anything on
+// its own: the rule verdict it failed to escape still applies unchanged.
+// Hooks cannot relax the sandbox (executor-level) or the aidos write
+// boundary; they only bypass the rule layer's ask/deny for commands the
+// owner has scripted exceptions for.
+//
+// The depth is delegationDepthOf(agent) from @deepseek-ai/dsh-subagent —
+// max(session header delegationDepth, runtime subagentDepth) — the same
+// number aidos itself uses, so no aidos change and no pin moves.
+
+/** Cap on one hook's captured stdout/stderr: diagnostics, not a data channel. */
+const HOOK_OUTPUT_CAP = 4096;
+
+/** The result of offering one gated command to the hooks. */
+interface HookDecision {
+  allowed: boolean;
+  /** The hook that allowed (basename), for the log line. */
+  hook?: string;
+}
+
+/**
+ * Executable regular files in `dir`, in name order. A missing/unreadable
+ * directory means the feature is off — no hooks, no error, behavior
+ * identical to a build without hooks. Directories are skipped even though
+ * they carry the execute bit, and so is anything without it.
+ */
+async function listHooks(dir: string): Promise<string[]> {
+  let names;
+  try {
+    names = await readdir(dir);
+  } catch {
+    return [];
+  }
+  const out: string[] = [];
+  for (const name of names.sort()) {
+    const path = join(dir, name);
+    try {
+      const info = await stat(path);
+      if (!info.isFile()) continue;
+      await access(path, fsConstants.X_OK);
+      out.push(path);
+    } catch {
+      // Not a file / not executable / unreadable: not a hook.
+    }
+  }
+  return out;
+}
+
+/** Spawn one hook and settle its exit code (null on spawn failure/kill/abort). */
+function runOneHook(
+  path: string,
+  depth: number,
+  command: string,
+  env: NodeJS.ProcessEnv,
+  cwd: string | undefined,
+  timeoutMs: number,
+  signal: AbortSignal | undefined,
+): Promise<{ code: number | null; stderr: string }> {
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn(path, [String(depth), command], { cwd, env, signal, timeout: timeoutMs });
+    } catch {
+      resolve({ code: null, stderr: "" });
+      return;
+    }
+    let settled = false;
+    let stderr = "";
+    const settle = (code: number | null) => {
+      if (settled) return;
+      settled = true;
+      // 'exit' — not 'close': a hook's orphaned grandchild can hold the
+      // stdio pipes open long after the hook itself died (spawn's timeout
+      // kill reaches only the direct child), and 'close' would wait for it.
+      // Destroy the streams so nothing the guard owns waits on the orphan.
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      resolve({ code, stderr });
+    };
+    // Drain stdout so a full pipe cannot wedge the hook; the hook's stdout
+    // is not a data channel.
+    child.stdout?.on("data", () => {});
+    child.stderr?.on("data", (chunk: Buffer) => {
+      if (stderr.length < HOOK_OUTPUT_CAP) stderr += chunk.toString("utf8", 0, HOOK_OUTPUT_CAP - stderr.length);
+    });
+    child.on("error", () => settle(null));
+    child.on("exit", (code) => settle(code));
+  });
+}
+
+/**
+ * Offer one gated command to every hook. First exit-0 wins; a hook that
+ * cannot run counts as non-allowing (fail closed). Never throws.
+ */
+async function runCommandHooks(
+  ctx: Context,
+  dir: string,
+  input: {
+    depth: number;
+    command: string;
+    profile: string;
+    verdict: "ask" | "deny";
+    workdir?: string;
+    timeoutMs: number;
+    signal?: AbortSignal;
+  },
+): Promise<HookDecision> {
+  const hooks = await listHooks(dir);
+  if (hooks.length === 0) return { allowed: false };
+  const env = {
+    ...process.env,
+    DSH_HOOK_PROFILE: input.profile,
+    DSH_HOOK_VERDICT: input.verdict,
+  };
+  for (const path of hooks) {
+    let outcome: { code: number | null; stderr: string };
+    try {
+      outcome = await runOneHook(
+        path,
+        input.depth,
+        input.command,
+        env,
+        input.workdir,
+        input.timeoutMs,
+        input.signal,
+      );
+    } catch (error) {
+      ctx.logger.warn(
+        `bash-guard: pre-command hook ${path} failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      continue;
+    }
+    if (outcome.code === 0) {
+      ctx.logger.info(
+        `bash-guard: pre-command hook ${path} allowed a gated command (${input.verdict}): ${input.command}`,
+      );
+      return { allowed: true, hook: path };
+    }
+    if (outcome.code === null) {
+      ctx.logger.warn(`bash-guard: pre-command hook ${path} did not exit cleanly; it cannot allow`);
+    } else if (outcome.stderr.trim().length > 0) {
+      // The hook declined with a reason: log it, so a misfiring hook is
+      // diagnosable from the journal without a manual re-run.
+      ctx.logger.debug(
+        `bash-guard: pre-command hook ${path} declined (exit ${outcome.code}): ${outcome.stderr.trim().split("\n")[0]}`,
+      );
+    }
+  }
+  return { allowed: false };
+}
+
+export function apply(ctx: Context, config: BashGuardConfig): void {
+  const baseDir = resolveHome(config.guardsDir ?? "$DSH_HOME/plugins/guards");
+  const hooksBase = resolveHome(config.hooksDir ?? "$DSH_HOME/plugins/command-hooks");
+
+  // Advertise the escalation arguments only when the executor confines.
+  // Without confinement they must not exist in the schema at all.
+  const sandboxMode = ctx.shell.sandboxMode;
+  const escalationModes: readonly SandboxMode[] =
+    sandboxMode === undefined ? [] : ESCALATION_TARGETS;
+  const sandboxPolicy = (ctx as unknown as { get(name: string): unknown }).get("sandboxPolicy") as
+    SandboxPolicyServiceLike | undefined;
+  if (sandboxMode !== undefined && sandboxPolicy === undefined) {
+    throw new Error(
+      "bash-guard: the mounted shell executor confines but ctx.sandboxPolicy is missing",
+    );
+  }
+  const approval = (ctx as unknown as { get(name: string): unknown }).get("approval") as
+    ApprovalServiceLike | undefined;
+
+  ctx.tools.register(
+    defineTool({
+      name: "bash",
+      description:
+        "Run a bash command and return its output. Every command passes the " +
+        "bash-guard rule layer first: a rule may replace the command with a " +
+        "preferred form (which runs directly), ask you to wait for user " +
+        "approval, or deny it. A pre-command hook may also allow a gated " +
+        "command without a prompt. " +
+        (escalationModes.length > 0
+          ? "When the sandbox denies a file operation, retry the exact same command once with sandbox_permissions plus a one-sentence justification. A rejected escalation is final for that command."
+          : ""),
+      parameters: {
+        command: {
+          type: "string",
+          required: true,
+          description: "The bash command to execute.",
+        },
+        description: {
+          type: "string",
+          required: true,
+          description:
+            'Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: "ls" → "List files in current directory"; "git status" → "Show working tree status".',
+        },
+        timeoutMs: {
+          type: "number",
+          description:
+            "Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry.",
+        },
+        run_in_background: {
+          type: "boolean",
+          description:
+            "Set true to run the command in the background. The call returns a job id immediately instead of waiting. Read the output with job_output, list jobs with job_list, and stop the job with job_kill. The bash-guard rules still gate the command before it starts.",
+        },
+        workdir: {
+          type: "string",
+          description:
+            "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it.",
+        },
+        ...(escalationModes.length > 0
+          ? {
+              sandbox_permissions: {
+                type: "string" as const,
+                enum: [...escalationModes],
+                description:
+                  "The wider sandbox mode this command needs. Only valid as a one-shot retry of a command the sandbox just denied; requires justification and user approval.",
+              },
+              justification: {
+                type: "string" as const,
+                description:
+                  "Required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access.",
+              },
+            }
+          : {}),
+      },
+      output: {
+        schema: {
+          type: "object",
+          properties: {
+            text: { type: "string", required: true },
+            ran: { type: "string", required: true },
+            rewritten: { type: "boolean", required: true },
+            exitCode: {
+              type: "integer",
+              description:
+                "The reported exit code: the pipeline-aware decision over PIPESTATUS, not bash's last-stage default.",
+            },
+            denied: {
+              type: "boolean",
+              description: "Whether the sandbox denied a file operation during this call.",
+            },
+            pipeStages: {
+              type: "array",
+              description:
+                "One entry per stage of the last pipeline (PIPESTATUS), paired with program names when they can be honestly attributed — the whole command a single simple pipeline, or a flat script whose final statement is that pipeline. Present only when the command was wrapped for capture.",
+              items: {
+                type: "object",
+                properties: {
+                  name: {
+                    type: "string",
+                    description:
+                      "Stage program name; absent when the command is not a single simple pipeline.",
+                  },
+                  exitCode: { type: "integer", required: true },
+                },
+                additionalProperties: false,
+              },
+            },
+          },
+          additionalProperties: false,
+        },
+        render: (_args, value) => [{ type: "text", text: value.text }],
+        // EVERY KEY IS ASSIGNED ONLY WHEN DEFINED. `text`, `ran` and
+        // `rewritten` are required by the schema above and are set on every
+        // return path, so they are unconditional. `exitCode` and `denied` are
+        // OPTIONAL and are genuinely absent on the background path
+        // (`return { text, ran, rewritten }` at the run_in_background branch),
+        // because a job that has only just started has not exited and was not
+        // denied.
+        //
+        // Reading an absent property yields `undefined`, and assigning that
+        // produces a key PRESENT with value `undefined`, which violates the
+        // plain-JSON contract the harness enforces on tool output
+        // (walkJsonValue in @deepseek-ai/dsh-session rejects undefined, along
+        // with non-finite numbers, -0, functions, symbols, cycles, and
+        // non-plain prototypes). The whole call then fails with
+        // `output.presentationMeta returned non-lossless JSON` — so every
+        // backgrounded bash call failed its result while the job itself ran
+        // fine, which is what made it read as a phantom error (#131).
+        //
+        // The `pipeStages` guard below was already correct; the bug was that
+        // its two neighbours did not follow it.
+        presentationMeta: (_args, value) => ({
+          ran: value.ran,
+          rewritten: value.rewritten,
+          ...(value.exitCode !== undefined ? { exitCode: value.exitCode } : {}),
+          ...(value.denied !== undefined ? { denied: value.denied } : {}),
+          ...(value.pipeStages !== undefined ? { pipeStages: value.pipeStages } : {}),
+        }),
+      },
+      async execute(args, exec) {
+        const agent = exec.agent;
+        const command = args.command;
+        if (typeof command !== "string" || command.trim().length === 0) {
+          throw new Error("command is required");
+        }
+
+        // Standing sandbox policy for this call. A confining executor always
+        // needs the policy service; apply() already threw without it.
+        const standing =
+          sandboxPolicy !== undefined && agent !== undefined
+            ? sandboxPolicy.resolve({ session: agent.session })
+            : undefined;
+        let policy = standing;
+        // Validate an escalation request now, so a malformed one fails before
+        // any prompt. The approval itself waits until the guard has decided
+        // the command will run at all. Asking first would let a rule deny a
+        // command AFTER the user had already granted it wider access, which
+        // spends an approval on nothing.
+        let escalateTo: SandboxMode | undefined;
+        if (args.sandbox_permissions !== undefined) {
+          if (escalationModes.length === 0) {
+            throw new Error(
+              "sandbox_permissions is not available in this composition (the executor does not confine)",
+            );
+          }
+          if (typeof args.justification !== "string" || args.justification.trim().length === 0) {
+            throw new Error(
+              "justification is required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access",
+            );
+          }
+          if (standing === undefined || agent === undefined || approval === undefined) {
+            throw new Error(
+              "sandbox escalation is unavailable here: it needs a confining executor, a calling agent, and a mounted approval service",
+            );
+          }
+          const requested = args.sandbox_permissions as SandboxMode;
+          if (!WIDER_MODES[standing.mode].includes(requested)) {
+            throw new Error(
+              `sandbox_permissions "${requested}" is not strictly wider than the effective mode "${standing.mode}"; a non-widening request never prompts`,
+            );
+          }
+          escalateTo = requested;
+        }
+
+        // Guard evaluation, exactly as the tools/pre-execute listener did it.
+        const safePaths: string[] = ["/tmp/dsh"];
+        let workspaceRoot: string | undefined;
+        const aidos = (ctx as unknown as { get(name: string): unknown }).get("aidos") as
+          | {
+              bashContext(agent: unknown): {
+                profile: string;
+                scratchDir: string;
+                workspaceRoot: string;
+              };
+            }
+          | undefined;
+        let profile = "none";
+        if (aidos && agent) {
+          try {
+            const bc = aidos.bashContext(agent);
+            profile = bc.profile;
+            workspaceRoot = bc.workspaceRoot;
+            if (bc.scratchDir) safePaths.push(bc.scratchDir);
+            ctx.logger.debug(`bash-guard: resolved aidos profile: ${profile}`);
+          } catch {
+            ctx.logger.debug(`bash-guard: aidos context not available; using default profile`);
+          }
+        }
+        const dirs =
+          profile === "none" ? [baseDir] : [baseDir, join(baseDir, `profile-${profile}`)];
+        const templates = { deny: config.denyMessage, ask: config.askMessage };
+
+        // The workdir is resolved once, before the verdict: the hook (when
+        // one runs) and the shell request below must see the same directory,
+        // and the hook needs it BEFORE the ask path computes anything.
+        const headerCwd = agent?.session.header.cwd;
+        const workdir =
+          args.workdir === undefined
+            ? headerCwd
+            : headerCwd !== undefined && !isAbsolute(args.workdir)
+              ? resolve(headerCwd, args.workdir)
+              : args.workdir;
+
+        let outcome = await evaluate(ctx, dirs, command, safePaths, workspaceRoot, templates);
+
+        // Pre-command hooks, escape-hatch semantics: only a RULE verdict is
+        // escapable (ask always; deny only with escapable:true — parse
+        // failures and translation blockers are not). A hook that exits 0
+        // runs the command with no approval prompt; anything else leaves
+        // the verdict exactly as the rules produced it.
+        let hookEscaped = false;
+        if (outcome.action === "ask" || (outcome.action === "deny" && outcome.escapable === true)) {
+          let depth = 0;
+          if (agent !== undefined) {
+            try {
+              depth = delegationDepthOf(agent as never);
+            } catch {
+              depth = 0;
+            }
+          }
+          const decision = await runCommandHooks(ctx, hooksBase, {
+            depth,
+            command: outcome.action === "ask" ? outcome.command : command,
+            profile,
+            verdict: outcome.action,
+            workdir,
+            timeoutMs: config.hookTimeoutMs ?? 10_000,
+            signal: exec.signal,
+          });
+          hookEscaped = decision.allowed;
+        }
+
+        // Normalize an escaped verdict into a run: downstream narrowing and
+        // rendering then need no knowledge of hooks. An escaped deny runs
+        // the ORIGINAL command (deny outcomes carry no rewrite); an escaped
+        // ask runs the outcome's (possibly rewritten) form exactly as an
+        // approved ask would have.
+        if (outcome.action === "deny") {
+          if (!hookEscaped) throw new Error(outcome.reason);
+          outcome = { action: "run", command, rewritten: false };
+        } else if (outcome.action === "ask" && hookEscaped) {
+          outcome = {
+            action: "run",
+            command: outcome.command,
+            rewritten: outcome.rewritten,
+            reason: outcome.reason,
+            ranNote: outcome.ranNote,
+          };
+        }
+
+        let toRun: string;
+        if (outcome.action === "ask") {
+          if (approval === undefined || agent === undefined) {
+            // Fail closed: an ask with nobody to ask is a deny.
+            throw new Error(
+              "bash-guard: this command needs approval but no approval service is mounted, so it did not run.\n\n" +
+                (outcome.reason ?? ""),
+            );
+          }
+          const notes = outcome.notes ?? [];
+          const mutating = outcome.mutatingWhy ?? [];
+          const isRewrite = outcome.command !== outcome.original;
+          let fields: GuardApprovalReasonFields;
+          if (notes.length === 0 && mutating.length === 0) {
+            // Plain rule ask: its template is already a single line and may be
+            // overridden by config, so slice the text as before.
+            const reasonLines = (outcome.reason ?? "").split("\n");
+            const summary =
+              reasonLines[0]?.trim() || "bash-guard: this command needs your approval.";
+            const why = reasonLines.slice(1).join("\n").trim();
+            fields = {
+              summary,
+              ...(isRewrite ? { wrote: outcome.original } : {}),
+              runs: outcome.command,
+              ...(why !== "" ? { why } : {}),
+            };
+          } else {
+            const summary =
+              mutating.length > 0
+                ? isRewrite
+                  ? "bash-guard: this command changes files, and it runs in a different form."
+                  : "bash-guard: this command changes files."
+                : isRewrite
+                  ? "bash-guard: this command runs in a different form."
+                  : "bash-guard: this command needs your approval.";
+            fields = {
+              summary,
+              ...(isRewrite ? { wrote: outcome.original } : {}),
+              runs: outcome.command,
+              ...(mutating.length > 0 ? { mutating: true } : {}),
+              ...(mutating.length > 0 ? { changes: mutating } : {}),
+              ...(notes.length > 0 ? { why: notes.join("\n") } : {}),
+            };
+          }
+          const verdict = await approval.request({
+            agent,
+            toolName: "bash",
+            callId: exec.callId,
+            reason: buildGuardApprovalReason(fields),
+            signal: exec.signal,
+          });
+          if (verdict !== "allowed-once") {
+            throw new Error(
+              `bash-guard: the user rejected this command (${verdict}), so it did not run.` +
+                (outcome.reason !== undefined ? `\n\n${outcome.reason}` : ""),
+            );
+          }
+          toRun = outcome.command;
+        } else {
+          toRun = outcome.command;
+        }
+
+        // The guard has now decided this command runs, so an escalation
+        // approval is no longer wasted on a command a rule would deny. The
+        // arguments were already validated above, before any prompt. The
+        // re-check keeps TypeScript honest and fails closed if that ever
+        // stops being true.
+        if (escalateTo !== undefined) {
+          if (standing === undefined || agent === undefined || approval === undefined) {
+            throw new Error(
+              "sandbox escalation is unavailable here: it needs a confining executor, a calling agent, and a mounted approval service",
+            );
+          }
+          const verdict = await approval.request({
+            agent,
+            toolName: "bash",
+            callId: exec.callId,
+            reason: buildEscalationApprovalReason({
+              standingMode: standing.mode,
+              escalateTo,
+              justification: args.justification,
+              runs: toRun,
+            }),
+            signal: exec.signal,
+          });
+          if (verdict !== "allowed-once") {
+            throw new Error(`sandbox escalation ${verdict}; the command did not run`);
+          }
+          policy = { ...standing, mode: escalateTo };
+        }
+
+        // Workdir was resolved once above, before the verdict, so the hook
+        // and the shell request agree. One resolved request serves both
+        // paths: the same command, workdir, and sandbox policy. The
+        // foreground-only fields (the timeout and the tool call's abort
+        // signal) are added on the foreground branch only: dsh-shell applies
+        // no timeout to a background start, and a job the job runtime now
+        // owns must not die when the starting tool call aborts or hits its
+        // own deadline.
+        const request = {
+          command: toRun,
+          ...(workdir !== undefined ? { workdir } : {}),
+          ...(policy !== undefined
+            ? { sandboxPolicy: policy as ShellExecRequest["sandboxPolicy"] }
+            : {}),
+        };
+
+        if (args.run_in_background === true) {
+          const jobs = (ctx as unknown as { get(name: string): unknown }).get("jobs") as
+            JobsServiceLike | undefined;
+          if (jobs === undefined) {
+            throw new Error(
+              "run_in_background is not available in this composition (no job runtime is mounted)",
+            );
+          }
+          // jobs.start() preflights access, owner cleanup, and admission
+          // BEFORE invoking run(), and a throwing run() leaves nothing
+          // registered. Starting the process inside run() therefore keeps the
+          // ordering the builtin uses: a failed registration can never leave
+          // an orphan process running.
+          const jobId = jobs.start({
+            kind: "bash",
+            label: toRun,
+            ...(agent !== undefined ? { owner: agent } : {}),
+            run() {
+              const proc = ctx.shell.start(
+                ctx.shell.resolve(request as Parameters<typeof ctx.shell.resolve>[0]),
+              );
+              return {
+                // ShellProcess.kill() is synchronous, idempotent, and
+                // settles proc.done, which is exactly the hook contract.
+                cancel: (reason?: string) => {
+                  proc.kill();
+                  if (reason !== undefined) ctx.logger.info(`bash-guard: job killed: ${reason}`);
+                },
+                done: proc.done.then(() => renderProcessDetail(proc)),
+                readOutput: () => renderProcessDelta(proc.readOutput()),
+              };
+            },
+          });
+          ctx.logger.info(`bash-guard: started background job ${jobId}: ${toRun}`);
+          let text = `Started background job ${jobId}. Read its output with job_output.`;
+          if (outcome.ranNote !== undefined) text += `\n\nbash-guard: ${outcome.ranNote}`;
+          return { text, ran: toRun, rewritten: outcome.rewritten };
+        }
+
+        // Mid-pipeline failures hide behind the last stage's status: bash
+        // reports a pipeline as its LAST stage, so `false | cat` exits 0 and
+        // even the harness's own sandbox detection (which gates on a non-zero
+        // exit) goes blind on piped commands. Wrap piped commands so the
+        // shell reports every stage's status into a side file, never into
+        // stdout: polluting the output stream would be its own bug, and a
+        // sentinel line scraped back out of the text is exactly the
+        // render-sniffing #115 removes.
+        //
+        // The wrap is per-invocation, never global: `set -o pipefail` here
+        // scopes to this one script. A global pipefail would turn the benign
+        // `producer | head` idiom (producer dies of SIGPIPE, exit 141) into a
+        // failure on every successful call.
+        //
+        // Capture, in two layers. The DEBUG trap observes every top-level
+        // statement as it runs — its handler's FIRST expansion saves
+        // PIPESTATUS (the previous statement's stages) beside the previous
+        // BASH_COMMAND into a side file, and the EXIT trap flushes the final
+        // statement. The legacy epilogue below still records the final
+        // pipeline's PIPESTATUS once, as the fallback when per-statement
+        // capture degrades.
+        //
+        // The trap changes nothing about what runs: the handler ends in a
+        // zero status (it can never skip a command under `set -e`), defines
+        // no globals outside the reserved `__dsh_dbg_` namespace, allocates
+        // its file descriptor dynamically (`{var}>`, never a hardcoded fd
+        // the script might use), and writes only to the side file — never
+        // to the command's stdout/stderr. Bare assignments and function
+        // definitions do not fire DEBUG at all, so the installation itself
+        // leaves only its two `trap` lines in the stream, filtered by
+        // namespace on parse. Without functrace the trap stays top-level:
+        // sourced bodies, function bodies, subshells, `$( ... )` and
+        // heredoc bodies run silent (all live-probed on GNU bash 5.3.9,
+        // transcripts on ticket #143).
+        //
+        // Degradation, never failure: a script that installs its own
+        // DEBUG/EXIT trap, clears ours, enables functrace, backgrounds a
+        // statement (BASH_COMMAND carries no `&`, so backgrounded records
+        // are indistinguishable from fact), or hides statements in a
+        // subshell falls back to the legacy final-pipeline report with the
+        // loss stated in the note. When the shell never reaches the traps
+        // (`exec`, `exit`-less kills, signals) the files are absent and the
+        // same fallback applies. A missing capture never fails the call.
+        const pipePlan = planPipeCapture(toRun);
+        let wrappedCommand = toRun;
+        let pipeDir: string | undefined;
+        if (pipePlan.needsWrap) {
+          try {
+            await mkdir("/tmp/dsh", { recursive: true });
+            pipeDir = await mkdtemp(join("/tmp/dsh", "pipestatus-"));
+            const statusFile = shellQuote(join(pipeDir, "status"));
+            const stepsFile = shellQuote(join(pipeDir, "steps"));
+            // One command saves BOTH facts: $? and PIPESTATUS each die with
+            // the next command, so neither survives a two-step save — the
+            // expansions below all read the verdict of toRun itself. The
+            // printf then reports the saved copy, never the live array.
+            // `set -o pipefail` leads (before the trap install) so its own
+            // firing never enters the per-statement stream.
+            wrappedCommand =
+              `set -o pipefail\n` +
+              // No `2>/dev/null` on this exec: unlike `printf ... 2>/dev/null`
+              // (a temporary redirect), redirections on a bare `exec` apply
+              // to the shell itself PERMANENTLY — silencing open errors here
+              // would silence the USER script's whole stderr too (caught live
+              // on bash 5.3.9: every `>&2` vanished). An open failure is
+              // practically impossible (pipeDir was just created beside the
+              // status file, which trusts it the same way); if it ever
+              // happens the one error line is honest, and the missing steps
+              // file degrades to the legacy report.
+              `exec {__dsh_dbg_fd}>${stepsFile} || true\n` +
+              `__dsh_dbg_prev=""\n` +
+              `__dsh_dbg_busy=0\n` +
+              `__dsh_dbg_handler() {\n` +
+              // The save MUST be the first expansion in the handler: even a
+              // single arithmetic guard before it resets PIPESTATUS to all
+              // zeros (probed). The re-entrancy guard therefore comes after.
+              `  local __dsh_dbg_st=( "\${PIPESTATUS[@]}" )\n` +
+              `  if (( __dsh_dbg_busy )); then return 0; fi\n` +
+              `  __dsh_dbg_busy=1\n` +
+              `  if [[ -n $__dsh_dbg_prev ]]; then\n` +
+              `    printf '[%s] :: %s\\n' "\${__dsh_dbg_st[*]}" "$__dsh_dbg_prev" >&$__dsh_dbg_fd\n` +
+              `  fi\n` +
+              `  __dsh_dbg_prev=$BASH_COMMAND\n` +
+              `  __dsh_dbg_busy=0\n` +
+              `  return 0\n` +
+              `}\n` +
+              `__dsh_dbg_exit() {\n` +
+              `  local __dsh_dbg_st=( "\${PIPESTATUS[@]}" ) __dsh_dbg_rc=$?\n` +
+              `  trap - DEBUG\n` +
+              `  if [[ -n $__dsh_dbg_prev ]]; then\n` +
+              `    printf '[%s] :: %s\\n' "\${__dsh_dbg_st[*]}" "$__dsh_dbg_prev" >&$__dsh_dbg_fd\n` +
+              `  fi\n` +
+              `  printf 'END rc=%s\\n' "$__dsh_dbg_rc" >&$__dsh_dbg_fd\n` +
+              `  exec {__dsh_dbg_fd}>&- || true\n` +
+              // Explicit, so a mid-script `exit N` keeps its status through
+              // the handler's own commands (probed: `exit 3` mid-script
+              // still exits 3).
+              `  exit "$__dsh_dbg_rc"\n` +
+              `}\n` +
+              `trap '__dsh_dbg_handler' DEBUG\n` +
+              `trap '__dsh_dbg_exit' EXIT\n` +
+              `${toRun}\n` +
+              `__dsh_pipe_exit=$? __dsh_pipe_stages=("\${PIPESTATUS[@]}")\n` +
+              `printf '%s' "\${__dsh_pipe_stages[*]}" > ${statusFile} 2>/dev/null || true\n` +
+              `exit $__dsh_pipe_exit`;
+          } catch {
+            pipeDir = undefined;
+            wrappedCommand = toRun;
+          }
+        }
+
+        const result = await ctx.shell.run(
+          ctx.shell.resolve({
+            ...request,
+            command: wrappedCommand,
+            ...(args.timeoutMs !== undefined ? { timeoutMs: args.timeoutMs } : {}),
+            ...(exec.signal ? { signal: exec.signal } : {}),
+          }),
+        );
+        // Stage statuses, when the capture survived. A signal kill cannot
+        // have run the epilogue to a trustworthy state, so its markers keep
+        // the legacy signal reading instead of stage data.
+        // Which names the stages may carry: the single-simple-pipeline case
+        // names from `names`; a compound script names from `finalNames`, the
+        // LAST pipeline — the one PIPESTATUS actually holds (see the capture
+        // limits above). Anything else stays unnamed rather than guessed.
+        const stageNames = pipePlan.names !== null ? pipePlan.names : pipePlan.finalNames;
+        let pipeStages: PipeStageStatus[] | undefined;
+        // The raw per-statement stream, read beside the status file so one
+        // cleanup covers both. Parsing happens after: it cannot throw (it
+        // returns complete:false instead), but reading can. The two reads
+        // are INDEPENDENT: a mid-script `exit` skips the legacy epilogue
+        // (no status file) while the EXIT trap still flushes the steps
+        // file, so one missing file must never hide the other.
+        let rawSteps: string | undefined;
+        if (pipeDir !== undefined) {
+          try {
+            if (result.signal === null) {
+              try {
+                const raw = (await readFile(join(pipeDir, "status"), "utf8")).trim();
+                const codes = raw
+                  .split(/\s+/)
+                  .map((s) => Number(s))
+                  .filter((n) => Number.isInteger(n));
+                if (codes.length > 0) {
+                  pipeStages = codes.map((exitCode, i) => ({
+                    ...(stageNames !== null && stageNames[i] !== undefined
+                      ? { name: stageNames[i] as string }
+                      : {}),
+                    exitCode,
+                  }));
+                }
+              } catch {
+                pipeStages = undefined;
+              }
+              try {
+                rawSteps = await readFile(join(pipeDir, "steps"), "utf8");
+              } catch {
+                rawSteps = undefined;
+              }
+            }
+          } finally {
+            await rm(pipeDir, { recursive: true, force: true }).catch(() => {});
+          }
+        }
+        // The REPORTED exit code comes from the stages, not from bash's
+        // last-stage default: a genuine non-final failure surfaces, while the
+        // benign SIGPIPE idiom stays silent. An explicit script-level success
+        // ($? 0 via `!`, `||`, or the user's own `set +o pipefail`) is never
+        // overridden — the user inverted the verdict on purpose.
+        const reportedExit =
+          pipeStages !== undefined && result.signal === null
+            ? result.exitCode === 0
+              ? 0
+              : decidePipeExit(pipeStages.map((s) => s.exitCode))
+            : result.exitCode;
+        // Per-statement capture, when it survived intact. The two static
+        // gates degrade before parsing: a backgrounded statement's records
+        // cannot be told from foreground fact, and a subshell statement
+        // leaves no records at all — both fall back to the legacy report
+        // rather than print coverage they do not have.
+        let stepStatements: AttributedStatement[] | null = null;
+        let stepEndRc = 0;
+        let stepLossReason: string | undefined;
+        if (pipeDir !== undefined && result.signal === null) {
+          if (pipePlan.hasBackground) {
+            stepLossReason = "the command backgrounds a statement, whose records are unattributable";
+          } else if (pipePlan.hasHiddenStatements) {
+            stepLossReason = "the command hides statements in a subshell the trap cannot see";
+          } else if (rawSteps === undefined) {
+            stepLossReason = "the per-statement capture file was unreadable";
+          } else {
+            const parsed = parseStepCapture(rawSteps);
+            if (parsed.complete) {
+              stepStatements = parsed.statements;
+              stepEndRc = parsed.endRc;
+            } else {
+              stepLossReason = parsed.lossReason;
+            }
+          }
+        }
+        let text = renderShellResult({ ...result, exitCode: reportedExit });
+        if (stepStatements !== null) {
+          // Complete per-statement capture replaces the legacy codes-and-note
+          // block: every statement's codes are data now, so the "final
+          // pipeline only" note no longer describes reality and goes away
+          // (ticket #144: remove the note rather than leave one that lies).
+          text += `\n${renderStepReport(stepStatements, stepEndRc)}`;
+        } else {
+          // Degraded: the legacy final-pipeline report, honestly worded.
+          // The honesty rules live in the pure renderDegraded* helpers
+          // (pinned directly under test); this branch only decides WHEN
+          // each line prints: the codes line on failure with data, the
+          // scope note whenever the command is more than one pipeline.
+          if (pipeStages !== undefined && reportedExit !== 0 && reportedExit !== null) {
+            const codesLine = renderDegradedCodesLine(pipeStages, pipePlan);
+            if (codesLine !== "") text += `\n${codesLine}`;
+          }
+          if (pipeStages !== undefined && pipePlan.names === null) {
+            text += `\n${renderDegradedScopeNote(pipeStages, pipePlan, reportedExit, stepLossReason)}`;
+          }
+        }
+        if (outcome.ranNote !== undefined) text += `\n\nbash-guard: ${outcome.ranNote}`;
+        return {
+          text,
+          ran: toRun,
+          rewritten: outcome.rewritten,
+          exitCode: reportedExit,
+          denied: result.sandbox?.denied === true,
+          ...(pipeStages !== undefined ? { pipeStages } : {}),
+        };
+      },
+      presentCall: (args) => ({
+        card: "terminal",
+        title: args.command,
+        description: args.description,
+        ...(args.workdir !== undefined ? { cwd: args.workdir } : {}),
+      }),
+    }),
+  );
+}

@@ -1,0 +1,1321 @@
+/**
+ * profiles — profile-driven LLM failover, on the host plane. The model
+ * route is a property of the active profile, not of any preset: flipping
+ * `profile.active` swaps heads, chains, and failover order for every
+ * future request with no restart.
+ *
+ * Hooks `agent/request` and `agent/request-error` (design stolen MIT from
+ * CanGeng/llm-fallback; dormancy idea from @visol-456/dsh-llm-fallback) so
+ * EVERY agent — main sessions, role children, see children — fails over
+ * along the active profile entry's chain when a route faults. A request
+ * whose (provider, model) equals ANY level of the active chain fails over
+ * from the NEXT level; all other requests pass through untouched. Levels may
+ * change the model as well as the provider: the retry pass re-enters the
+ * `agent/request` waterfall, where this plugin returns the next level's full
+ * {provider, model}.
+ *
+ * W21 named chains: each profile entry holds TWO chains, one per agent
+ * depth. Depth-0 agents ride the orchestrator chain; any spawned child
+ * (depth >= 1) rides the subagent chain. The chains are ordered failover
+ * lists. A persistent fault (no-credits / model-unavailable / auth /
+ * bad-request) marks the rung down in a host-side cache for >= 10 minutes;
+ * unclassified failures (transport blips, bodyless 500s) use a short 30s
+ * transient window instead; selections inside the window skip the dead rung.
+ * A rung that failed earlier in the same turn is additionally skipped via
+ * walk memory, so the per-step cursor reset cannot re-pick it. Any `profile`
+ * namespace update clears the cache: a manual switch or save allows
+ * immediate retry.
+ *
+ * There is NO second config surface: the chains ARE the `profile` namespace
+ * entries (see.ts owns the namespace; this plugin reads it live). Flipping
+ * `profile.active` swaps heads, chains, and failover order for every future
+ * request with no restart.
+ *
+ * Failover semantics:
+ * - Stay on the matched level within a step so request prefixes stay
+ *   stable; advance only when the current level fails.
+ * - Each NEW step starts back at the matched level. During a hard outage
+ *   every step pays one failed attempt before failing over; the error cache
+ *   skips the dead rung on later selections, and walk memory skips rungs
+ *   that failed earlier in the same turn even if their cache entry lapsed.
+ * - Before proposing a level, probe it with ctx.llm.resolveCallConfig and
+ *   skip levels that would fail before streaming (unregistered route,
+ *   unknown model). An abort during the probe surfaces as an abort.
+ * - An adapter whose retryPolicy.mode is "always" retries forever by
+ *   itself; non-last always-levels are capped at alwaysMaxRetries
+ *   same-provider retries before failing over, and an always level may not
+ *   be last (it can never terminate).
+ * - A user abort is never a failover trigger.
+ * - Composition with the shipped dsh-llm-retry: both listen on
+ *   `agent/request-error`; the host-base retry layer runs first, so
+ *   same-provider retries exhaust before this plugin advances a level.
+ *
+ * ── Flip propagation ────────────────────────────────────────────────────
+ *
+ * On a `profile.active` flip, clear the error cache and push the new active
+ * head into `agent-default-model` via its own saveSelection, so sessions
+ * created from then on compose on that route (a live session keeps its
+ * current model; its requests still fail over per the rules above
+ * regardless). There is no harness-native failover for the session's own
+ * model — verified against dsh-agent-default-model/lib/index.js; head-sync
+ * plus these waterfalls is the closest reachable behavior.
+ *
+ * Settings are read WITHOUT ownership (`ctx.settings.get(ns)` resolves any
+ * registered namespace; duplicate registration fails loud — see.ts owns
+ * `profile`). Lazy `ctx.get(...)` lookups keep this plugin loadable when no
+ * settings provider mounts.
+ *
+ * Seams (verified against installed rc.8 source):
+ * - Request construction mirrors @deepseek-ai/dsh-tool-subagent/lib/index.js
+ *   (:222-233 request; :241-248 continuable `{childId}`; :262/:271 start).
+ * - Leaf guardrail: maxDepth 1; resolveChildDepth rejects depth 2+
+ *   (dsh-subagent/lib/index.js:486-489).
+ * - `agent/request`: dsh-agent-loop/lib/index.js:708; proposal needs
+ *   non-empty provider and model (:714). `agent/request-error` returning
+ *   `{ kind: 'retry' }`: :653, kind check :662. The dispatcher fuses agent into
+ *   every payload (dsh-agent/lib/index.js agentEvents) — `agent` IS present
+ *   with turn/step/signal. Failover keys its per-step state on agent + turn:step.
+ * - `ctx.llm.resolveCallConfig`: dsh-llm/lib/index.js:1351.
+ *   `providerRetryPolicy`: dsh-llm/lib/index.js:1260.
+ * - Depth: dsh-subagent/lib/types/depth.js delegationDepthOf —
+ *   `Math.max(agent.session.header.delegationDepth ?? 0,
+ *   agent.options.subagentDepth ?? 0)`.
+ *
+ * NOT-VERIFIED until live: end-to-end failover under a real 429, and that
+ * the retry pass re-enters `agent/request` (it must, for the rewrite).
+ *
+ * Mount (sync.sh writes this row):
+ *
+ *   - id: profiles
+ *     name: /path/to/plugins/profiles.js
+ *     # config:
+ *     #   alwaysMaxRetries: 2
+ */
+
+import type { Context } from "@deepseek-ai/cordis";
+import z from "@deepseek-ai/schemastery";
+import type { LlmCallConfig } from "@deepseek-ai/dsh-llm";
+import { settingsNamespace } from "./settings-compat";
+import type { RequestErrorAction } from "@deepseek-ai/dsh-agent";
+import { chainOf, type RouteCandidate } from "./profile-routes";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { sendJson, readBody, isPlainObject } from "./shared/http";
+export const name = "profiles";
+
+export const inject = ["systemPrompt"] as const;
+
+export const Config = z.object({
+  /** Same-provider retry cap for retryPolicy.mode="always" adapters. */
+  alwaysMaxRetries: z.number().step(1).min(1).default(2),
+});
+
+type ProfilesConfig = {
+  alwaysMaxRetries?: number;
+};
+
+/** Shape of the `profile` settings namespace owned by see.ts. */
+interface ProfileSettings {
+  active?: string;
+  /** Named-chain library: name -> { routes: [...] }; string refs resolve here. */
+  chains?: Record<string, unknown>;
+  work?: unknown;
+  personal?: unknown;
+}
+
+/** Minimal structural views of services, looked up lazily. */
+interface SettingsService {
+  get(ns: string): unknown;
+}
+interface LlmService {
+  resolveCallConfig(config: unknown, signal?: AbortSignal): Promise<unknown>;
+  providerRetryPolicy(provider: string): { mode?: string } | undefined;
+}
+
+/** The shared namespace, registered by plugins/see.ts. */
+const PROFILE_NS = settingsNamespace("profile");
+
+/** One failover level. */
+type Level = RouteCandidate;
+
+/**
+ * Advance the cursor through a levels array, skipping over down levels.
+ * Calls isDown(level) for each level to check if it is down. Returns the
+ * cursor position of the first live level found, or the last valid index
+ * if all levels from cursor onward are down. Sets exhausted true if cursor
+ * runs past the end. Empty levels returns exhausted true at once.
+ */
+export function advanceChain(
+  levels: Level[],
+  cursor: number,
+  isDown: (level: Level) => boolean,
+): { cursor: number; exhausted: boolean } {
+  if (levels.length === 0) {
+    return { cursor, exhausted: true };
+  }
+
+  // Skip each cached-down level from cursor onward.
+  while (cursor < levels.length && isDown(levels[cursor])) {
+    cursor += 1;
+  }
+
+  const exhausted = cursor >= levels.length;
+  if (exhausted) {
+    cursor = levels.length - 1;
+  }
+
+  return { cursor, exhausted };
+}
+
+/**
+ * Record a failure into the failures array. Append one record with shape
+ * { level, code, message }.
+ */
+export function recordFailure(
+  failures: Array<{ level: Level; code: string; message: string }>,
+  level: Level,
+  code: string,
+  message: string,
+): void {
+  failures.push({
+    level,
+    code,
+    message,
+  });
+}
+
+/** Per-agent failover state for the current step. */
+interface StepState {
+  stepKey: string;
+  levels: Level[];
+  cursor: number;
+  retries: number;
+  failures: Array<{ level: Level; code: string; message: string }>;
+}
+
+function service<T>(ctx: Context, name: string): T | undefined {
+  return (ctx as { get(name: string): unknown }).get(name) as T | undefined;
+}
+
+function activeEntry(profile: ProfileSettings | undefined): unknown {
+  return (profile?.active ?? "work") === "personal" ? profile?.personal : profile?.work;
+}
+
+// ── Failover event tracking (Ticket 3) ─────────────────────────────────────
+// In-memory map from session id to the last failover event. Records: from
+// (provider/model), to (provider/model), code, time, rung (1-based position
+// in the active chain), total (chain length).
+interface FailoverEvent {
+  from: { provider: string; model: string };
+  to: { provider: string; model: string };
+  code: string;
+  time: number;
+  rung: number;
+  total: number;
+  tried: Array<{ provider: string; model: string; code: string }>;
+}
+const failoverEvents = new Map<string, FailoverEvent>();
+
+/**
+ * Record a failover event into the failover map.
+ */
+export function recordFailoverEvent(
+  sessionId: string,
+  from: { provider: string; model: string },
+  to: { provider: string; model: string },
+  code: string,
+  rung: number,
+  total: number,
+  tried: Array<{ provider: string; model: string; code: string }> = [],
+): void {
+  failoverEvents.set(sessionId, {
+    from,
+    to,
+    code,
+    time: Date.now(),
+    rung,
+    total,
+    tried,
+  });
+}
+
+/**
+ * Clear all recorded failover events.
+ */
+export function clearFailoverEvents(): void {
+  failoverEvents.clear();
+}
+
+// ── Error cache (W21) ───────────────────────────────────────────────────────
+// A persistent fault marks one (provider, model, error-class) key down for
+// its class time to live. Selections skip the dead rung at proposal time and
+// when the waterfall walks the chain. Any `profile` namespace update clears
+// the whole cache: a manual active flip rewrites every chain anyway.
+const ERROR_CLASSES = [
+  "auth",
+  "no-credits",
+  "model-unavailable",
+  "rate-limit",
+  "server-error",
+  "transient",
+] as const;
+type ErrorClass = (typeof ERROR_CLASSES)[number];
+const ERROR_TTL_MS: Record<ErrorClass, number> = {
+  auth: 600_000,
+  "no-credits": 600_000,
+  "model-unavailable": 600_000,
+  // Rate limits and server errors do not use this base directly. See doubleStrikes below:
+  // a fixed window shorter than the same-provider retry loop expires before
+  // the next request, so the chain walks back into the limited model and
+  // pays the full retry cost again. The window therefore doubles per
+  // consecutive strike instead.
+  "rate-limit": 60_000,
+  "server-error": 60_000,
+  // Unclassified failures (transport blips, bodyless 500s, dropped streams)
+  // fall back to this short window via markDown: long enough to stop the
+  // per-step cursor reset re-picking the dead rung, short enough not to
+  // blacklist a good rung for ten minutes on a single blip.
+  transient: 30_000,
+};
+/** Ceiling for the doubling rate-limit and server-error window. */
+const RATE_LIMIT_MAX_TTL_MS = 900_000;
+const downCache = new Map<string, number>();
+/** Consecutive strikes per level key for classes that double; drives the doubling window. */
+const doubleStrikes = new Map<string, number>();
+
+function errorKey(level: Level, cls: ErrorClass): string {
+  return `${level.provider}:${level.model}:${cls}`;
+}
+
+/** Effective down-window for one cache entry. Rate limits and server errors double per strike,
+ * capped; every other class uses its fixed table value. */
+export function effectiveTtlMs(key: string, cls: ErrorClass): number {
+  if (cls !== "rate-limit" && cls !== "server-error") return ERROR_TTL_MS[cls];
+  const strikes = doubleStrikes.get(key) ?? 1;
+  return Math.min(ERROR_TTL_MS[cls] * 2 ** (strikes - 1), RATE_LIMIT_MAX_TTL_MS);
+}
+
+/**
+ * Structured failure codes mapped to a cacheable class. The code table is
+ * read first, so classification never depends on message wording.
+ */
+const ERROR_CODE_CLASS: Record<string, ErrorClass> = {
+  NO_ADAPTER: "model-unavailable",
+  INVALID_MODEL_INFO: "model-unavailable",
+  MODEL_NOT_FOUND: "model-unavailable",
+  UNKNOWN_MODEL: "model-unavailable",
+  HTTP_404: "model-unavailable",
+  QUOTA: "rate-limit",
+  RATE_LIMIT: "rate-limit",
+  HTTP_429: "rate-limit",
+  TOO_MANY_REQUESTS: "rate-limit",
+  AUTH: "auth",
+  UNAUTHORIZED: "auth",
+  FORBIDDEN: "auth",
+  INVALID_API_KEY: "auth",
+  HTTP_401: "auth",
+  HTTP_403: "auth",
+  NO_CREDITS: "no-credits",
+  INSUFFICIENT_QUOTA: "no-credits",
+  QUOTA_EXCEEDED: "no-credits",
+  PAYMENT_REQUIRED: "no-credits",
+  HTTP_402: "no-credits",
+  SERVER: "server-error",
+  HTTP_500: "server-error",
+  HTTP_502: "server-error",
+  HTTP_503: "server-error",
+  HTTP_504: "server-error",
+  INTERNAL: "server-error",
+  INTERNAL_ERROR: "server-error",
+  SERVICE_UNAVAILABLE: "server-error",
+};
+
+/**
+ * Classify a provider failure into a cacheable class. The no-credits message
+ * test runs first, then the structured code table, then the remaining message
+ * tests. Anything else returns undefined: the caller (markDown) records those
+ * under the short transient window instead of dropping them.
+ */
+export function normalizeErrorClass(
+  code: string | undefined,
+  message: string,
+): ErrorClass | undefined {
+  const m = String(message ?? "").toLowerCase();
+  // Order matters: a QUOTA code with an insufficient-credits message must
+  // stay no-credits, so the no-credits message test runs before the code
+  // table; the remaining message tests run after it.
+  if (
+    /insufficient\s+(funds|balance|credits?|quota)|quota exceeded|billing|payment required|out of credits?/.test(
+      m,
+    )
+  ) {
+    return "no-credits";
+  }
+  const codeClass = code ? ERROR_CODE_CLASS[code.trim().toUpperCase()] : undefined;
+  if (codeClass !== undefined) return codeClass;
+  if (
+    /invalid api key|unauthorized|authentication fail|invalid authentication|permission denied/.test(
+      m,
+    )
+  ) {
+    return "auth";
+  }
+  if (/rate limit|too many requests|usage limit|usage_limit/.test(m)) {
+    return "rate-limit";
+  }
+  if (/internal server error|service unavailable|bad gateway|gateway timeout|http 5\d\d/.test(m)) {
+    return "server-error";
+  }
+  if (
+    /unknown model|no such model|has no configured model|no configured model|model .{0,40}(not found|does not exist|is not available|is not supported)/.test(
+      m,
+    )
+  ) {
+    return "model-unavailable";
+  }
+  return undefined;
+}
+
+/**
+ * Mark one level down under its error class. Every failure is recorded:
+ * failures that classify land under their class, and unclassified failures
+ * (transport blips, bodyless 500s, dropped streams) fall back to the short
+ * transient window so the per-step cursor reset cannot re-pick a rung that
+ * just failed. Aborts never reach here: both waterfall handlers return early
+ * on p.signal?.aborted, since a user cancellation is not a rung failure.
+ */
+export function markDown(level: Level, code: string | undefined, message: string): void {
+  const cls: ErrorClass = normalizeErrorClass(code, message) ?? "transient";
+  const key = errorKey(level, cls);
+  downCache.set(key, Date.now());
+  if (cls === "rate-limit" || cls === "server-error") {
+    doubleStrikes.set(key, (doubleStrikes.get(key) ?? 0) + 1);
+  }
+}
+
+/** True when ANY class key of the level is inside its class window. */
+export function isCachedDown(level: Level): boolean {
+  const now = Date.now();
+  for (const cls of ERROR_CLASSES) {
+    const key = errorKey(level, cls);
+    const at = downCache.get(key);
+    if (at === undefined) continue;
+    if (now - at < effectiveTtlMs(key, cls)) return true;
+    downCache.delete(key);
+    doubleStrikes.delete(key);
+  }
+  return false;
+}
+
+/** Clear both failover caches. */
+export function clearDownCache(): void {
+  downCache.clear();
+  doubleStrikes.clear();
+}
+
+/** Prune expired entries; return the down keys still inside their class window. */
+function liveDownKeys(): string[] {
+  const now = Date.now();
+  for (const [key, at] of downCache) {
+    const cls = key.slice(key.lastIndexOf(":") + 1) as ErrorClass;
+    if (now - at >= effectiveTtlMs(key, cls)) {
+      downCache.delete(key);
+      doubleStrikes.delete(key);
+    }
+  }
+  return [...downCache.keys()];
+}
+
+// ── Walk memory across steps (ticket #96) ────────────────────────────────────
+// The per-step cursor resets to 0 on every fresh stepKey, so the down-cache
+// is the only thing stopping the reset re-picking a rung that just failed.
+// This set is the structural backstop: rungs that failed in the current
+// request sequence (one agent's current turn) are skipped on the next step
+// even if their cache entry lapsed. Scoped to turn — a new turn starts a
+// fresh sequence — and aborts never record here, same rule as markDown.
+
+/** Stable key for one rung inside a request sequence. */
+export function sequenceKeyOf(level: { provider: string; model: string }): string {
+  return `${level.provider}:${level.model}`;
+}
+
+/** Remember one rung as failed in the current request sequence. */
+export function recordSequenceFailure(
+  keys: Set<string>,
+  level: { provider: string; model: string },
+): void {
+  keys.add(sequenceKeyOf(level));
+}
+
+/** True when the rung already failed in the current request sequence. */
+export function isSequenceFailed(
+  keys: Set<string>,
+  level: { provider: string; model: string },
+): boolean {
+  return keys.has(sequenceKeyOf(level));
+}
+
+// ── Depth resolution (W21) ─────────────────────────────────────────────────
+// Mirrors dsh-subagent delegationDepthOf: the persisted header depth is the
+// floor; options.subagentDepth may deepen it. Depth-0 rides the orchestrator
+// chain; any spawned child (depth >= 1) rides the subagent chain.
+function depthOf(agent: unknown): number {
+  const a = agent as
+    | { session?: { header?: { delegationDepth?: number } }; options?: { subagentDepth?: number } }
+    | null
+    | undefined;
+  const header = a?.session?.header?.delegationDepth ?? 0;
+  const options = a?.options?.subagentDepth ?? 0;
+  return Math.max(header, options);
+}
+
+/**
+ * Human-readable session label for failover log lines, mirroring the session
+ * header shape used elsewhere in this codebase (session.header.id).
+ */
+function sessionLabel(agent: unknown): string {
+  const a = agent as { session?: { header?: { id?: unknown }; id?: unknown } } | null | undefined;
+  const id = a?.session?.header?.id ?? a?.session?.id;
+  return id === undefined ? "unknown" : String(id);
+}
+
+/**
+ * The failover rung order for one request, given the caller's proposal and the
+ * depth-resolved chain (#81 owner decision: profiles.ts owns depth routing).
+ *
+ * Depth 0 — the orchestrator itself — is UNCHANGED from the pre-#81 behaviour:
+ * the proposal leads and the chain backs it up. A regression here changes
+ * every top-level session, which is why a test pins it.
+ *
+ * Depth >= 1 — a spawned subagent — leads with the chain head, so the first
+ * attempt runs on the cheap subagent model instead of whatever model the
+ * parent happened to be on. The inherited proposal is NOT discarded: it is
+ * preserved as the LAST rung, so (a) a deliberate caller-supplied model still
+ * runs once the whole chain is exhausted, and (b) failover reaches every rung
+ * it reached before, plus one. Its LAST position is deliberate: the chain is
+ * the intended default for children, and the proposal is only the fallback of
+ * fallbacks. A proposal that already matches a chain rung is not appended
+ * again — most importantly the head-equal case, which would otherwise produce
+ * a duplicate first rung.
+ */
+export function levelsForDepth(proposalRoute: Level, chain: Level[], depth: number): Level[] {
+  const sameLevel = (a: Level, b: Level) => a.provider === b.provider && a.model === b.model;
+  if (depth === 0) {
+    return [proposalRoute, ...chain.filter((level) => !sameLevel(level, proposalRoute))];
+  }
+  const head = chain[0];
+  if (!head) return [proposalRoute]; // empty chain: nothing to lead with
+  const rest = chain.slice(1).filter((level) => !sameLevel(level, head));
+  if (chain.some((level) => sameLevel(level, proposalRoute))) return [head, ...rest];
+  return [head, ...rest, proposalRoute];
+}
+
+/**
+ * The active profile entry's chain for one agent depth. Depth-0 rides the
+ * orchestrator chain; any spawned child (depth >= 1) rides the subagent
+ * chain. Falls back to the other named chain, then to the legacy single
+ * `routes` shape, then to []. String fields resolve through the profile's
+ * `chains` map.
+ */
+function chainForDepth(ctx: Context, depth: number): Level[] {
+  const settings = service<SettingsService>(ctx, "settings");
+  const profile = settings?.get(PROFILE_NS) as ProfileSettings | undefined;
+  return chainOf(
+    activeEntry(profile),
+    depth >= 1 ? "subagent" : "orchestrator",
+    profile?.chains,
+    ctx,
+  );
+}
+
+/** Install the two agent waterfalls that provide chain failover. */
+function registerFailover(ctx: Context, alwaysMaxRetries: number): void {
+  // Per-agent failover state. WeakMap keyed by the agent object isolates
+  // concurrent agents (turn:step is per-agent, not global). The stored
+  // stepKey still guards a stale step within one agent. A plain Map keyed
+  // on "turn:step" would collide across agents at the same coordinate.
+  const state = new WeakMap<object, Map<string, StepState>>();
+  // Last provider/model logged at info for this agent, so a steady chain
+  // (the common case) logs once and then stays quiet instead of repeating
+  // "chain selected" on every single step. A real change -- an actual
+  // failover, or the first request of a session -- still logs at info. A
+  // step that lands back on the same level as last time logs at debug
+  // instead, matching this bundle's convention: info is a state change a
+  // person would want in a normal-volume log, debug is per-call trace.
+  const lastSelected = new WeakMap<object, string>();
+  // Walk memory across steps within one request sequence (ticket #96). The
+  // per-step cursor resets to 0 on every fresh stepKey, so without this the
+  // next step re-proposes whatever the caller proposes even when that rung
+  // just failed. Scoped to turn: a new turn starts a fresh sequence. Aborts
+  // never record here — a user cancellation is not a rung failure.
+  const sequenceFailed = new WeakMap<object, { turn: unknown; keys: Set<string> }>();
+
+  function sequenceKeysFor(agent: object, turn: unknown): Set<string> {
+    const prev = sequenceFailed.get(agent);
+    if (prev && prev.turn === turn) return prev.keys;
+    const keys = new Set<string>();
+    sequenceFailed.set(agent, { turn, keys });
+    return keys;
+  }
+
+  function getAgentState(agent: object): Map<string, StepState> {
+    let m = state.get(agent);
+    if (!m) {
+      m = new Map<string, StepState>();
+      state.set(agent, m);
+    }
+    return m;
+  }
+
+  const keyOf = (turn: unknown, step: unknown): string => `${String(turn)}:${String(step)}`;
+
+  function buildConfig(proposal: LlmCallConfig, candidate: Level): LlmCallConfig {
+    const sameRoute =
+      candidate.provider === (proposal as { provider?: string }).provider &&
+      candidate.model === (proposal as { model?: string }).model;
+    if (candidate.reasoningEffort !== undefined) {
+      return {
+        ...(proposal as object),
+        provider: candidate.provider,
+        model: candidate.model,
+        reasoningEffort: candidate.reasoningEffort as LlmCallConfig["reasoningEffort"],
+      } as LlmCallConfig;
+    }
+    if (sameRoute) {
+      return {
+        ...(proposal as object),
+        provider: candidate.provider,
+        model: candidate.model,
+      } as LlmCallConfig;
+    }
+    const { reasoningEffort: _drop, ...base } = proposal as unknown as Record<string, unknown>;
+    return {
+      ...(base as object),
+      provider: candidate.provider,
+      model: candidate.model,
+    } as LlmCallConfig;
+  }
+
+  ctx.on("agent/request", async (payload: unknown, next: () => Promise<unknown>) => {
+    const proposal = (await next()) as LlmCallConfig;
+    if (!proposal?.provider || !proposal.model) return proposal;
+
+    const p = payload as { turn?: unknown; step?: unknown; signal?: AbortSignal; agent?: unknown };
+    const agent = p.agent as object | undefined;
+    if (!agent) {
+      ctx.logger.warn(
+        "profiles: agent missing from agent/request payload; failing over disabled for this request",
+      );
+      return proposal;
+    }
+    const stepKey = keyOf(p.turn, p.step);
+    const depth = depthOf(agent);
+    const chain = chainForDepth(ctx, depth);
+    const proposalRoute: Level = {
+      provider: proposal.provider,
+      model: proposal.model,
+      ...(proposal.reasoningEffort ? { reasoningEffort: proposal.reasoningEffort as string } : {}),
+    };
+    // Deliberate-vs-inherited limitation, stated rather than papered over: at
+    // this hook a caller-named model and an inherited one are
+    // INDISTINGUISHABLE — both arrive as the proposal from next(). The runtime
+    // carries no marker saying "the caller explicitly asked for this model",
+    // so the depth >= 1 chain-head-first ordering below applies to both. That
+    // is the accepted trade (#81 owner decision): one mechanism owns routing,
+    // and a caller who truly needs a specific model still gets it after the
+    // chain is exhausted, because the proposal is preserved as a last resort.
+    const levels = levelsForDepth(proposalRoute, chain, depth);
+
+    const agentMap = getAgentState(agent);
+    let s = agentMap.get(stepKey);
+    if (!s || s.stepKey !== stepKey) {
+      s = { stepKey, levels, cursor: 0, retries: 0, failures: [] };
+      agentMap.set(stepKey, s);
+      // Fresh state for a fresh stepKey happens on EVERY step, not just a
+      // real reset, so this is trace detail, not a state change.
+      ctx.logger.debug(`failover chain reset for session ${sessionLabel(agent)}`);
+    } else {
+      s.levels = levels;
+      if (s.cursor >= s.levels.length) s.cursor = 0;
+    }
+
+    const llm = service<LlmService>(ctx, "llm");
+    // Rungs that failed earlier in this turn's sequence stay skipped after
+    // the per-step cursor reset below, even if their cache entry lapsed.
+    const seqKeys = sequenceKeysFor(agent, p.turn);
+
+    let ignoredCache = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      while (s.cursor < s.levels.length) {
+        const candidate = s.levels[s.cursor];
+        if (!ignoredCache && (isCachedDown(candidate) || isSequenceFailed(seqKeys, candidate))) {
+          s.cursor += 1;
+          continue;
+        }
+        if (llm) {
+          try {
+            await llm.resolveCallConfig(buildConfig(proposal, candidate), p.signal);
+            break;
+          } catch (error) {
+            if (p.signal?.aborted) throw error;
+            const err = error as { code?: string; message?: string };
+            s.failures.push({
+              level: candidate,
+              code: err?.code ?? "UNKNOWN",
+              message: err?.message ?? String(error),
+            });
+            // Resolve-time skips never reach request-error, so they get no
+            // failover row and no log line without this: say what died.
+            ctx.logger.info(
+              `session ${sessionLabel(agent)} skipping ${candidate.provider}/${candidate.model} at resolve: ${err?.code ?? "UNKNOWN"} — ${err?.message ?? String(error)}`,
+            );
+            markDown(candidate, err?.code, err?.message ?? String(error));
+            recordSequenceFailure(seqKeys, candidate);
+            s.cursor += 1;
+            continue;
+          }
+        } else {
+          break;
+        }
+      }
+      if (s.cursor < s.levels.length) break;
+      if (!ignoredCache && s.failures.length === 0) {
+        let anyDown = false;
+        for (const lv of s.levels)
+          if (isCachedDown(lv)) {
+            anyDown = true;
+            break;
+          }
+        if (anyDown) {
+          ctx.logger.warn(
+            "profiles: every level is cached down; retrying while ignoring the cache",
+          );
+          s.cursor = 0;
+          ignoredCache = true;
+          continue;
+        }
+      }
+      break;
+    }
+
+    if (s.cursor >= s.levels.length) {
+      ctx.logger.warn(
+        `failover chain exhausted for session ${sessionLabel(agent)}: tried ${s.levels.map((l) => `${l.provider}/${l.model}`).join(", ") || "no levels"}`,
+      );
+      const tried = s.failures
+        .map((f) => `  - ${f.level.provider}/${f.level.model}: ${f.code} — ${f.message}`)
+        .join("\n");
+      throw new Error(`profiles: no level can serve the active chain:\n${tried}`);
+    }
+
+    const level = s.levels[s.cursor];
+
+    // Record failover event when serving below the head (Ticket 3).
+    if (s.cursor > 0) {
+      const from = s.levels[0];
+      const code = s.failures.length > 0 ? s.failures[s.failures.length - 1].code : "CACHED_DOWN";
+      const sessionId = sessionLabel(agent);
+      recordFailoverEvent(
+        sessionId,
+        { provider: from.provider, model: from.model },
+        { provider: level.provider, model: level.model },
+        code,
+        s.cursor + 1,
+        s.levels.length,
+        s.failures.map((f) => ({
+          provider: f.level.provider,
+          model: f.level.model,
+          code: f.code,
+        })),
+      );
+    }
+
+    // Record failover event when serving the head (Ticket 3).
+    if (s.cursor === 0) {
+      const code = s.failures.length > 0 ? s.failures[s.failures.length - 1].code : "HEAD";
+      const sessionId = sessionLabel(agent);
+      recordFailoverEvent(
+        sessionId,
+        { provider: level.provider, model: level.model },
+        { provider: level.provider, model: level.model },
+        code,
+        1,
+        s.levels.length,
+        s.failures.map((f) => ({
+          provider: f.level.provider,
+          model: f.level.model,
+          code: f.code,
+        })),
+      );
+    }
+
+    const selectionMark = `${level.provider}/${level.model}`;
+    if (lastSelected.get(agent) !== selectionMark) {
+      lastSelected.set(agent, selectionMark);
+      ctx.logger.info(
+        `failover chain selected ${level.provider}/${level.model} for session ${sessionLabel(agent)}`,
+      );
+    } else {
+      ctx.logger.debug(
+        `failover chain selected ${level.provider}/${level.model} for session ${sessionLabel(agent)}`,
+      );
+    }
+    return buildConfig(proposal, level);
+  });
+
+  ctx.on("agent/request-error", (payload: unknown, next: () => Promise<RequestErrorAction>) => {
+    const p = payload as {
+      turn?: unknown;
+      step?: unknown;
+      signal?: AbortSignal;
+      failure?: { code?: string; message?: string };
+      retryPolicy?: { mode?: string };
+      agent?: unknown;
+    };
+    const agent = p.agent as object | undefined;
+    if (!agent) return next();
+    const agentMap = state.get(agent);
+    if (!agentMap) return next();
+    const s = agentMap.get(keyOf(p.turn, p.step));
+    if (!s || s.stepKey !== keyOf(p.turn, p.step)) return next();
+
+    const cur = s.levels[s.cursor];
+    if (!cur) return next();
+
+    if (p.signal?.aborted) {
+      agentMap.delete(keyOf(p.turn, p.step));
+      return next();
+    }
+
+    const failure = p.failure ?? {};
+    const last = s.failures[s.failures.length - 1];
+    if (last && last.level.provider === cur.provider && last.level.model === cur.model) {
+      last.code = failure.code ?? "UNKNOWN";
+      last.message = failure.message ?? "";
+    } else {
+      recordFailure(s.failures, cur, failure.code ?? "UNKNOWN", failure.message ?? "");
+    }
+
+    markDown(cur, failure.code, failure.message ?? "");
+    // Abort already returned above, so reaching here means a real rung
+    // failure: remember it for the rest of this turn's sequence.
+    recordSequenceFailure(sequenceKeysFor(agent, p.turn), cur);
+
+    if (p.retryPolicy?.mode === "always") {
+      s.retries += 1;
+      if (s.retries <= alwaysMaxRetries) return next();
+    }
+    s.retries = 0;
+
+    // Advance cursor past the failed level and skip any cached-down or
+    // sequence-failed levels.
+    const seqKeys = sequenceKeysFor(agent, p.turn);
+    const advanced = advanceChain(
+      s.levels,
+      s.cursor + 1,
+      (level) => isCachedDown(level) || isSequenceFailed(seqKeys, level),
+    );
+    s.cursor = advanced.cursor;
+
+    if (!advanced.exhausted) {
+      const nxt = s.levels[s.cursor];
+      ctx.logger.info(
+        `session ${sessionLabel(agent)} failing over from ${cur.provider}/${cur.model} to ${nxt.provider}/${nxt.model}`,
+      );
+
+      // Record the failover event for the status endpoint (Ticket 3).
+      const sessionId = sessionLabel(agent);
+      recordFailoverEvent(
+        sessionId,
+        { provider: cur.provider, model: cur.model },
+        { provider: nxt.provider, model: nxt.model },
+        failure.code ?? "UNKNOWN",
+        s.cursor + 1, // 1-based position in chain
+        s.levels.length,
+        s.failures.map((f) => ({
+          provider: f.level.provider,
+          model: f.level.model,
+          code: f.code,
+        })),
+      );
+
+      return { kind: "retry" } as unknown as Promise<RequestErrorAction>;
+    }
+
+    ctx.logger.warn(
+      `failover chain exhausted for session ${sessionLabel(agent)}: tried ${s.levels.map((l) => `${l.provider}/${l.model}`).join(", ") || "no levels"}`,
+    );
+    const tried = s.failures
+      .map((f) => `  - ${f.level.provider}/${f.level.model}: ${f.code} — ${f.message}`)
+      .join("\n");
+    agentMap.delete(keyOf(p.turn, p.step));
+    throw new Error(`profiles: all levels exhausted for the active chain:\n${tried}`);
+  });
+}
+
+/**
+ * Push the active chain's head into agent-default-model so future sessions
+ * compose on the flipped profile's primary route. The orchestrator chain
+ * head IS the profile head (the orchestrator chain matches the pre-W21 flat
+ * chain for both profiles).
+ */
+function syncDefaultModel(ctx: Context, profile: ProfileSettings | undefined): void {
+  const head = chainOf(activeEntry(profile), "orchestrator", profile?.chains, ctx)[0];
+  if (!head) return;
+  const agentDefaultModel = service<{
+    saveSelection(next: {
+      provider: string;
+      model: string;
+      reasoningEffort?: string;
+    }): Promise<void>;
+  }>(ctx, "agentDefaultModel");
+  void agentDefaultModel
+    ?.saveSelection({
+      provider: head.provider,
+      model: head.model,
+      ...(head.reasoningEffort ? { reasoningEffort: head.reasoningEffort } : {}),
+    })
+    .catch(() => {});
+}
+
+// ── W24: settings panel routes ────────────────────────────────────────────
+// GET /profiles/config returns the resolved `profile` namespace: string chain
+// refs resolve through profile.chains, then the entry normalizes to the
+// canonical nested shape plus error-cache info. PUT validates
+// strictly and writes through the SAME settings service this plugin reads
+// (settings.replace on the registered namespace), so the write hot-applies:
+// the settings/updated listener below clears the error cache and re-syncs the
+// default model, and every selection reads the namespace live.
+
+/** Write-side of the settings service this plugin already reads. */
+interface SettingsWriteService extends SettingsService {
+  replace(ns: string, section: unknown): Promise<void>;
+}
+
+/** One canonical W21 entry: both named chains, each an ordered routes list. */
+interface CanonicalEntry {
+  orchestrator: { routes: RouteCandidate[] };
+  subagent: { routes: RouteCandidate[] };
+}
+
+function canonicalEntry(entry: unknown, chains?: Record<string, unknown>): CanonicalEntry {
+  return {
+    orchestrator: { routes: chainOf(entry, "orchestrator", chains) },
+    subagent: { routes: chainOf(entry, "subagent", chains) },
+  };
+}
+
+function rawEntry(entry: unknown): unknown {
+  return entry ?? { orchestrator: { routes: [] }, subagent: { routes: [] } };
+}
+
+function canonicalConfig(profile: ProfileSettings | undefined) {
+  return {
+    active: profile?.active ?? "work",
+    chains: profile?.chains ?? {},
+    work: rawEntry(profile?.work),
+    personal: rawEntry(profile?.personal),
+    resolved: {
+      work: canonicalEntry(profile?.work, profile?.chains),
+      personal: canonicalEntry(profile?.personal, profile?.chains),
+    },
+  };
+}
+
+type Validated<T> = { ok: true; value: T } | { ok: false; error: string };
+
+/**
+ * PUT-body shapes as z schemas, over the schemastery z this file already
+ * imports. Four things schemastery cannot do stay explicit in the sweep
+ * below: (1) unknown keys — resolve-time strict STRIPS rather than rejects,
+ * and the strict flag does not propagate through property() into nested
+ * objects; (2) a union with a missing value slips through unless the union
+ * is .required(); (3) Schema.resolve accepts an explicit null BEFORE any
+ * type callback runs, so the two nullable-optional positions
+ * (reasoningEffort, chains) check null outside the schema; (4) z.object()
+ * and z.dict() carry an implicit {} default, so an absent chains resolves
+ * to {} and is deleted again to stay absent-when-absent.
+ */
+const NonEmptyString = z.string().min(1);
+const PutRouteRow = z
+  .object({
+    provider: z.string().min(1).required(),
+    model: z.string().min(1).required(),
+    reasoningEffort: z.string().min(1),
+  })
+  .required();
+/** {routes:[...]} form: rows are route pairs only, never bare strings. */
+const PutChainObject = z
+  .object({
+    routes: z.array(PutRouteRow).required(),
+  })
+  .required();
+/** Composition form: each step is a string or a route pair. */
+const PutChainArray = z.array(
+  z.union([NonEmptyString, PutRouteRow]).required(),
+);
+/** validateChain's shape: object form or composition array, never a string. */
+const PutChain = z.union([PutChainObject, PutChainArray]).required();
+/** validateEntryField's shape: a string ref or either chain form. */
+const PutEntryField = z
+  .union([NonEmptyString, PutChainObject, PutChainArray])
+  .required();
+const PutEntry = z
+  .object({
+    orchestrator: PutEntryField,
+    subagent: PutEntryField,
+  })
+  .required();
+const PutChains = z.dict(PutChain);
+const PutSection = z
+  .object({
+    active: z.union([z.const("work"), z.const("personal")]).required(),
+    work: PutEntry,
+    personal: PutEntry,
+    chains: PutChains,
+  })
+  .required();
+
+/** First unknown key under a plain object, or undefined when clean. */
+function badKey(value: object, allowed: readonly string[]): string | undefined {
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key)) return key;
+  }
+  return undefined;
+}
+
+function sweepRow(value: unknown, path: string): string | undefined {
+  if (!isPlainObject(value)) return undefined;
+  const bad = badKey(value, ["provider", "model", "reasoningEffort"]);
+  if (bad !== undefined) return `${path} has unknown key "${bad}"`;
+  if (value.reasoningEffort === null) {
+    return `${path}.reasoningEffort must be a non-empty string`;
+  }
+  return undefined;
+}
+
+function sweepChain(value: unknown, path: string): string | undefined {
+  if (isPlainObject(value)) {
+    const bad = badKey(value, ["routes"]);
+    if (bad !== undefined) return `${path} has unknown key "${bad}"`;
+    if (Array.isArray(value.routes)) {
+      for (let i = 0; i < value.routes.length; i++) {
+        const hit = sweepRow(value.routes[i], `${path}.routes[${i}]`);
+        if (hit !== undefined) return hit;
+      }
+    }
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const step = value[i];
+      if (typeof step === "string" || !isPlainObject(step)) continue;
+      const hit = sweepRow(step, `${path}[${i}]`);
+      if (hit !== undefined) return hit;
+    }
+  }
+  return undefined;
+}
+
+function sweepField(value: unknown, path: string): string | undefined {
+  if (typeof value === "string") return undefined;
+  return sweepChain(value, path);
+}
+
+function sweepEntry(value: unknown, path: string): string | undefined {
+  if (!isPlainObject(value)) return undefined;
+  const bad = badKey(value, ["orchestrator", "subagent"]);
+  if (bad !== undefined) return `${path} has unknown key "${bad}"`;
+  return (
+    sweepField(value.orchestrator, `${path}.orchestrator`) ??
+    sweepField(value.subagent, `${path}.subagent`)
+  );
+}
+
+/** Unknown-key and explicit-null messages under work/personal/chains, keeping
+ * the old wording, or undefined when the schemas own every remaining check. */
+function sweepSection(value: Record<string, unknown>): string | undefined {
+  if (!isPlainObject(value)) return undefined;
+  const bad = badKey(value, ["active", "work", "personal", "chains"]);
+  if (bad !== undefined) return `unknown key "${bad}"`;
+  if (value.chains === null) return "chains must be an object";
+  return sweepEntry(value.work, "work") ?? sweepEntry(value.personal, "personal") ?? sweepChains(value.chains);
+}
+
+function sweepChains(value: unknown): string | undefined {
+  if (!isPlainObject(value)) return undefined;
+  for (const key of Object.keys(value)) {
+    const hit = sweepChain(value[key], `chains.${key}`);
+    if (hit !== undefined) return hit;
+  }
+  return undefined;
+}
+
+type ChainLibrary = Record<string, unknown>;
+
+function validateSection(value: unknown): Validated<{
+  active: string;
+  work: unknown;
+  personal: unknown;
+  chains?: ChainLibrary;
+}> {
+  if (!isPlainObject(value)) return { ok: false, error: "config must be an object" };
+  const topBad = badKey(value, ["active", "work", "personal", "chains"]);
+  if (topBad !== undefined) return { ok: false, error: `unknown key "${topBad}"` };
+  // Active before work/personal/chains, as the old ladder ordered it.
+  if (typeof value.active !== "string" || (value.active !== "work" && value.active !== "personal")) {
+    return { ok: false, error: 'active must be "work" or "personal"' };
+  }
+  const swept = sweepSection(value);
+  if (swept !== undefined) return { ok: false, error: swept };
+  try {
+    const out = z.resolve(value, PutSection, {})[0] as {
+      active: string;
+      work: unknown;
+      personal: unknown;
+      chains?: ChainLibrary;
+    };
+    // Absent stays absent: z.object()/z.dict() resolve a missing chains to
+    // their implicit {} default, which the old validator never produced.
+    if (value.chains === undefined) delete out.chains;
+    return { ok: true, value: out };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+function makeConfigHandler(ctx: Context) {
+  return async (req: IncomingMessage, res: ServerResponse) => {
+    if (req.method === "GET") {
+      const settings = service<SettingsService>(ctx, "settings");
+      const profile = settings?.get(PROFILE_NS) as ProfileSettings | undefined;
+      sendJson(res, 200, {
+        ok: true,
+        config: canonicalConfig(profile),
+        errorCache: { ttlMs: ERROR_TTL_MS, down: liveDownKeys() },
+      });
+      return;
+    }
+    if (req.method === "PUT") {
+      const settings = service<SettingsWriteService>(ctx, "settings");
+      if (settings === undefined) {
+        sendJson(res, 503, { ok: false, error: "settings service unavailable" });
+        return;
+      }
+      let body: unknown;
+      try {
+        body = await readBody(req);
+      } catch (error) {
+        sendJson(res, 400, {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return;
+      }
+      const validated = validateSection(body);
+      if (validated.ok === false) {
+        sendJson(res, 400, { ok: false, error: validated.error });
+        return;
+      }
+      try {
+        await settings.replace(PROFILE_NS, validated.value);
+      } catch (error) {
+        sendJson(res, 400, {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return;
+      }
+      const profile = settings.get(PROFILE_NS) as ProfileSettings | undefined;
+      sendJson(res, 200, {
+        ok: true,
+        config: canonicalConfig(profile),
+        errorCache: { ttlMs: ERROR_TTL_MS, down: liveDownKeys() },
+      });
+      return;
+    }
+    sendJson(res, 405, { ok: false, error: `method ${req.method} not allowed` });
+  };
+}
+
+function makeSwitchHandler(ctx: Context) {
+  return async (req: IncomingMessage, res: ServerResponse) => {
+    if (req.method !== "PUT") {
+      sendJson(res, 405, { ok: false, error: `method ${req.method} not allowed` });
+      return;
+    }
+    const settings = service<SettingsWriteService>(ctx, "settings");
+    if (settings === undefined) {
+      sendJson(res, 503, { ok: false, error: "settings service unavailable" });
+      return;
+    }
+    let body: unknown;
+    try {
+      body = await readBody(req);
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
+    const rawActive = isPlainObject(body) ? body.active : undefined;
+    if (typeof rawActive !== "string" || (rawActive !== "work" && rawActive !== "personal")) {
+      sendJson(res, 400, { ok: false, error: 'active must be "work" or "personal"' });
+      return;
+    }
+    const profile = settings.get(PROFILE_NS) as ProfileSettings | undefined;
+    const next = { ...(profile ?? {}), active: rawActive };
+    try {
+      await settings.replace(PROFILE_NS, next);
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
+    const after = settings.get(PROFILE_NS) as ProfileSettings | undefined;
+    sendJson(res, 200, {
+      ok: true,
+      config: canonicalConfig(after),
+      errorCache: { ttlMs: ERROR_TTL_MS, down: liveDownKeys() },
+    });
+  };
+}
+
+function makeErrorCacheHandler(ctx: Context) {
+  void ctx;
+  // No auth check, by convention: this server only serves localhost plugin
+  // clients, the same trust model as the profile switch endpoint above.
+  return async (req: IncomingMessage, res: ServerResponse) => {
+    if (req.method !== "DELETE") {
+      sendJson(res, 405, { ok: false, error: `method ${req.method} not allowed` });
+      return;
+    }
+    downCache.clear();
+    doubleStrikes.clear();
+    sendJson(res, 200, { ok: true, down: liveDownKeys() });
+    return;
+  };
+}
+
+export function makeFailoverStatusHandler(ctx: Context) {
+  return async (req: IncomingMessage, res: ServerResponse) => {
+    if (req.method !== "GET") {
+      sendJson(res, 405, { ok: false, error: `method ${req.method} not allowed` });
+      return;
+    }
+
+    const settings = service<SettingsService>(ctx, "settings");
+    const profile = settings?.get(PROFILE_NS) as ProfileSettings | undefined;
+
+    // Get the active chain (orchestrator for depth-0; status endpoint is called from browser).
+    const chain = chainOf(activeEntry(profile), "orchestrator", profile?.chains, ctx);
+    const headLevel = chain[0] ?? null;
+
+    // One badge asks for ONE session's failover state. The store is keyed
+    // by session, so a ?session=<id> param makes the lookup direct. Without
+    // it there is no meaningful answer: the previous cross-session "newest
+    // event" scan painted every badge with whichever session failed over
+    // most recently, so a matched default showed another session's stale
+    // rung state.
+    const url = new URL(req.url ?? "/", "http://profile.local");
+    const sessionParam = url.searchParams.get("session");
+    const lastEvent: FailoverEvent | null =
+      sessionParam !== null && sessionParam !== ""
+        ? (failoverEvents.get(sessionParam) ?? null)
+        : null;
+
+    sendJson(res, 200, {
+      ok: true,
+      activeChain: chain,
+      headLevel: headLevel,
+      lastEvent: lastEvent,
+    });
+  };
+}
+
+export function apply(ctx: Context, config: unknown): void {
+  const cfg = (config ?? {}) as ProfilesConfig;
+
+  clearFailoverEvents();
+  clearDownCache();
+  ctx.logger.info("failover state clears on boot");
+
+  registerFailover(ctx, cfg.alwaysMaxRetries ?? 2);
+
+  // W24: the settings panel reads/writes the profile namespace over these
+  // routes. Lazy inject so the plugin still loads where no web server mounts.
+  ctx.inject(["webServer"], (scope) => {
+    const server = (scope as unknown as { webServer: { register(options: unknown): unknown } })
+      .webServer;
+    server.register({
+      kind: "exact",
+      path: "/profiles/config",
+      handler: makeConfigHandler(ctx),
+    });
+    server.register({
+      kind: "exact",
+      path: "/profiles/switch",
+      handler: makeSwitchHandler(ctx),
+    });
+    server.register({
+      kind: "exact",
+      path: "/profiles/error-cache",
+      handler: makeErrorCacheHandler(ctx),
+    });
+    server.register({
+      kind: "exact",
+      path: "/profiles/failover-status",
+      handler: makeFailoverStatusHandler(ctx),
+    });
+  });
+
+  ctx.on("settings/updated", (ns, next, prev) => {
+    if (ns !== PROFILE_NS) return;
+    downCache.clear();
+    doubleStrikes.clear();
+    const nextHead = chainOf(
+      activeEntry(next as ProfileSettings),
+      "orchestrator",
+      (next as ProfileSettings)?.chains,
+      ctx,
+    )[0];
+    const prevHead = chainOf(
+      activeEntry(prev as ProfileSettings),
+      "orchestrator",
+      (prev as ProfileSettings)?.chains,
+      ctx,
+    )[0];
+    const flipped =
+      (nextHead?.provider ?? "") !== (prevHead?.provider ?? "") ||
+      (nextHead?.model ?? "") !== (prevHead?.model ?? "") ||
+      (nextHead?.reasoningEffort ?? "") !== (prevHead?.reasoningEffort ?? "");
+    if (flipped) syncDefaultModel(ctx, next as ProfileSettings);
+  });
+
+  // W-new-project: reset the default model to the active profile's head on
+  // every new TOP-LEVEL session (role/see children have delegationDepth >= 1
+  // and must not trigger this — mirrors depthOf()'s ?? 0 pattern). Undoes a
+  // stale manual pick (session.selectModel also saves it as the global
+  // default) leaking into new projects/sessions.
+  ctx.on("session/created", (session: unknown) => {
+    const depth =
+      (session as { header?: { delegationDepth?: number } } | null | undefined)?.header
+        ?.delegationDepth ?? 0;
+    if (depth > 0) return;
+    const settings = service<SettingsService>(ctx, "settings");
+    const profile = settings?.get(PROFILE_NS) as ProfileSettings | undefined;
+    syncDefaultModel(ctx, profile);
+  });
+
+  ctx.systemPrompt.section({
+    name: "tool:profiles",
+    order: 116.4,
+    text:
+      "Every subagent runs on the profile-routed subagent chain with automatic " +
+      "failover: the subagent tool is pinned to the subagent chain head and a " +
+      "fault advances to the next rung (see the profile settings panel). " +
+      "Start independent delegations together in one message.",
+  });
+}

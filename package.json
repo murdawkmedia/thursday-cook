@@ -19,20 +19,27 @@
     "build:plugins": "pnpm --filter @trythursday/build run build:all"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
     "@types/node": "^26.4.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "esbuild": "^0.28.2",
-    "prettier": "^3.9.6",
-    "typescript": "^6.0.2",
-    "vitest": "^5.0.0",
     "eslint": "^9.30.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-config-standard": "^17.1.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-n": "^17.23.1",
     "eslint-plugin-promise": "^7.2.1",
-    "typescript-eslint": "^8.30.0",
+    "prettier": "^3.9.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "stylelint": "^17.4.0",
     "stylelint-config-gds": "^3.0.0",
-    "@eslint/eslintrc": "^3.3.1"
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.30.0",
+    "vitest": "^5.0.0"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
   }
 }

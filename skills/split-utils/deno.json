@@ -1,0 +1,30 @@
+{
+  "tasks": {
+    "start": "deno run --no-lock -A app/expense-split.ts",
+    "check": "deno check --no-lock scripts/*.ts scripts/dev/*.ts src/*.ts app/*.ts app/expense-split/*.ts",
+    "dev": "deno run --no-lock -A"
+  },
+  "fmt": {
+    "lineWidth": 100,
+    "exclude": [
+      "state",
+      "out"
+    ]
+  },
+  "lint": {
+    "exclude": [
+      "state",
+      "out"
+    ],
+    "rules": {
+      // This repository runs straight from a raw GitHub URL. Deno does
+      // not apply a local import map to a remote module, so a bare
+      // specifier fails there with "not a dependency". Naming every
+      // dependency in full inside the source is what makes the plain
+      // one-command run work, so the rule that forbids it is off.
+      "exclude": [
+        "no-import-prefix"
+      ]
+    }
+  }
+}

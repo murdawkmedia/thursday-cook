@@ -17,6 +17,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { homedir } from "node:os";
 
 import { loadSessionModel, loadCompactionFork, loadInstallEngine, ResolutionError } from "./runtime.mjs";
 import {
@@ -141,7 +142,7 @@ async function resolveSession(ref, flags) {
 async function listArtifacts(flags) {
   const roots = flags.root
     ? [{ root: path.resolve(flags.root), label: "--root" }]
-    : defaultSessionRoots(process.env, process.env.HOME ?? require("node:os").homedir());
+    : defaultSessionRoots(process.env, process.env.HOME ?? homedir());
   const out = [];
   for (const r of roots) {
     for (const a of findSessionArtifacts(r.root, { project: flags.project })) out.push({ ...a, rootLabel: r.label });
@@ -451,14 +452,14 @@ export async function main(argv) {
             ? String(flags.from)
             : process.env.DSH_HOME
               ? path.join(process.env.DSH_HOME, "sessions")
-              : path.join(process.env.HOME ?? require("node:os").homedir(), ".dsh", "sessions"),
+              : path.join(process.env.HOME ?? homedir(), ".dsh", "sessions"),
         );
         const destRoot = path.resolve(
           flags.dest !== undefined && flags.dest !== true
             ? String(flags.dest)
             : process.env.THURSDAY_HOME
               ? path.join(process.env.THURSDAY_HOME, "dsh", "sessions")
-              : path.join(process.env.HOME ?? require("node:os").homedir(), ".thursday", "dsh", "sessions"),
+              : path.join(process.env.HOME ?? homedir(), ".thursday", "dsh", "sessions"),
         );
         const quarantineRoot =
           flags.quarantine !== undefined && flags.quarantine !== true

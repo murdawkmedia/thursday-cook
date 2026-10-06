@@ -379,7 +379,11 @@ async function main(): Promise<void> {
   // first made that branch unreachable on exactly the machines where a typo is
   // most likely.
   const checked = preflight(command);
-  if (!checked.ok) {
+  // `=== false`, not `!checked.ok`: the workspace tsconfig keeps
+  // strictNullChecks:false (the vendored plugin ports need it), and under that
+  // setting truthiness does not narrow a discriminated union while an explicit
+  // literal comparison does.
+  if (checked.ok === false) {
     process.stderr.write(`${checked.message}\n`);
     // An unrecognised command is a usage error, so the usage is what the user
     // needs to see. A home that is unsafe or missing is not: help would bury

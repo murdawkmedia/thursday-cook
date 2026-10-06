@@ -88,7 +88,7 @@ export async function inspectLog(file) {
       return { ok: false, reason: `line ${i + 1} is not valid JSON: ${e.message}`, issues };
     }
   }
-  if (artifact.issues.some((i) => i.code === "no-trailing-newline")) {
+  if (issues.some((i) => i.code === "no-trailing-newline")) {
     return { ok: false, reason: "no trailing newline — the final record may be torn", issues };
   }
   return { ok: true, reason: null, issues };
@@ -109,7 +109,12 @@ export async function scanImportSource(sourceRoot, opts = {}) {
   const superseded = [];
   let workspaces = [];
   try {
-    workspaces = fs.readdirSync(sourceRoot, { withFileTypes: true }).filter((d) => d.isDirectory());
+    workspaces = fs
+      .readdirSync(sourceRoot, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      // readdir order is filesystem-dependent; sort so scans and reports are
+      // deterministic across machines and across runs.
+      .sort((a, b) => a.name.localeCompare(b.name));
   } catch {
     return { sourceRoot, sessions, superseded, trees: [], workspaces: [] };
   }
@@ -117,7 +122,7 @@ export async function scanImportSource(sourceRoot, opts = {}) {
     const wsDir = path.join(sourceRoot, ws.name);
     let entries = [];
     try {
-      entries = fs.readdirSync(wsDir, { withFileTypes: true });
+      entries = fs.readdirSync(wsDir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
     } catch {
       continue;
     }
@@ -143,8 +148,15 @@ export async function scanImportSource(sourceRoot, opts = {}) {
           superseded.push({ file: path.join(dir, f.name), bytes: fs.statSync(path.join(dir, f.name)).size, workspace: ws.name });
           continue;
         }
-        if (LOG_SUFFIXES.some((s) => f.name === `session${s}`) && logFile === null) {
-          logFile = path.join(dir, f.name);
+      }
+      // A directory holding both shapes (a repair can leave one behind)
+      // resolves by LOG_SUFFIXES priority — compressed first — never by
+      // readdir order.
+      for (const suffix of LOG_SUFFIXES) {
+        const candidate = path.join(dir, `session${suffix}`);
+        if (fs.existsSync(candidate)) {
+          logFile = candidate;
+          break;
         }
       }
       if (logFile === null) continue;
@@ -231,8 +243,34 @@ export function resolveSelection(sessions, trees, select) {
 export async function runImport(opts) {
   const { sourceRoot, destRoot, select } = opts;
   const quarantineRoot = opts.quarantineRoot ?? path.join(path.dirname(destRoot), "quarantine");
+  // An import writes ONLY outside the source tree. A destination or quarantine
+  // root inside the source would put writes under the very tree the
+  // byte-identity promise covers — refuse the configuration outright (#233).
+  const inside = (parent, child) => {
+    const rel = path.relative(path.resolve(parent), path.resolve(child));
+    return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+  };
+  if (inside(sourceRoot, destRoot) || inside(sourceRoot, quarantineRoot)) {
+    throw new Error(
+      `refusing to import: the destination or quarantine root is inside the source tree (${sourceRoot}); ` +
+        `an import must never write under its own source`,
+    );
+  }
   const scan = await scanImportSource(sourceRoot, { archivedIds: opts.archivedIds });
   const { entries, selectedIds } = resolveSelection(scan.sessions, scan.trees, select);
+  // `session-<id>/` and `<id>/` can sit side by side. One id, one import:
+  // first wins, the rest are counted, never silently double-imported.
+  const seenIds = new Set();
+  const duplicates = [];
+  const uniqueEntries = [];
+  for (const s of entries) {
+    if (seenIds.has(s.id)) {
+      duplicates.push(s.sessionId);
+      continue;
+    }
+    seenIds.add(s.id);
+    uniqueEntries.push(s);
+  }
   const report = {
     sourceRoot,
     destRoot,
@@ -242,15 +280,17 @@ export async function runImport(opts) {
     imported: [],
     quarantined: [],
     skippedSuperseded: scan.superseded.map((s) => ({ file: s.file, bytes: s.bytes })),
+    duplicatesSkipped: duplicates,
     counts: {
       selected: selectedIds.length,
-      trees: new Set(entries.map((e) => scan.trees.find((t) => t.members.includes(e.id))?.treeId)).size,
+      trees: new Set(uniqueEntries.map((e) => scan.trees.find((t) => t.members.includes(e.id))?.treeId)).size,
       imported: 0,
       quarantined: 0,
       superseded: scan.superseded.length,
+      duplicates: duplicates.length,
     },
   };
-  for (const s of entries) {
+  for (const s of uniqueEntries) {
     if (!s.importable) {
       const qDir = path.join(quarantineRoot, s.workspace, s.sessionId);
       if (!opts.dryRun) {

@@ -475,6 +475,9 @@ log("## 7. import (#233) — trees, quarantine, byte-identity, readability");
   check("fold reads the imported session", runDiagnostics(openedImp, model, fork).fold !== undefined);
 
   // --- the installer never imports on its own -------------------------------
+  // Source guard here; the behavioural half lives where the installer is
+  // tested: packages/install's decoy-home tests assert a populated ~/.dsh is
+  // untouched by a fresh install (E6's assertion, reads included).
   let repoRoot = path.dirname(new URL(import.meta.url).pathname);
   while (!fs.existsSync(path.join(repoRoot, "pnpm-workspace.yaml")) && repoRoot !== "/") repoRoot = path.dirname(repoRoot);
   const installHits = [];
@@ -490,6 +493,35 @@ log("## 7. import (#233) — trees, quarantine, byte-identity, readability");
     if (fs.existsSync(d)) scanInstall(d);
   }
   check("the installer never imports sessions on its own", installHits.length === 0, installHits.join(", "));
+
+  // --- review follow-ups (independent review of 8d92927, observations 2/6/7/8)
+  const src2 = path.join(outDir, "import-src2");
+  const dupA = path.join(src2, "--ws-a--", `session-${PID}`);
+  const dupB = path.join(src2, "--ws-a--", PID);
+  mkSession(dupA, PID, { origin: "human", delegationDepth: 0 });
+  mkSession(dupB, PID, { origin: "human", delegationDepth: 0 });
+  // A decoy uncompressed sibling: unparsable on purpose, and must not be
+  // chosen while a compressed artifact sits beside it.
+  fs.writeFileSync(path.join(dupA, "session.jsonl"), Buffer.from('{"type":"session"}\nnot json\n'));
+  const scan2 = await scanImportSource(src2);
+  check("a directory with both log shapes resolves to the compressed one",
+    scan2.sessions.find((s) => s.sessionId === `session-${PID}`)?.logName === "session.jsonl.zstd");
+  const rDup = await runImport({ sourceRoot: src2, destRoot: path.join(outDir, "import-dest-dup"), select: [PID] });
+  check("same-id duplicate directories import once, counted as duplicates",
+    rDup.counts.imported === 1 && rDup.counts.duplicates === 1, JSON.stringify(rDup.counts));
+  let refused = null;
+  try {
+    await runImport({ sourceRoot: srcRoot, destRoot: path.join(srcRoot, "inside"), select: [PID] });
+  } catch (e) {
+    refused = e;
+  }
+  check("a destination inside the source tree is refused outright",
+    refused !== null && /inside the source tree/.test(refused.message), refused?.message);
+  const tornNoNl = path.join(outDir, "torn-no-newline.jsonl");
+  fs.writeFileSync(tornNoNl, mkHeader(XID, {}) + "\n" + '{"type":"step/start","seq":1,"time":1,"da');
+  const tornVerdict = await inspectLog(tornNoNl);
+  check("a torn final record (no trailing newline) is quarantined",
+    tornVerdict.ok === false && /trailing newline|valid JSON/.test(tornVerdict.reason ?? ""), tornVerdict.reason);
 }
 log("");
 

@@ -128,16 +128,24 @@ export function clientBuildOptions(
  * the same JSX options the bundle uses: only the entry's own emit is
  * examined, never a dependency's.
  */
-export async function assertNoAutomaticJsxRuntime(entry: string): Promise<void> {
+export async function assertNoAutomaticJsxRuntime(
+  entry: string,
+  tsconfigRaw: string | { compilerOptions?: Record<string, unknown> } = CLIENT_TSCONFIG_RAW,
+): Promise<void> {
   const source = await readFile(entry, "utf8");
   const out = await transform(source, {
     loader: "tsx",
     jsx: "transform",
     jsxFactory: "react.createElement",
     jsxFragment: "react.Fragment",
-    tsconfigRaw: CLIENT_TSCONFIG_RAW,
+    tsconfigRaw,
   });
-  if (!out.code.includes("import_jsx_runtime")) return;
+  // The entry's own emit is what matters: with the classic options the emit
+  // is react.createElement calls, and a jsx:"react-jsx" tsconfig overrides
+  // those options and emits an import of the automatic runtime instead.
+  // transform() never emits the bundler's import_jsx_runtime CJS alias, so
+  // the marker is the runtime specifier itself.
+  if (!/["']react\/jsx-(?:dev-)?runtime["']/.test(out.code)) return;
   throw new Error(
     `client entry ${entry} compiles with the automatic JSX runtime (esbuild emit). A ` +
       'tsconfig with "jsx": "react-jsx" reached the transform and overrode jsxFactory. Remove ' +
@@ -159,16 +167,19 @@ export async function buildClient(
   const wrapper = spec.wrapper ?? "module-loader";
   const outPath = at(ctx.root, spec.outfile);
   const entry = at(ctx.root, spec.entry);
+  const tsconfigRaw = spec.tsconfig
+    ? await readFile(at(ctx.root, spec.tsconfig), "utf8")
+    : CLIENT_TSCONFIG_RAW;
   await mkdir(dirname(outPath), { recursive: true });
 
   if (wrapper === "iife") {
-    await assertNoAutomaticJsxRuntime(entry);
+    await assertNoAutomaticJsxRuntime(entry, tsconfigRaw);
     await build(clientBuildOptions(spec, ctx, outPath));
   } else {
     const tmpDir = await mkdtemp(join(tmpdir(), "dsh-wrap-"));
     const bundlePath = join(tmpDir, "_client.bundle.js");
     try {
-      await assertNoAutomaticJsxRuntime(entry);
+      await assertNoAutomaticJsxRuntime(entry, tsconfigRaw);
       await build(clientBuildOptions(spec, ctx, bundlePath));
       const bundled = (await readFile(bundlePath, "utf8")).replace(/\s+$/, "");
       await writeFile(outPath, wrapModuleLoaderFacade(spec.id, bundled));

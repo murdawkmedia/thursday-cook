@@ -74,10 +74,21 @@ describe("client options", () => {
     expect(options.tsconfigRaw).toBeDefined();
   });
 
-  it("rejects a bundle that reached for the automatic runtime", () => {
-    expect(() => assertNoAutomaticJsxRuntime('require("react/jsx-runtime")', "a.tsx")).toThrow(
-      /automatic JSX runtime/,
-    );
+  it("rejects a bundle that reached for the automatic runtime", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "jsx-guard-"));
+    try {
+      const entry = join(dir, "a.tsx");
+      await writeFile(entry, "const x = <div />;");
+      // The classic-pinned default transforms cleanly.
+      await expect(assertNoAutomaticJsxRuntime(entry)).resolves.toBeUndefined();
+      // A jsx:"react-jsx" tsconfig overrides those options and reaches the
+      // automatic runtime: the guard must reject that entry.
+      await expect(
+        assertNoAutomaticJsxRuntime(entry, { compilerOptions: { jsx: "react-jsx" } }),
+      ).rejects.toThrow(/automatic JSX runtime/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 

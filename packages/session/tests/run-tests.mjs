@@ -517,11 +517,14 @@ log("## 7. import (#233) — trees, quarantine, byte-identity, readability");
   }
   check("a destination inside the source tree is refused outright",
     refused !== null && /inside the source tree/.test(refused.message), refused?.message);
+  // VALID JSON, no trailing newline: pins the no-trailing-newline gate
+  // specifically (the mid-JSON arm is covered by the torn fixture above), so
+  // reverting the gate cannot slip past this check.
   const tornNoNl = path.join(outDir, "torn-no-newline.jsonl");
-  fs.writeFileSync(tornNoNl, mkHeader(XID, {}) + "\n" + '{"type":"step/start","seq":1,"time":1,"da');
+  fs.writeFileSync(tornNoNl, mkHeader(XID, {}) + "\n" + '{"type":"step/start","seq":1,"time":1,"data":{}}');
   const tornVerdict = await inspectLog(tornNoNl);
-  check("a torn final record (no trailing newline) is quarantined",
-    tornVerdict.ok === false && /trailing newline|valid JSON/.test(tornVerdict.reason ?? ""), tornVerdict.reason);
+  check("valid JSON without a trailing newline is quarantined by the newline gate",
+    tornVerdict.ok === false && /trailing newline/.test(tornVerdict.reason ?? ""), tornVerdict.reason);
 }
 log("");
 

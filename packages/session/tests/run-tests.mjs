@@ -15,10 +15,19 @@ import path from "node:path";
 import os from "node:os";
 
 import { loadSessionModel, loadCompactionFork } from "../src/runtime.mjs";
-import { openSessionFile, checksumFile, findSessionArtifacts, defaultSessionRoots, readHeaderOnly } from "../src/read.mjs";
-import { summarize } from "../src/view.mjs";
+import {
+  openSessionFile,
+  checksumFile,
+  findSessionArtifacts,
+  defaultSessionRoots,
+  readHeaderOnly,
+  readArtifact,
+} from "../src/read.mjs";
+import { summarize, search as searchView, recall as recallView } from "../src/view.mjs";
 import { runDiagnostics } from "../src/diagnose.mjs";
 import { planRepair, applyRepair, verifyRepair, confirmRepair } from "../src/repair.mjs";
+import { runImport, scanImportSource, inspectLog } from "../src/import.mjs";
+import { normalizeSessionId, buildSessionTrees, treeOf, sanitizeTitle, classifyHeader } from "../src/classify.mjs";
 import { makeFixtures } from "./make-fixtures.mjs";
 
 let passed = 0;
@@ -303,7 +312,186 @@ log("## 6. diagnose detects the header-frame defect; verifyRepair reports framin
 log("");
 
 // ---------------------------------------------------------------------------
-log("=".repeat(78));log("");
+log("## 7. import (#233) — trees, quarantine, byte-identity, readability");
+{
+  const PID = "aaaaaaaa-1111-2222-3333-444444444444"; // human, tree root (source dir is `session-` prefixed)
+  const CID = "bbbbbbbb-1111-2222-3333-444444444444"; // subagent under PID (source dir bare)
+  const TID = "cccccccc-1111-2222-3333-444444444444"; // torn log -> quarantine
+  const XID = "dddddddd-1111-2222-3333-444444444444"; // standalone human session
+
+  // dsh's writer layout: frame 0 = header line ALONE, then per-batch frames.
+  const encodeFrames = (ls, perFrame = 8) => {
+    const frames = [zlib.zstdCompressSync(Buffer.from(ls[0] + "\n", "utf8"))];
+    for (let i = 1; i < ls.length; i += perFrame) {
+      frames.push(zlib.zstdCompressSync(Buffer.from(ls.slice(i, i + perFrame).join("\n") + "\n", "utf8")));
+    }
+    return Buffer.concat(frames);
+  };
+
+  const art = await readArtifact(source);
+  const srcLines = art.plaintext.split("\n").filter((l) => l.length > 0);
+  const mkHeader = (id, extra) =>
+    JSON.stringify({ type: "session", version: 0, id, createdAt: 1789000000000, cwd: "/home/sid/ai-scratch", agentPreset: "standard", ...extra });
+  const mkSession = (dir, id, extra, torn = false) => {
+    const ls = [mkHeader(id, extra), ...srcLines.slice(1)];
+    if (torn) {
+      const mid = Math.floor(ls.length / 2);
+      ls[mid] = ls[mid].slice(0, 40); // torn mid-JSON, the observed 43 KB-line shape
+    }
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "session.jsonl.zstd"), encodeFrames(ls));
+  };
+
+  const srcRoot = path.join(outDir, "import-src");
+  mkSession(path.join(srcRoot, "--ws-a--", `session-${PID}`), PID, { origin: "human", delegationDepth: 0 });
+  mkSession(path.join(srcRoot, "--ws-a--", CID), CID, { origin: "subagent", delegationDepth: 1, parentSession: `session-${PID}` });
+  mkSession(path.join(srcRoot, "--ws-b--", TID), TID, { origin: "human", delegationDepth: 0 }, true);
+  mkSession(path.join(srcRoot, "--ws-b--", XID), XID, { origin: "human", delegationDepth: 0 });
+  // A `.superseded-<iso>` sibling, exactly as `repair` leaves them. Never importable.
+  fs.writeFileSync(
+    path.join(srcRoot, "--ws-a--", `session-${PID}`, `session.jsonl.zstd.superseded-2026-01-01T00:00:00.000Z`),
+    Buffer.from("superseded bytes"),
+  );
+
+  const sumTree = (root) => {
+    const out = [];
+    const walk = (d) => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+        const p = path.join(d, e.name);
+        if (e.isDirectory()) walk(p);
+        else out.push(`${path.relative(root, p)} ${checksumFile(p)}`);
+      }
+    };
+    walk(root);
+    return out.join("\n");
+  };
+  const before = sumTree(srcRoot);
+
+  // --- selection is the user's: an unattended run imports NOTHING -----------
+  const zero = await runImport({ sourceRoot: srcRoot, destRoot: path.join(outDir, "import-dest-zero"), select: [] });
+  check("an unattended run imports zero sessions", zero.counts.imported === 0 && zero.selected.length === 0);
+  check("an unattended run writes nothing at all", !fs.existsSync(path.join(outDir, "import-dest-zero")));
+
+  // --- the selection list: workspace, title, size, date, via the classifier --
+  const scan = await scanImportSource(srcRoot);
+  const pScan = scan.sessions.find((s) => s.id === PID);
+  check(
+    "the selection list shows workspace, title, size and date per session",
+    pScan !== undefined &&
+      pScan.workspace === "--ws-a--" &&
+      typeof pScan.title === "string" && pScan.title.length > 0 &&
+      pScan.bytes > 0 &&
+      typeof pScan.modified === "string" && pScan.modified.includes("T"),
+    `title=${JSON.stringify(pScan?.title)}`,
+  );
+  check("the classifier reads human/subagent and the parent link from the header",
+    pScan.origin === "human" &&
+      scan.sessions.find((s) => s.id === CID).parent === PID &&
+      scan.sessions.find((s) => s.id === CID).origin === "subagent");
+
+  // --- the tree is the unit: no orphan either way --------------------------
+  const trees = buildSessionTrees(scan.sessions.map((s) => ({ sessionId: s.id, parent: s.parent })));
+  const treeP = treeOf(CID, scan.sessions.map((s) => ({ sessionId: s.id, parent: s.parent })));
+  check("a prefixed parent and a bare child form ONE tree", treeP !== null && treeP.members.includes(PID) && treeP.members.includes(CID),
+    `trees=${trees.length}`);
+  const rChild = await runImport({ sourceRoot: srcRoot, destRoot: path.join(outDir, "import-dest-child"), select: [CID] });
+  check("importing a child alone imports its parent too (no orphan)",
+    rChild.imported.some((i) => i.id === PID) && rChild.imported.some((i) => i.id === CID) && rChild.counts.imported === 2);
+  const rParent = await runImport({ sourceRoot: srcRoot, destRoot: path.join(outDir, "import-dest-parent"), select: [PID] });
+  check("importing a parent alone offers and lands its subagent children",
+    rParent.counts.selected === 1 && rParent.counts.imported === 2 && rParent.imported.some((i) => i.id === CID));
+
+  // --- quarantine: counted, reported, and the rest still import -------------
+  const dest4 = path.join(outDir, "import-dest4");
+  const rAll = await runImport({ sourceRoot: srcRoot, destRoot: dest4, select: [PID, TID, XID] });
+  check("the torn log is quarantined and COUNTED, never dropped silently",
+    rAll.counts.quarantined === 1 && rAll.quarantined[0].sessionId === TID && rAll.quarantined[0].reason.length > 0,
+    rAll.quarantined[0]?.reason);
+  check("the import completes and imports the rest", rAll.counts.imported === 3);
+  check("the quarantined log lands under the quarantine root, named",
+    fs.existsSync(path.join(outDir, "quarantine", "--ws-b--", TID, "session.jsonl.zstd")) &&
+      fs.existsSync(path.join(outDir, "quarantine", "--ws-b--", TID, "quarantine.json")));
+
+  // --- both directory shapes land canonical; superseded never imports ------
+  check("both observed directory shapes import (session- prefixed and bare)",
+    fs.existsSync(path.join(dest4, "--ws-a--", PID, "session.jsonl.zstd")) &&
+      fs.existsSync(path.join(dest4, "--ws-a--", CID, "session.jsonl.zstd")));
+  check("destination directories take the bare session id",
+    !fs.readdirSync(path.join(dest4, "--ws-a--")).some((n) => n.startsWith("session-")));
+  const supersededLeak = [];
+  const findLeak = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      if (e.name.includes(".superseded-")) supersededLeak.push(path.join(d, e.name));
+      if (e.isDirectory()) findLeak(path.join(d, e.name));
+    }
+  };
+  findLeak(dest4);
+  check(".superseded siblings are never imported as if they were sessions", supersededLeak.length === 0,
+    supersededLeak.join(", "));
+
+  // --- the source is byte-identical: on success AND on failure partway ------
+  check("the source is byte-identical after a successful import", sumTree(srcRoot) === before);
+  const dest5 = path.join(outDir, "import-dest5");
+  // Fail partway: a DIRECTORY where the last session's log file must go.
+  fs.mkdirSync(path.join(dest5, "--ws-b--", XID, "session.jsonl.zstd"), { recursive: true });
+  let threw = null;
+  try {
+    await runImport({ sourceRoot: srcRoot, destRoot: dest5, select: [PID, XID] });
+  } catch (e) {
+    threw = e;
+  }
+  check("an import that fails partway aborts with a report", threw !== null && threw.report?.aborted?.sessionId === XID && threw.report.imported.length === 2,
+    threw?.message);
+  check("the source is byte-identical after a FAILED import too", sumTree(srcRoot) === before);
+
+  // --- "imported" MEANS READABLE: list, show, search, recall, fold ----------
+  const arts = findSessionArtifacts(dest4);
+  check("list reaches every imported session and not the quarantined one",
+    arts.some((a) => a.sessionId === PID) && arts.some((a) => a.sessionId === CID) &&
+      arts.some((a) => a.sessionId === XID) && !arts.some((a) => a.sessionId === TID));
+  const target = arts.find((a) => a.sessionId === CID);
+  const openedImp = await openSessionFile(target.file, model);
+
+  // A string that exists only inside an imported session: taken from the
+  // imported session's own projected text at runtime, then searched for.
+  let marker = null;
+  for (const ev of openedImp.events) {
+    const msg = model.deriveEventMessage(ev);
+    if (!msg) continue;
+    const text = String(fork.projectMessageText(msg) ?? "");
+    const m = text.match(/[A-Za-z][A-Za-z0-9'_-]{2,}(?: [A-Za-z0-9'_-]{2,}){2,}/);
+    if (m && (marker === null || m[0].length > marker.length)) marker = m[0];
+  }
+  // The fork compiles `String(source)` as the regex — pass an escaped STRING,
+  // exactly what `thursday session search <id> <pattern>` passes on the CLI.
+  const markerPattern = marker === null ? null : marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  check("show reads the imported session", summarize(openedImp, model, fork).text.length > 0);
+  check("search finds a string that exists only inside an imported session",
+    markerPattern !== null && searchView(openedImp.session, fork, markerPattern).totalMatches > 0,
+    marker === null ? "no marker extractable" : `marker=${JSON.stringify(marker.slice(0, 40))}…`);
+  const seq0 = openedImp.events.find((ev) => Number.isInteger(ev.seq))?.seq;
+  const rec = recallView(openedImp.session, fork, "seq", String(seq0), 4096);
+  check("recall reads the imported session", rec.ok === true && rec.recalled > 0);
+  check("fold reads the imported session", runDiagnostics(openedImp, model, fork).fold !== undefined);
+
+  // --- the installer never imports on its own -------------------------------
+  let repoRoot = path.dirname(new URL(import.meta.url).pathname);
+  while (!fs.existsSync(path.join(repoRoot, "pnpm-workspace.yaml")) && repoRoot !== "/") repoRoot = path.dirname(repoRoot);
+  const installHits = [];
+  const scanInstall = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      if (e.name === "node_modules" || e.name === "dist") continue;
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) scanInstall(p);
+      else if (/\.(sh|ts|mjs|js)$/.test(e.name) && /runImport|src\/import\.mjs|session\s+import/.test(fs.readFileSync(p, "utf8"))) installHits.push(p);
+    }
+  };
+  for (const d of [path.join(repoRoot, "install"), path.join(repoRoot, "packages", "install", "src")]) {
+    if (fs.existsSync(d)) scanInstall(d);
+  }
+  check("the installer never imports sessions on its own", installHits.length === 0, installHits.join(", "));
+}
+log("");
 
 // ---------------------------------------------------------------------------
 log("=".repeat(78));

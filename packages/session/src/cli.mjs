@@ -8,6 +8,8 @@
  *   thursday session fold    <id>          what the projection folded to, and why
  *   thursday session diagnose <id>         structural defects; READ-ONLY
  *   thursday session repair  <id>          write a repaired COPY
+ *   thursday session import                copy selected dsh sessions in —
+ *                                          NOTHING is copied without --select
  *   thursday session doctor                the installation drift report
  *
  * Every read command is read-only. `diagnose --prove-readonly` checksums the
@@ -28,6 +30,8 @@ import { summarize, recall as recallView, search as searchView, VIEW_DEFAULTS } 
 import { runDiagnostics, renderDiagnostics } from "./diagnose.mjs";
 import { planRepair, applyRepair, verifyRepair, confirmRepair, renderPlan } from "./repair.mjs";
 import { runDoctor, renderDoctor } from "./doctor.mjs";
+import { runImport, scanImportSource } from "./import.mjs";
+import { sanitizeTitle, normalizeSessionId } from "./classify.mjs";
 
 const USAGE = `thursday session — inspect, diagnose and repair dsh session logs
 
@@ -38,6 +42,8 @@ const USAGE = `thursday session — inspect, diagnose and repair dsh session log
   fold <id|path>                what the surface projection folded to, and why
   diagnose <id|path>            structural defects. NEVER modifies the session.
   repair <id|path>              write a repaired COPY (original always kept)
+  import                        list importable dsh sessions by tree; copy
+                                ONLY the --select picks (never moves a byte)
   doctor                        check the live installation against packages/blocks
 
 common options
@@ -59,6 +65,16 @@ repair options
   --drop-duplicate-seq  remove later records claiming an already-used seq
   --truncate-at <line>  keep only records up to this line
   --confirm             promote the copy; the original is RENAMED, never deleted
+
+import options
+  --from <dir>          source dsh sessions root (default: $DSH_HOME/sessions, ~/.dsh/sessions)
+  --dest <dir>          Thursday sessions root (default: $THURSDAY_HOME/dsh/sessions,
+                        ~/.thursday/dsh/sessions)
+  --select <ids>        comma-separated session ids to import. A selection takes
+                        the WHOLE tree (parent + subagents) so no orphan is made.
+                        Without --select nothing is ever copied.
+  --quarantine <dir>    where malformed logs go (default: <dest>/../quarantine)
+  --dry-run             print what would happen, copy nothing
 
 doctor options
   --repo <dir>          Thursday checkout (default: cwd, then ./thursday)
@@ -422,6 +438,87 @@ export async function main(argv) {
           say(`  Inspect the copy:  thursday session diagnose ${applied.destination}`);
           say(`  Then promote:      thursday session repair ${positional[1]} <same flags> --confirm`);
         }
+        return 0;
+      }
+
+      // ------------------------------------------------------------- import
+      case "import": {
+        // THE LIST IS THE DEFAULT ACTION. Without --select this prints what
+        // could be imported and copies nothing: 719 MB is not a thing to copy
+        // silently, and an unattended run imports zero sessions (#233).
+        const sourceRoot = path.resolve(
+          flags.from !== undefined && flags.from !== true
+            ? String(flags.from)
+            : process.env.DSH_HOME
+              ? path.join(process.env.DSH_HOME, "sessions")
+              : path.join(process.env.HOME ?? require("node:os").homedir(), ".dsh", "sessions"),
+        );
+        const destRoot = path.resolve(
+          flags.dest !== undefined && flags.dest !== true
+            ? String(flags.dest)
+            : process.env.THURSDAY_HOME
+              ? path.join(process.env.THURSDAY_HOME, "dsh", "sessions")
+              : path.join(process.env.HOME ?? require("node:os").homedir(), ".thursday", "dsh", "sessions"),
+        );
+        const quarantineRoot =
+          flags.quarantine !== undefined && flags.quarantine !== true
+            ? path.resolve(String(flags.quarantine))
+            : path.join(path.dirname(destRoot), "quarantine");
+        const select = flags.select === true || flags.select === undefined
+          ? []
+          : String(flags.select).split(",").map((s) => s.trim()).filter(Boolean);
+
+        if (select.length === 0) {
+          const scan = await scanImportSource(sourceRoot);
+          if (flags.json) return asJson(scan), 0;
+          const byId = new Map(scan.sessions.map((s) => [s.id, s]));
+          let total = 0;
+          say(`source   ${sourceRoot}`);
+          say(`dest     ${destRoot}`);
+          say("");
+          say(`${scan.trees.length} tree(s), ${scan.sessions.length} session(s). NOTHING imported — pass --select <id> to import a tree.`);
+          for (const t of scan.trees) {
+            say("");
+            say(`  tree ${t.treeId.slice(0, 8)}…  (${t.members.length} session(s))`);
+            for (const id of t.members) {
+              const s = byId.get(id);
+              if (!s) continue;
+              total += s.bytes;
+              const size = s.bytes < 1024 * 1024 ? `${(s.bytes / 1024).toFixed(0)}K` : `${(s.bytes / 1048576).toFixed(1)}M`;
+              say(
+                `    ${id.slice(0, 8)}…  ${s.workspace}  ${s.modified.slice(0, 19).replace("T", " ")}  ${size.padStart(7)}` +
+                  `  ${String(s.delegationDepth)}  ${sanitizeTitle(s.title)}` +
+                  (s.importable ? "" : "   [will be quarantined]"),
+              );
+            }
+          }
+          if (scan.superseded.length > 0) {
+            say("");
+            say(`  ${scan.superseded.length} .superseded sibling(s) — never imported as sessions`);
+          }
+          say("");
+          say(`total ${total < 1024 * 1024 ? `${(total / 1024).toFixed(0)}K` : `${(total / 1048576).toFixed(1)}M`}. Import one tree:  thursday session import --select ${scan.trees[0]?.treeId.slice(0, 8) ?? "<id>"}`);
+          return 0;
+        }
+
+        const report = await runImport({ sourceRoot, destRoot, quarantineRoot, select, dryRun: Boolean(flags["dry-run"]) });
+        if (flags.json) return asJson(report), 0;
+        say(`source   ${sourceRoot}`);
+        say(`dest     ${destRoot}`);
+        say("");
+        for (const i of report.imported) {
+          say(`  ${flags["dry-run"] ? "would import" : "imported"}  ${i.id}  ${i.workspace}  ${sanitizeTitle(i.title)}`);
+        }
+        for (const q of report.quarantined) {
+          say(`  QUARANTINED  ${normalizeSessionId(q.sessionId)}  ${q.workspace}  ${q.reason}`);
+        }
+        say("");
+        say(
+          `${flags["dry-run"] ? "would import" : "imported"} ${report.counts.imported} session(s) in ${report.counts.trees} tree(s); ` +
+            `${report.counts.quarantined} quarantined (counted, under ${report.quarantineRoot}); ` +
+            `${report.counts.superseded} .superseded sibling(s) skipped.`,
+        );
+        say(`The source was read only — it is byte-identical to before the import.`);
         return 0;
       }
 

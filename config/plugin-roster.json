@@ -344,18 +344,18 @@
     {
       "id": "at-file",
       "packageName": "dsh-at-file",
-      "installSpec": "https://github.com/omdsh-dev/dsh-at-file/archive/refs/tags/v0.6.7.tar.gz",
+      "installSpec": "https://github.com/omdsh-dev/dsh-at-file/archive/da602d1a8f1b417b8a1d8d4059e0f4cb1c353524.tar.gz",
       "origin": "fetched",
       "source": {
         "type": "tarball",
-        "url": "https://github.com/omdsh-dev/dsh-at-file/archive/refs/tags/v0.6.7.tar.gz",
+        "url": "https://github.com/omdsh-dev/dsh-at-file/archive/da602d1a8f1b417b8a1d8d4059e0f4cb1c353524.tar.gz",
         "repo": "github.com/omdsh-dev/dsh-at-file"
       },
       "pin": {
-        "kind": "git-tag",
-        "value": "v0.6.7",
-        "immutability": "tag",
-        "note": "WEAKEST PIN IN THE ROSTER. A git tag is a movable pointer: the upstream author can retag v0.6.7 at different bytes and this install silently changes. There is no integrity hash on the tarball either. On the next bump, replace with a commit-sha tarball URL (archive/<sha>.tar.gz) or a git spec pinned to a sha."
+        "kind": "git-sha",
+        "value": "da602d1a8f1b417b8a1d8d4059e0f4cb1c353524",
+        "immutability": "sha",
+        "note": "Commit-sha tarball since 2026-10-06: the archive is generated from that exact commit, so the bytes cannot move under it (the former v0.6.7 tag pin was the roster's weakest). Upstream da602d1 is version 0.7.0 and carries the dsh-0.1.5 boot fix (the removed settingsNamespace import); verified in the tarball BYTES at pin time. GitHub's raw-file surface served the pre-fix settings.ts even after the fix landed (CDN lag), so every bump re-verifies bytes from the downloaded tarball."
       },
       "alias": null,
       "plane": "client",
@@ -368,14 +368,18 @@
       "trust": {
         "tier": "pinned-unreviewed",
         "codeReviewed": false,
-        "basis": "Third-party, unread, and pinned by a MOVABLE tag rather than by content. It is the one entry where the pin itself does not guarantee the bytes; treat a bump as mandatory re-evaluation."
+        "basis": "Third-party, unread, but pinned by content since 2026-10-06: the commit-sha tarball fixes the bytes (the movable tag was the defect). A bump remains mandatory re-evaluation."
       },
-      "lastReviewed": "2026-09-05",
-      "reviewKind": "roster-transcription",
+      "lastReviewed": "2026-10-06",
+      "reviewKind": "pin-fix-and-block-landing",
       "notes": [
-        "Installed from a release tarball rather than a git spec; this is the only tarball entry in the roster."
+        "Installed from a release tarball rather than a git spec; this is the only tarball entry in the roster.",
+        "Treatment 2026-10-06: pin the upstream fix rather than fork or vendor — upstream da602d1 carries exactly the settingsNamespace fix, so a fork would add a permanent re-check obligation for a delta upstream already has.",
+        "Landed with packages/blocks/at-file.md (2026-10-06): before that block existed this entry was roster-only and the install engine never installed it — the engine reads blocks, not this file."
       ],
-      "hazards": []
+      "hazards": [
+        "GitHub's raw-file endpoints served the pre-fix src/settings.ts after da602d1 landed (CDN lag, observed 2026-10-06). Always verify BYTES from the downloaded tarball before trusting that a pin carries the fix."
+      ]
     },
     {
       "id": "session-search",
@@ -660,7 +664,7 @@
     {
       "id": "aidos",
       "packageName": "aidos",
-      "installSpec": "github:xyzshantaram/aidos#78f742d3fbdf629ab255d03949d8dddfaece7271",
+      "installSpec": "github:xyzshantaram/aidos#0b254c25e7aca67d2f4831b66c59b7eb15bb3c8f",
       "installedBy": "step_install_aidos (a separate step from step_install_plugins, and the only member of BUILD_SPECS)",
       "overridableBy": "AIDOS_PLUGIN_SPEC environment variable; sync.sh's header says to always use the full git commit sha",
       "origin": "fetched",
@@ -671,7 +675,7 @@
       },
       "pin": {
         "kind": "git-sha",
-        "value": "78f742d3fbdf629ab255d03949d8dddfaece7271",
+        "value": "0b254c25e7aca67d2f4831b66c59b7eb15bb3c8f",
         "immutability": "sha",
         "note": "Full sha. Ticket E5 keeps this pinned install for v0.1 and swaps it for the migrated workspace package later; that swap is a source change here, not a rewrite."
       },
@@ -680,7 +684,7 @@
       "why": "The ticket board: its tools run against a host-plane `aidos` core service that the package's own dsh.bundle.patch mounts, and `dsh plugin add` installs it AND auto-mounts the patch, idempotently. Without it there is no board, no gate and no evidence trail. The same pinned commit is also cloned to copy its skills/ into $DSH_HOME.",
       "allowBuilds": {
         "required": true,
-        "key": "aidos@https://codeload.github.com/xyzshantaram/aidos/tar.gz/78f742d3fbdf629ab255d03949d8dddfaece7271",
+        "key": "aidos@https://codeload.github.com/xyzshantaram/aidos/tar.gz/0b254c25e7aca67d2f4831b66c59b7eb15bb3c8f",
         "why": "aidos runs a postinstall, and pnpm 10+ blocks lifecycle scripts unless the exact resolved tarball URL is listed under allowBuilds in the web profile's pnpm-workspace.yaml. The key above is reconstructed from the github spec the way pnpm resolves it (owner/repo#ref -> codeload tarball, name = repo basename), so bumping the pin here is all an upgrade needs -- but it also invalidates the old key."
       },
       "trust": {

@@ -9,11 +9,11 @@ rationale: >
 dependsOn: [dsh-runtime]
 installs:
   - path: profiles/web/node_modules/dsh-input-history
-    from: "github:sunshaobei/dsh-input-history#9b5b7a494a5c"
+    from: "github:sunshaobei/dsh-input-history#7f5ce21fd004b708bcd7d6b6b4521c4d3923371a"
     what: the pinned input-history plugin
 steps:
   - action: pnpm-add
-    spec: "github:sunshaobei/dsh-input-history#9b5b7a494a5c"
+    spec: "github:sunshaobei/dsh-input-history#7f5ce21fd004b708bcd7d6b6b4521c4d3923371a"
 detect:
   - action: package-installed
     name: dsh-input-history

@@ -87,7 +87,7 @@
     {
       "id": "input-history",
       "packageName": "dsh-input-history",
-      "installSpec": "github:sunshaobei/dsh-input-history#9b5b7a494a5c",
+      "installSpec": "github:sunshaobei/dsh-input-history#7f5ce21fd004b708bcd7d6b6b4521c4d3923371a",
       "origin": "fetched",
       "source": {
         "type": "git",

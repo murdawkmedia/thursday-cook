@@ -40,7 +40,7 @@ installs:
     what: the pinned encoding tool package
 steps:
   - action: pnpm-add
-    spec: "@deepseek-ai/dsh-tools@0.1.0-rc.8"
+    spec: "@deepseek-ai/dsh-tools@0.1.5-rc.3"
     why: >
       Anchor for the six dsh-tool-* adds below. Upstream's `latest` dist-tag
       for @deepseek-ai/dsh-tools is stale (0.0.1-rc.1) while the usable
@@ -48,7 +48,10 @@ steps:
       dependency range against nothing and all six adds fail. Installing the
       pin FIRST puts a matching version in the web profile, which anchors
       resolution for the six github adds. The version lives HERE ONLY — the
-      six steps below must not repeat it, so a bump is one edit.
+      six steps below must not repeat it, so a bump is one edit. Pinned at
+      0.1.5-rc.3 to match the dsh runtime exactly: 0.1.0-rc.8 predates the
+      CallId to ToolCallId rename in dsh-llm 0.1.5-rc.3 and dies at boot on
+      the stale import (verified 2026-10-06).
   - action: pnpm-add
     spec: "github:omdsh-dev/dsh-tool-calculator#05090e946113721c5295518cc20e74f427022c55"
     allowBuilds: true

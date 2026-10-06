@@ -561,17 +561,17 @@
     {
       "id": "compaction-instant",
       "packageName": "@deepseek-ai/dsh-compaction-basic",
-      "installSpec": "@deepseek-ai/dsh-compaction-basic@github:xyzshantaram/dsh-compaction-instant#c349aab0baa3dcb8bf918b86e5fadbee9a1292ad",
+      "installSpec": "@deepseek-ai/dsh-compaction-basic@github:xyzshantaram/dsh-compaction-instant#0ad8a11d84d21851240ccd8aa01a65fea352fe3d",
       "origin": "fetched",
       "source": {
         "type": "git",
         "repo": "github.com/xyzshantaram/dsh-compaction-instant",
-        "branch": "fix/retention-and-shrink-gate",
+        "branch": "compat/dsh-0.1.5",
         "upstream": "dsh-compaction-instant, published 0.1.4; forked by this repository's author"
       },
       "pin": {
         "kind": "git-sha",
-        "value": "c349aab0baa3dcb8bf918b86e5fadbee9a1292ad",
+        "value": "0ad8a11d84d21851240ccd8aa01a65fea352fe3d",
         "immutability": "sha",
         "note": "Full sha off the fork's fix/retention-and-shrink-gate branch, taken from published 0.1.4. Upgrading = bumping this pin."
       },
@@ -619,11 +619,11 @@
         "type": "in-repo",
         "path": "packages/plugins/llm-pi-ai",
         "pathToday": "dotfiles-ai/plugins/llm-pi-ai",
-        "upstream": "the dsh builtin @deepseek-ai/dsh-llm-pi-ai at 0.1.0-rc.8"
+        "upstream": "the dsh builtin @deepseek-ai/dsh-llm-pi-ai at 0.1.5-rc.3"
       },
       "pin": {
         "kind": "vendored-version",
-        "value": "0.1.0-rc.8-affinity.1",
+        "value": "0.1.5-rc.3-affinity.1",
         "immutability": "in-repo",
         "note": "There is no remote ref: this repository's git history IS the pin. The version string records the dsh RC it forks. It must be re-checked on every dsh upgrade, because it shadows a builtin that upgrades with dsh."
       },
@@ -653,7 +653,8 @@
       ],
       "hazards": [
         "The builtin llm-pi-ai composition row MUST stay disabled while this is installed. The vendored fork, linked into the web profile under the same package name, is the only pi-ai adapter registrar; leaving the builtin enabled registers the adapter twice.",
-        "Re-check on every dsh upgrade: it forks 0.1.0-rc.8, and a dsh bump can move the builtin out from under the fork."
+        "Re-check on every dsh upgrade: it forks 0.1.0-rc.8, and a dsh bump can move the builtin out from under the fork.",
+        "2026-10-06 re-base: re-vendored from 0.1.0-rc.8 onto the 0.1.5-rc.3 builtin. The 're-check on every dsh upgrade' hazard fired exactly as documented: @deepseek-ai/dsh-llm 0.1.5-rc.3 renamed CallId to ToolCallId and offloadRequestImages to offloadRequestImagesWithPolicy (plus offloadedImagePrefixCount/offloadedImageText), which broke the old fork's import at boot. The 4-hunk affinity delta (anthropic-messages sendSessionAffinityHeaders withhold->offer, compatProfile sendSessionAffinityHeaders schema field, parseRetryAfterMs helper + export) was ported onto the new base; upstream also added supportsMidConvoEffort/allowedFallbackModels to the anthropic gate, chatTemplateArgs/thinking-budget fields to compatProfile, and dsh-util-values/dsh-brand imports, all carried through untouched."
       ]
     },
     {
@@ -766,7 +767,7 @@
         "preferredOrigin": "vendored",
         "why": "Named by ticket P5 as a wanted capability and, unlike everything in `entries`, as a candidate for VENDORING rather than pinning. Vendoring puts the bytes in this repository's review and history, which is the only mechanism in this roster that turns a `pinned-unreviewed` entry into something a reviewer actually sees.",
         "status": "unverified",
-        "blocker": "CORRECTED after review: sync.sh DOES install it — line 280, pnpm_ins github:A3Boy/dsh-web-tools#9b45045ac8a011429d494399a49846ae907c07d3, 'Multi-provider web search/fetch (Exa, Tavily, Firecrawl, Brave, and friends) behind the standard web_search/web_fetch interface, with a Settings card for provider keys. Self-mounts via its own bundle patch.' The earlier claim that it appears nowhere was wrong. So the real decision Thursday must make is block-or-drop: v0.1 either gives it a block (pinned-unreviewed until someone reads it) or drops it and lives on dsh's builtin tool-web. That decision is P5's, made with the package actually fetched and read.",
+        "blocker": "CORRECTED after review: sync.sh DOES install it \u2014 line 280, pnpm_ins github:A3Boy/dsh-web-tools#9b45045ac8a011429d494399a49846ae907c07d3, 'Multi-provider web search/fetch (Exa, Tavily, Firecrawl, Brave, and friends) behind the standard web_search/web_fetch interface, with a Settings card for provider keys. Self-mounts via its own bundle patch.' The earlier claim that it appears nowhere was wrong. So the real decision Thursday must make is block-or-drop: v0.1 either gives it a block (pinned-unreviewed until someone reads it) or drops it and lives on dsh's builtin tool-web. That decision is P5's, made with the package actually fetched and read.",
         "allowBuilds": {
           "required": null,
           "key": null,

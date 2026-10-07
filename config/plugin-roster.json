@@ -577,7 +577,7 @@
         "kind": "git-sha",
         "value": "0ad8a11d84d21851240ccd8aa01a65fea352fe3d",
         "immutability": "sha",
-        "note": "Full sha off the fork's fix/retention-and-shrink-gate branch, taken from published 0.1.4. Upgrading = bumping this pin."
+        "note": "Full sha off the fork's compat/dsh-0.1.5 branch, taken from published 0.1.4. Upgrading = bumping this pin."
       },
       "alias": {
         "installedAs": "@deepseek-ai/dsh-compaction-basic",
@@ -647,17 +647,17 @@
       "trust": {
         "tier": "maintained-fork",
         "codeReviewed": false,
-        "basis": "Third-party base (a dsh builtin) vendored into this repository with a local delta. Vendoring means the bytes are visible in review and cannot change without a commit here -- the strongest position in the roster -- but the rc.8 base itself has not been read. Host-plane: it is the LLM adapter, so it sees every prompt and every credential on the route."
+        "basis": "Third-party base (a dsh builtin) vendored into this repository with a local delta. Vendoring means the bytes are visible in review and cannot change without a commit here -- the strongest position in the roster -- but the 0.1.5-rc.3 base itself has not been read. Host-plane: it is the LLM adapter, so it sees every prompt and every credential on the route."
       },
-      "lastReviewed": "2026-09-05",
-      "reviewKind": "roster-transcription",
+      "lastReviewed": "2026-10-06",
+      "reviewKind": "re-base-and-delta-port",
       "notes": [
         "Unlike every other vendored plugin package its lib/ IS the source -- there is no src/ -- so nothing in it is build output (config/migration-map.json rule df-plugin-llm-pi-ai says the same).",
         "This is the roster's worked example of a VENDORED entry; every other entry here is fetched."
       ],
       "hazards": [
         "The builtin llm-pi-ai composition row MUST stay disabled while this is installed. The vendored fork, linked into the web profile under the same package name, is the only pi-ai adapter registrar; leaving the builtin enabled registers the adapter twice.",
-        "Re-check on every dsh upgrade: it forks 0.1.0-rc.8, and a dsh bump can move the builtin out from under the fork.",
+        "Re-check on every dsh upgrade: it forks 0.1.5-rc.3, and a dsh bump can move the builtin out from under the fork.",
         "2026-10-06 re-base: re-vendored from 0.1.0-rc.8 onto the 0.1.5-rc.3 builtin. The 're-check on every dsh upgrade' hazard fired exactly as documented: @deepseek-ai/dsh-llm 0.1.5-rc.3 renamed CallId to ToolCallId and offloadRequestImages to offloadRequestImagesWithPolicy (plus offloadedImagePrefixCount/offloadedImageText), which broke the old fork's import at boot. The 4-hunk affinity delta (anthropic-messages sendSessionAffinityHeaders withhold->offer, compatProfile sendSessionAffinityHeaders schema field, parseRetryAfterMs helper + export) was ported onto the new base; upstream also added supportsMidConvoEffort/allowedFallbackModels to the anthropic gate, chatTemplateArgs/thinking-budget fields to compatProfile, and dsh-util-values/dsh-brand imports, all carried through untouched."
       ]
     },

@@ -12,6 +12,7 @@ import {
   planInstall,
   executeInstall,
   createFilesystemAPI,
+  ensurePeerAutoInstallOff,
   type FilesystemAPI,
   type ExecutionPlan,
 } from "../src/install";
@@ -49,6 +50,49 @@ function createMemfsAPI(): FilesystemAPI {
     },
   };
 }
+
+describe("ensurePeerAutoInstallOff", () => {
+  beforeEach(() => vol.reset());
+  afterEach(() => vol.reset());
+
+  it("creates a missing workspace file with the key off", () => {
+    const fs = createMemfsAPI();
+    fs.mkdirSync("/home/profiles/web", { recursive: true });
+    expect(ensurePeerAutoInstallOff("/home/profiles/web", fs)).toBe(true);
+    const doc = parseYaml(
+      fs.readFileSync("/home/profiles/web/pnpm-workspace.yaml", "utf8") as string,
+    ) as Record<string, unknown>;
+    expect(doc.autoInstallPeers).toBe(false);
+  });
+
+  it("leaves an explicit value untouched", () => {
+    vol.fromJSON(
+      { "/home/profiles/web/pnpm-workspace.yaml": "autoInstallPeers: true\noverrides: {}\n" },
+      "/",
+    );
+    const fs = createMemfsAPI();
+    expect(ensurePeerAutoInstallOff("/home/profiles/web", fs)).toBe(false);
+    const doc = parseYaml(
+      fs.readFileSync("/home/profiles/web/pnpm-workspace.yaml", "utf8") as string,
+    ) as Record<string, unknown>;
+    expect(doc.autoInstallPeers).toBe(true);
+    expect(doc.overrides).toEqual({});
+  });
+
+  it("adds the key without dropping keys already in the file", () => {
+    vol.fromJSON(
+      { "/home/profiles/web/pnpm-workspace.yaml": "overrides:\n  foo: 1.0.0\n" },
+      "/",
+    );
+    const fs = createMemfsAPI();
+    expect(ensurePeerAutoInstallOff("/home/profiles/web", fs)).toBe(true);
+    const doc = parseYaml(
+      fs.readFileSync("/home/profiles/web/pnpm-workspace.yaml", "utf8") as string,
+    ) as Record<string, unknown>;
+    expect(doc.autoInstallPeers).toBe(false);
+    expect(doc.overrides).toEqual({ foo: "1.0.0" });
+  });
+});
 
 describe("resolveThursdayHome", () => {
   it("resolves to $THURSDAY_HOME when set", () => {

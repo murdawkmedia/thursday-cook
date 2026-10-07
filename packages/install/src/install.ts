@@ -375,6 +375,53 @@ export function ensurePnpmInstallRoot(
 }
 
 /**
+ * Peer auto-install is the wrong default for a dsh profile, so the engine
+ * turns it off before the first add.
+ *
+ * WHY. Plugins declare `@deepseek-ai/dsh-client-*` as PEER dependencies on
+ * purpose: the host web app provides them at runtime, and nothing fetches
+ * them. pnpm's default (autoInstallPeers: true) fetches them anyway, and the
+ * registry publishes only prereleases of that family, so a strict range like
+ * `>=0.1.0` matches nothing and the add dies with
+ * ERR_PNPM_NO_MATCHING_VERSION. The live ~/.dsh profile sets this same key;
+ * an existing machine never shows the failure, a fresh one always does.
+ *
+ * WHEN. Before the first add, like the overrides write: a resolution that
+ * already failed is not fixed by setting the key afterwards.
+ *
+ * NEVER FLIPS AN EXPLICIT VALUE. The key is set only when absent. A value the
+ * user wrote, true or false, is theirs and stays. An unparseable file is
+ * pnpm's to report; rewriting it here would destroy it.
+ *
+ * Returns true when this call wrote the key.
+ */
+export function ensurePeerAutoInstallOff(
+  profilePath: string,
+  fs: {
+    existsSync: (p: string) => boolean;
+    readFileSync: (p: string, enc: "utf8") => string;
+    writeFileSync: (p: string, data: string, enc: "utf8") => void;
+  } = fsDefault as never,
+): boolean {
+  const workspacePath = join(profilePath, "pnpm-workspace.yaml");
+  let doc: Record<string, unknown> = {};
+  if (fs.existsSync(workspacePath)) {
+    try {
+      doc = (parseYaml(fs.readFileSync(workspacePath, "utf8") as string) ?? {}) as Record<
+        string,
+        unknown
+      >;
+    } catch {
+      return false;
+    }
+  }
+  if ("autoInstallPeers" in doc) return false;
+  doc.autoInstallPeers = false;
+  fs.writeFileSync(workspacePath, stringifyYaml(doc), "utf8");
+  return true;
+}
+
+/**
  * Fail loudly when a zero-exit `pnpm install` installed nothing.
  *
  * Exit 0 is not success: absorbed into an enclosing workspace, pnpm hoists
@@ -1130,6 +1177,8 @@ export async function executeStep(
         if (!dryRun) {
           fs.mkdirSync(profilePath, { recursive: true });
           fs.mkdirSync(storeDir, { recursive: true });
+          // Before the first add resolves anything. See ensurePeerAutoInstallOff.
+          ensurePeerAutoInstallOff(profilePath, fs);
         }
 
         // Pin the profile to the dsh family the RUNTIME resolved, before pnpm

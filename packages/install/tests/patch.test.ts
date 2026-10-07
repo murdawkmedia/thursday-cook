@@ -12,6 +12,12 @@ import { PatchError, generateWebPatch, planWebPatch, type PatchProblem } from ".
 // $HERE (the dotfiles repo) and $DSH_HOME; the fixture keeps both as
 // placeholders. Both resolve to the Thursday home in the block model, so
 // the comparison substitutes one home for both.
+//
+// The fixture is maintained WITH the blocks since that capture, not
+// regenerated: rows the composition gained appear here too (the tool rows,
+// llm-pi-ai-affinity), and the plugin paths moved under plugins/host/ when
+// the vendored host-plane dist landed (packages/blocks/host-plane.md). It is
+// the generator's pinned reference, seeded from the heredoc.
 const HOME = "/dsh-home";
 
 const blockFile = (name: string) => fileURLToPath(new URL(`../../blocks/${name}`, import.meta.url));
@@ -119,7 +125,7 @@ detect:
     id: remote
     placement: override`;
 
-describe("the generated composition reproduces the sync.sh heredoc", () => {
+describe("the generated composition matches the pinned web-patch rows", () => {
   const generated = generateWebPatch(syncBlocks(), {
     dshHome: HOME,
     generator: "test reproduction of step_write_web_patch",
@@ -201,14 +207,14 @@ describe("the generated composition reproduces the sync.sh heredoc", () => {
     }
   });
 
-  it("resolves the heredoc's $HERE and $DSH_HOME interpolations", () => {
+  it("resolves interpolations to absolute paths", () => {
     // The plugin files are home-relative, as the heredoc's $HERE was; the
     // package rows are untouched. Compared on parsed values, since the
     // writer chooses its own quoting.
     const rows = flatten(generated.yaml);
     const entry = (id: string) => rows.find((r) => r.entry["id"] === id)?.entry;
     expect(entry("bash-guard")).toMatchObject({
-      name: "/dsh-home/plugins/bash-guard.js",
+      name: "/dsh-home/plugins/host/bash-guard.js",
       config: { guardsDir: "/dsh-home/plugins/guards" },
     });
     expect(entry("tool-cordis")).toEqual({

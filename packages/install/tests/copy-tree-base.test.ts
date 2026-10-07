@@ -240,7 +240,7 @@ describe("the shipped composition after I9", () => {
     expect(missing).toEqual([]);
   });
 
-  it("the six I9 sources are exactly these", () => {
+  it("the seven I9 sources are exactly these", () => {
     const froms: string[] = [];
     for (const id of ["agents-md", "mcp-servers", "skills", "host-plane", "thursday-defaults"]) {
       for (const step of copySteps(id)) {
@@ -251,8 +251,9 @@ describe("the shipped composition after I9", () => {
       "agents-md from: config/AGENTS.md",
       "mcp-servers from: config/mcp-servers.json",
       "skills from: skills",
-      "host-plane from: packages/plugins",
+      "host-plane from: packages/plugins/host-plane/dist",
       "host-plane from: config/guards",
+      "host-plane from: command-hooks",
       "thursday-defaults from: config/settings.yaml",
     ]);
   });

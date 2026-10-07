@@ -214,15 +214,28 @@ beforeEach(() => {
 describe("E1 enforcement: exactly one module constructs the user dsh home path", () => {
   it("only dsh-import.ts builds the user dsh home path anywhere in packages/", () => {
     const packagesDir = fileURLToPath(new URL("../../", import.meta.url));
-    // Frozen pre-existing spellings. Three are genuine path constructions
-    // outside this ticket's allowlist (session x2, cli); the fourth is a
-    // benign fixture — a directory skip-list entry in the tokens tests, not a
-    // path into anyone's home. Each is listed explicitly so a NEW file with a
-    // quoted home segment fails this test instead of blending in.
+    // Frozen spellings, each deliberate. The construction this rule protects
+    // is the installer's own (dsh-import.ts, asserted below); these cannot
+    // route through it:
+    //   session/src/runtime.mjs, session/src/doctor.mjs, cli/src/index.ts —
+    //     pre-existing constructions outside this ticket's allowlist.
+    //   session/src/cli.mjs — the session import command's default source
+    //     root (~/.dsh/sessions) when neither --from nor $DSH_HOME names one.
+    //   plugins/host-plane/src/bash-guard.ts, plugins/mcp-servers/src/index.ts
+    //     — runtime fallbacks in bundles that run inside the USER's dsh and
+    //     cannot import the installer's module (they resolve $DSH_HOME in
+    //     guard paths / mcp-servers.json when the env var is unset).
+    //   tokens/tests/tokens.test.ts — a benign fixture: a directory skip-list
+    //     entry, not a path into anyone's home.
+    // Each is listed explicitly so a NEW file with a quoted home segment
+    // fails this test instead of blending in.
     const FROZEN = new Set([
       "session/src/runtime.mjs",
       "session/src/doctor.mjs",
+      "session/src/cli.mjs",
       "cli/src/index.ts",
+      "plugins/host-plane/src/bash-guard.ts",
+      "plugins/mcp-servers/src/index.ts",
       "tokens/tests/tokens.test.ts",
     ]);
     const hits: string[] = [];
@@ -235,6 +248,11 @@ describe("E1 enforcement: exactly one module constructs the user dsh home path",
         const full = join(dir, entry.name);
         if (entry.isDirectory()) {
           if (entry.name === "node_modules" || entry.name === "dist") continue;
+          // `lib` is build output repo-wide (see .gitignore) with one
+          // exception — llm-pi-ai's lib IS its source. Rebuilding a plugin
+          // must not change this test's answer, so only the committed lib is
+          // scanned; mcp-servers/lib is the compiled twin of its frozen src.
+          if (entry.name === "lib" && !full.endsWith("plugins/llm-pi-ai/lib")) continue;
           walk(full);
           continue;
         }

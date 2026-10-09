@@ -1,8 +1,0 @@
-# thursday-tour (host + client).
-# Unlike the client-only Thursday plugins, this row mounts a host half that
-# owns the step list, derived completion, durable progress and the agent
-# lookup tool, plus the client half that renders the tour panel. The client
-# half takes dsh's shell.overlay seat.
-- insert:
-    - id: thursday-tour
-      name: thursday-tour

@@ -1,7 +1,0 @@
-{
-  // Migrated from dotfiles-ai; the client half uses the classic JSX factory
-  // (see tsconfig.client.json). Tests live beside sources and are included
-  // so a type error in a test fails typecheck.
-  "extends": "../../../tsconfig.client.json",
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
-}

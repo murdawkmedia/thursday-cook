@@ -1,0 +1,5 @@
+packages:
+  - .
+autoInstallPeers: true
+overrides:
+  "@deepseek-ai/dsh-client-locale": 0.1.7-rc.1

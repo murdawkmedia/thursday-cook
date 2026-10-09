@@ -1,7 +1,0 @@
-{
-  // Host-half typecheck: strict, node only, no JSX. The client half is
-  // bundled by esbuild (which type-strips) and typechecked loosely, if at
-  // all — matching dotfiles-ai, where tsc never saw the .tsx files.
-  "extends": "../../../tsconfig.json",
-  "include": ["src/**/*.ts", "src/shared/**/*.ts"]
-}

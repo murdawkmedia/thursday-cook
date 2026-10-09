@@ -1,5 +1,0 @@
-{
-  // Typecheck config: no emit, covers sources and tests.
-  "extends": "../../tsconfig.json",
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
-}

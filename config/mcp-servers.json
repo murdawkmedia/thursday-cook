@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "nostrbook": { "type": "stdio", "command": "npx", "args": ["-y", "@nostrbook/mcp@latest"] },
-    "gitlab": { "type": "stdio", "command": "glab", "args": ["mcp", "serve"] },
-    "easyeda": { "type": "stdio", "command": "npx", "args": ["-y", "easyeda-mcp-pro@latest"], "env": { "TOOL_PROFILE": "core" } }
-  }
-}

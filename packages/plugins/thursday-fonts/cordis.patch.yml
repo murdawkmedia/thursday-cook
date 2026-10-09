@@ -1,7 +1,0 @@
-# thursday-fonts (client plugin).
-# The row exists so the client-module registry mounts this package in the web
-# profile and serves its client bundle in the boot graph. The work happens in
-# ./client; this row is how the browser is told the bundle exists.
-- insert:
-    - id: thursday-fonts
-      name: thursday-fonts

@@ -177,6 +177,11 @@
       const rawCheckbox = document.querySelector(".raw-checkbox");
       const apiKey = document.querySelector(".api-key");
 
+      apiKey.value = localStorage.getItem("openrouter-api-key") ?? "";
+      apiKey.addEventListener("change", () => {
+        localStorage.setItem("openrouter-api-key", apiKey.value);
+      });
+
       let lastResponse = "";
 
       const render = () => {

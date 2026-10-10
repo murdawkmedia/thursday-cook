@@ -13,6 +13,7 @@
  *   bun run sessions-viewer.ts --latest --message 7          # one message, in full
  *   bun run sessions-viewer.ts --latest --compaction 1       # one compaction summary
  *   bun run sessions-viewer.ts --latest --from-compaction 1  # from a compaction onward
+ *   bun run sessions-viewer.ts --latest --skip-truncate-re sitrep
  */
 
 // @ts-ignore - package ships no types
@@ -41,7 +42,7 @@ const compactionLabel = (): string => color(" compact ", "45;97");
 
 type Session = { path: string; id: string; short: string; title: string; mtime: number };
 type Block =
-  | { kind: "message"; role: string; text: string; tools: string[]; no: number }
+  | { kind: "message"; role: string; text: string; raw: string; tools: string[]; no: number }
   | { kind: "compaction"; summary: string; no: number };
 
 async function listSessions(): Promise<Session[]> {
@@ -136,14 +137,24 @@ async function collect(path: string): Promise<Block[]> {
     if (role !== "user" && role !== "assistant") continue;
 
     const texts: string[] = [];
+    const rawTexts: string[] = [];
     const tools: string[] = [];
     for (const block of entry.message.content ?? []) {
-      if (block?.type === "text" && block.text) texts.push(ansi(block.text).trimEnd());
-      else if (block?.type === "tool_use") tools.push(toolLine(block));
+      if (block?.type === "text" && block.text) {
+        texts.push(ansi(block.text).trimEnd());
+        rawTexts.push(block.text);
+      } else if (block?.type === "tool_use") tools.push(toolLine(block));
     }
     if (texts.length === 0 && tools.length === 0) continue;
     messageNo += 1;
-    blocks.push({ kind: "message", role, text: texts.join(" "), tools, no: messageNo });
+    blocks.push({
+      kind: "message",
+      role,
+      text: texts.join(" "),
+      raw: rawTexts.join(" "),
+      tools,
+      no: messageNo,
+    });
   }
   return blocks;
 }
@@ -191,10 +202,11 @@ type RenderOptions = {
   maxLines: number;
   width: number;
   hints: boolean;
+  skipTruncate: RegExp | null;
 };
 
 function render(blocks: Block[], options: RenderOptions): void {
-  const { session, script, chatOnly, maxLines, width, hints } = options;
+  const { session, script, chatOnly, maxLines, width, hints, skipTruncate } = options;
   for (const block of blocks) {
     if (block.kind === "compaction") {
       process.stdout.write(`${compactionLabel()}\n`);
@@ -209,7 +221,8 @@ function render(blocks: Block[], options: RenderOptions): void {
     const { body: lines, tools } = content(block, chatOnly, width);
     if (chatOnly && lines.length === 0) continue;
     process.stdout.write(`${labelLine(block.role)}\n`);
-    const truncated = printBody(lines, maxLines);
+    const limit = skipTruncate?.test(block.raw) ? Number.POSITIVE_INFINITY : maxLines;
+    const truncated = printBody(lines, limit);
     if (truncated && hints) {
       process.stdout.write(`${hint(script, `${session.short} --message ${block.no}`)}\n`);
     }
@@ -229,6 +242,7 @@ async function main(): Promise<void> {
     .option("-m, --message <index>", "print only this message, in full")
     .option("--compaction <index>", "print only this compaction summary, in full")
     .option("--from-compaction <index>", "print the transcript from this compaction onward")
+    .option("--skip-truncate-re <regex>", "never truncate messages matching this regex")
     .option("-c, --chat-only", "hide tool calls")
     .parse();
 
@@ -247,6 +261,17 @@ async function main(): Promise<void> {
 
   const script = relative(process.cwd(), process.argv[1] ?? "sessions-viewer.ts");
   const blocks = await collect(chosen.path);
+
+  let skipTruncate: RegExp | null = null;
+  if (options.skipTruncateRe) {
+    try {
+      skipTruncate = new RegExp(options.skipTruncateRe, "i");
+    } catch {
+      process.stderr.write(`Invalid regex: ${options.skipTruncateRe}\n`);
+      process.exit(1);
+    }
+  }
+
   const base: RenderOptions = {
     session: chosen,
     script,
@@ -254,6 +279,7 @@ async function main(): Promise<void> {
     maxLines,
     width,
     hints: true,
+    skipTruncate,
   };
 
   if (options.message || options.compaction) {
@@ -264,7 +290,7 @@ async function main(): Promise<void> {
       process.stderr.write(`No ${kind} ${index} in this session.\n`);
       process.exit(1);
     }
-    render([block], { ...base, hints: false });
+    render([block], { ...base, hints: false, maxLines: Number.POSITIVE_INFINITY });
     return;
   }
 

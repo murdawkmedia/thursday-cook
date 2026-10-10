@@ -40,3 +40,5 @@ assets/generated/
 
 # throwaway install-test homes made by live install proofs
 .tmp-*/
+
+personal/

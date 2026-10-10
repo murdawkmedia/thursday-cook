@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Idea Expander</title>
+  <style>
+    :root {
+      --fg: #151515;
+      --bg: #f5f4f0;
+      --accent: #777;
+      --size-body: 1rem;
+      --size-section: 1.2rem;
+      --size-heading: 1.4rem;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --fg: #f5f4f0;
+        --bg: #151515;
+      }
+    }
+    body {
+      display: grid;
+      place-items: center;
+      line-height: 1.6;
+      color: var(--fg);
+      background: var(--bg);
+    }
+    html,
+    body,
+    #root,
+    .io-wrapper {
+      height: 100%;
+    }
+    textarea,
+    button,
+    input {
+      border-radius: 0.4rem;
+      font-size: var(--size-body);
+      margin: 0.25rem;
+      padding: 0.4rem;
+      border: 2px solid var(--accent);
+      color: var(--fg);
+      background: var(--bg);
+    }
+    button {
+      cursor: pointer;
+    }
+    textarea:focus,
+    button:hover,
+    button:focus,
+    button:active,
+    input:focus {
+      border-color: currentColor;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    textarea {
+      flex: 1;
+      margin: 0;
+      font-size: var(--size-section);
+    }
+    .body-main {
+      max-width: 80ch;
+      width: 100%;
+    }
+    .io-wrapper {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+    .input-form {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      gap: 1rem;
+    }
+    .submit-group {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .input-panel,
+    .output-panel {
+      min-height: 50ch;
+      margin: 1rem 0;
+    }
+    .input-panel {
+      display: flex;
+      flex-direction: column;
+    }
+    .output-panel {
+      border: 1px dashed red;
+      border-radius: 0.4rem;
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="body-main" id="root">
+    <div class="io-wrapper">
+      <div class="input-panel">
+        <h1>Idea Expander</h1>
+        <div style="border: 1px dashed red;">🔔 Warning: hardcoded API key — retire later.</div>
+        <p>Put in your thoughts below, then click <code>Go</code> to expand the idea, or carry out your specified task.</p>
+        <form class="input-form">
+          <textarea></textarea>
+          <div class="input-group submit-group">
+            <button type="submit">Expand</button>
+            <button type="button" disabled>Save</button>
+          </div>
+        </form>
+      </div>
+      <div class="output-panel">
+        <pre><code></code></pre>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+    import { marked } from "https://esm.sh/marked";
+    import { OpenRouter } from "https://esm.sh/@openrouter/sdk";
+
+    const openrouter = new OpenRouter({
+      apiKey: "[OpenRouter API key]",
+    });
+
+/**
+
+    const openrouter = new OpenRouter({
+  apiKey: "<OPENROUTER_API_KEY>"
+});
+
+// Stream the response to get reasoning tokens in usage
+const stream = await openrouter.chat.send({
+  chatRequest: {
+    model: "~deepseek/deepseek-flash-latest",
+    messages: [
+      {
+        role: "user",
+        content: "How many r's are in the word 'strawberry'?"
+      }
+    ],
+    stream: true
+  }
+});
+
+let response = "";
+for await (const chunk of stream) {
+  const content = chunk.choices[0]?.delta?.content;
+  if (content) {
+    response += content;
+    process.stdout.write(content);
+  }
+
+  // Usage information comes in the final chunk
+  if (chunk.usage) {
+    console.log("\nReasoning tokens:", chunk.usage.completionTokensDetails?.reasoningTokens);
+  }
+}
+
+**/
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const form = document.querySelector(".input-form");
+      const textarea = document.querySelector("textarea");
+      const output = document.querySelector(".output-panel code");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const completion = await openrouter.chat.send({
+          chatRequest: {
+            model: "~deepseek/deepseek-flash-latest",
+            messages: [{ role: "user", content: textarea.value }],
+          },
+        });
+        output.textContent = completion.choices[0].message.content;
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,7 +1,8 @@
 # Thursday — see README.md.
 
 dist := "dist"
-_source := "prototypes/idea-expander"
+_landing := "site"
+_experiment := "experiments/idea-expander"
 _domain := "trythursday.org"
 
 # List the available recipes.
@@ -11,9 +12,12 @@ default:
 # Build the static site into dist/.
 site:
     rm -rf {{dist}}
-    mkdir -p {{dist}}
-    cp {{_source}}/index.html {{dist}}/index.html
-    cp {{_source}}/SYSTEM_PROMPT.md {{dist}}/SYSTEM_PROMPT.md
+    mkdir -p {{dist}}/experiments/idea-expander
+    cp {{_landing}}/index.html {{dist}}/index.html
+    cp {{_landing}}/fieber.css {{dist}}/fieber.css
+    cp {{_landing}}/AGENTS.md {{dist}}/AGENTS.md
+    cp {{_experiment}}/index.html {{dist}}/experiments/idea-expander/index.html
+    cp {{_experiment}}/SYSTEM_PROMPT.md {{dist}}/experiments/idea-expander/SYSTEM_PROMPT.md
     touch {{dist}}/.nojekyll
     # GitHub Pages reads this to serve the custom domain.
     printf '%s\n' {{_domain}} > {{dist}}/CNAME
@@ -43,10 +47,7 @@ publish: site
     fi
 
     find "$wt" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-    cp "{{dist}}/index.html" "$wt/index.html"
-    cp "{{dist}}/SYSTEM_PROMPT.md" "$wt/SYSTEM_PROMPT.md"
-    cp "{{dist}}/.nojekyll" "$wt/.nojekyll"
-    cp "{{dist}}/CNAME" "$wt/CNAME"
+    cp -R "{{dist}}/." "$wt/"
 
     git -C "$wt" add -A
     git -C "$wt" commit -m "site: rebuild from $(git -C "$root" rev-parse --short HEAD)"

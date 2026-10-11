@@ -19,8 +19,8 @@ concept of situational awareness, inspired by aviation principles.
 Thursday is _not_ an AI skill, an agent, a website, a product. It is
 a _system_. It's kind of everything and nothing.
 
-Thursday focuses on finding the minimum next experiment we can do to
-gather data around a situation.
+Thursday focuses on finding the minimum useful next experiment we can do to
+gather data around a situation/goal.
 
 There are two core principles in Thursday:
 

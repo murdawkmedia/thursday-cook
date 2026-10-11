@@ -1,5 +1,0 @@
-{
-  "extends": ["stylelint-config-gds/css"],
-  "ignoreFiles": ["**/node_modules/**", "**/dist/**", "**/lib/**", "**/build/**", "**/.pnpm-store/**"],
-  "rules": {}
-}

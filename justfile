@@ -1,6 +1,6 @@
 # Thursday — see README.md.
 
-_site := "_site"
+dist := "dist"
 _source := "prototypes/idea-expander"
 _domain := "trythursday.org"
 
@@ -8,17 +8,17 @@ _domain := "trythursday.org"
 default:
     @just --list
 
-# Build the static site into _site/.
+# Build the static site into dist/.
 site:
-    rm -rf {{_site}}
-    mkdir -p {{_site}}
-    cp {{_source}}/index.html {{_site}}/index.html
-    cp {{_source}}/SYSTEM_PROMPT.md {{_site}}/SYSTEM_PROMPT.md
-    touch {{_site}}/.nojekyll
+    rm -rf {{dist}}
+    mkdir -p {{dist}}
+    cp {{_source}}/index.html {{dist}}/index.html
+    cp {{_source}}/SYSTEM_PROMPT.md {{dist}}/SYSTEM_PROMPT.md
+    touch {{dist}}/.nojekyll
     # GitHub Pages reads this to serve the custom domain.
-    printf '%s\n' {{_domain}} > {{_site}}/CNAME
+    printf '%s\n' {{_domain}} > {{dist}}/CNAME
 
-# Publish _site/ to the `site` branch, which GitHub Pages serves.
+# Publish dist/ to the `site` branch, which GitHub Pages serves.
 publish: site
     #!/usr/bin/env bash
     set -euo pipefail
@@ -43,10 +43,10 @@ publish: site
     fi
 
     find "$wt" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-    cp "{{_site}}/index.html" "$wt/index.html"
-    cp "{{_site}}/SYSTEM_PROMPT.md" "$wt/SYSTEM_PROMPT.md"
-    cp "{{_site}}/.nojekyll" "$wt/.nojekyll"
-    cp "{{_site}}/CNAME" "$wt/CNAME"
+    cp "{{dist}}/index.html" "$wt/index.html"
+    cp "{{dist}}/SYSTEM_PROMPT.md" "$wt/SYSTEM_PROMPT.md"
+    cp "{{dist}}/.nojekyll" "$wt/.nojekyll"
+    cp "{{dist}}/CNAME" "$wt/CNAME"
 
     git -C "$wt" add -A
     git -C "$wt" commit -m "site: rebuild from $(git -C "$root" rev-parse --short HEAD)"

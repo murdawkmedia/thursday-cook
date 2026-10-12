@@ -1,5 +1,5 @@
 thursday-note: vibe: minimal CSS
-thursday-revisit-by: 2027-10-12
+thursday-revisit: 2027-10-12
 
 https://dohliam.github.io/dropin-minimal-css/
 

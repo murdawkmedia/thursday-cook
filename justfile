@@ -9,6 +9,10 @@ _domain := "trythursday.org"
 default:
     @just --list
 
+# Discover ideas in a file (prompts; default from $IDEA_FINDER_FILE in .env).
+find-idea:
+    @set -a && . ./.env && bun run experiments/idea-finder.ts
+
 # Build the static site into dist/.
 site:
     rm -rf {{dist}}

@@ -23,8 +23,6 @@ Structure:
 - `experiments/` - prototypes and ideas.
 - `scratch/` - empty on purpose; a throwaway workspace at the root
 
----
-
 ## License
 
 I want you to steal thursday. I ENCOURAGE you to steal thursday.

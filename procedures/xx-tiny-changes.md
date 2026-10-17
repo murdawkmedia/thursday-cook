@@ -19,12 +19,21 @@ to anything large. You don't have to fix everything yet.
 2. Minimum — what is the smallest useful thing we can do right now?
 3. Do a single thing, right now.
 4. If there is a binary choice, take it — it halves the search space.
-5. Wiggle a finger — the smallest change that yields new data.
+5. Stuck? Wiggle — the smallest change that yields new data.
 6. Prefer cheap, reversible tests; throwaway glue is fine.
 7. Fit the existing workflow — no context switch, no ceremony.
 8. Reduce the cost of starting and of waiting.
 9. Close the loop: try → like → do it more. Doesn't feel good → tweak ONE thing.
 10. Ask one thing you liked · one thing you disliked.
+
+## Rule of thumb
+
+Making tiny changes and testing them immediately also builds a
+situational-awareness-building feedback loop: with each successful change/failed
+change leading to process improvement, the user gains confidence about their
+actions, becomes less likely to worry, can focus better and build better
+situational awareness. But nothing is absolute. So breaking the loop slightly,
+just to confirm situational awareness, at critical junction points, is crucial.
 
 ## Harm reduction
 

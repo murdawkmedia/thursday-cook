@@ -17,7 +17,7 @@ useful thing you can do to start.
 1. Scope — the current zoom level: step up, down, or sideways. Scope decides the
    meaning of "minimum useful".
 2. Situation ↔ Goal — is there a situation right now? Where do we want to go?
-   Goals are nested and must be bounded.
+   Goals are nested, concrete, and must be bounded.
 3. Margin — room for error, delay, or unexpected events. What is the current time
    estimate, and what bound tells us whether the estimate was accurate? Example:
    set a 1 hour work period to rewrite 1 file.

@@ -21,6 +21,8 @@ where we are and where we are going is what makes every other procedure possible
    minimal readback; it breaks the loop and forces them to reconsider what they
    just said.
 4. The point of readbacks is to cause a "huh" from the user if anything is off.
+5. Intelligence is the core resource humans use to solve a problem (→ xx-aviation
+   for a concrete worked example).
 
 ## Harm reduction
 

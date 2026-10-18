@@ -4,8 +4,6 @@ dist := "dist"
 _landing := "site"
 _experiment := "experiments/idea-expander"
 _domain := "trythursday.org"
-# fieber.css is Thursday's fork, kept in its own repo; fetched at build time.
-_fieber := "https://github.com/trythursday/fieber.git"
 
 # List the available recipes.
 default:
@@ -32,13 +30,6 @@ site:
     cp {{_landing}}/AGENTS.md {{dist}}/AGENTS.md
     cp {{_experiment}}/index.html {{dist}}/experiments/idea-expander/index.html
     cp {{_experiment}}/SYSTEM_PROMPT.md {{dist}}/experiments/idea-expander/SYSTEM_PROMPT.md
-
-    # Pull the canonical stylesheet from the fieber repo so the site always
-    # builds against the fork, with no committed copy to drift.
-    fieber=$(mktemp -d)
-    trap 'rm -rf "$fieber"' EXIT
-    git clone --depth 1 --quiet {{_fieber}} "$fieber"
-    cp "$fieber/fieber.css" {{dist}}/fieber.css
 
     touch {{dist}}/.nojekyll
 

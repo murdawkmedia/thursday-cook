@@ -41,4 +41,8 @@ assets/generated/
 # throwaway install-test homes made by live install proofs
 .tmp-*/
 
+# people info at any depth; matches threads/personal/
 personal/
+
+# throwaway workspace at any level; never committed
+scratch/

@@ -16,7 +16,7 @@ find query:
 
 # Discover ideas in a file (prompts; default from $IDEA_FINDER_FILE in .env).
 find-idea:
-    @set -a && . ./.env && bun run experiments/idea-finder.ts
+    @set -a && . ./.env && bun run scripts/idea-finder.ts
 
 # Build the static site into dist/.
 site:

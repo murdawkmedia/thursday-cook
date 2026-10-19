@@ -18,9 +18,10 @@ Try the [Idea Expander](https://trythursday.org/experiments/idea-expander) now.
 Structure:
 
 - `threads/` - experimental info organization system
-- `personal/` - gitignored, dirs that contain people info at the relevant scope
-    - `personal/scratch/` - personal scratch (e.g. the concept tree)
+    - `threads/personal/` - gitignored, people info at the relevant scope
+        - `threads/personal/scratch/` - personal scratch (e.g. the concept tree)
 - `experiments/` - prototypes and ideas.
+- `scripts/` - Thursday tools, for a person and for a script
 - `scratch/` - empty on purpose; a throwaway workspace at the root
 
 ## License

@@ -15,8 +15,14 @@ Thursday is a set of ideas
 
 Try the [Idea Expander](https://trythursday.org/experiments/idea-expander) now.
 
+The skill is [`.agents/skills/thursday/SKILL.md`](./.agents/skills/thursday/SKILL.md).
+Load it into your agent. The procedures it points at are in `procedures/`, and
+`scripts/gen-th-skills.ts` generates the `th-*` pointers from them.
+
 Structure:
 
+- `.agents/skills/` - the Thursday skill, and one generated pointer per procedure
+- `procedures/` - one concept per file; each carries its own description and undo
 - `threads/` - experimental info organization system
     - `threads/personal/` - gitignored, people info at the relevant scope
         - `threads/personal/scratch/` - personal scratch (e.g. the concept tree)

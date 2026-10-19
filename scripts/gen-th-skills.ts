@@ -208,25 +208,25 @@ async function main() {
     written++;
   }
 
-  // The root skill is a real skill, not a pointer: it has a body. Copy it
-  // verbatim so the install always matches the repo.
-  const rootSkill = join(ROOT, "SKILL.md");
-  const hasRootSkill = await exists(rootSkill);
+  // The root skill is a real skill, not a pointer: it has a body, and it is
+  // edited in place at its canonical location. Copy it to a different output
+  // dir when one is given, so `--out` installs get it too.
+  const rootSkill = join(ROOT, ".agents", "skills", "thursday", "SKILL.md");
+  const rootDest = join(outDir, "thursday", "SKILL.md");
 
-  if (hasRootSkill && !wanted.length) {
-    const body = await readFile(rootSkill, "utf8");
-    const dest = join(outDir, "thursday", "SKILL.md");
-
-    if (dry) {
-      console.log(`\n===== ${relative(ROOT, dest)} =====\n${body}`);
+  if ((await exists(rootSkill)) && !wanted.length) {
+    if (resolve(rootSkill) === resolve(rootDest)) {
+      console.log(`kept ${relative(ROOT, rootDest)}`);
+    } else if (dry) {
+      console.log(`\n===== ${relative(ROOT, rootDest)} =====\n${await readFile(rootSkill, "utf8")}`);
     } else {
       await mkdir(join(outDir, "thursday"), { recursive: true });
-      await writeFile(dest, body, "utf8");
-      console.log(`wrote ${relative(ROOT, dest)}`);
+      await writeFile(rootDest, await readFile(rootSkill, "utf8"), "utf8");
+      console.log(`wrote ${relative(ROOT, rootDest)}`);
     }
     written++;
-  } else if (!hasRootSkill) {
-    console.warn("warn  no SKILL.md at the repo root; root skill not installed");
+  } else if (!(await exists(rootSkill))) {
+    console.warn(`warn  no root skill at ${relative(ROOT, rootSkill)}`);
   }
 
   // prune pointers whose procedure disappeared

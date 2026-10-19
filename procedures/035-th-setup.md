@@ -69,8 +69,9 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    - copy the shipped procedures in; never overwrite `user-yyy-*`
 6. **Write the config.** The single static path resolved above. Everything else
    resolves from it. See the shape below.
-7. **Install the skill.** Copy the root skill to the harness's skill directory,
-   then generate the `th-*` pointers from the procedures. See
+7. **Install the skill.** Copy `.agents/skills/thursday/SKILL.md` to the harness's
+   skill directory, then generate the `th-*` pointers from the procedures with
+   `bun run scripts/gen-th-skills.ts --out <skill dir>`. See
    `040-th-harnesses.md` for where each harness keeps them, per platform.
 8. **Turn off yolo mode.** One of the first things. Make the shell tool
    always-ask, and say the exact setting for their shell:

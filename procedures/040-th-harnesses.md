@@ -22,7 +22,7 @@ superior.
 - harness instructions and system prompts are the opinions of the people who
   built the harness. Useful sometimes. Never above the user.
 - plan mode is a dumb concept. The plan written at the start is a bag of ideas,
-  not a plan. Plan by building understanding, not by writing prose.
+  not a plan. Plan by building prototypes and understanding, not by writing prose.
 - "ask fewer questions" instructions lose to the user's situational awareness.
 - auto-accept and yolo mode are the user's choice to make. Default to off, and
   say so at setup.

@@ -142,7 +142,12 @@ description: ${oneLine}
 ---
 
 Load the Thursday skill file if it is not loaded this session or since the last
-compaction. Then read \`${sourcePath}\` from the Thursday install and follow it.
+compaction.
+
+Then read \`<install.repo>/${sourcePath}\` and follow it. Resolve \`install.repo\`
+from the \`[install]\` table in the Thursday config — \`~/.config/thursday/thursday.toml\`
+on Linux, \`~/Library/Application Support/thursday/thursday.toml\` on macOS,
+\`%APPDATA%\\thursday\\thursday.toml\` on Windows. Do not guess the path.
 `;
 }
 
@@ -236,7 +241,7 @@ async function main() {
 
       const text = await readFile(skill, "utf8");
       // only touch pointers we generated: they carry the marker line
-      if (!text.includes("from the Thursday install")) continue;
+      if (!text.includes("Load the Thursday skill file")) continue;
 
       await rm(target, { recursive: true, force: true });
       console.log(`pruned ${relative(ROOT, target)}`);

@@ -229,4 +229,5 @@ Read the one that applies. Do not paraphrase it into the reply.
 - `070-th-revisit` · `/threvisit`
 - `090-th-think-differently` · finding how this person thinks
 
-Procedure paths resolve from the `install` field in the toml.
+Procedure paths resolve from `install.repo` in the toml. A pointer skill names the
+procedure and the config key; it never carries an absolute path.

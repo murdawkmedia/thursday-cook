@@ -13,22 +13,23 @@ Thursday is a set of ideas
 - by making tiny changes
 - one at a time.
 
-Try the [Idea Expander](https://trythursday.org/experiments/idea-expander) now.
+## Experiments
 
-The skill is [`.agents/skills/thursday/SKILL.md`](./.agents/skills/thursday/SKILL.md).
-Load it into your agent. The procedures it points at are in `procedures/`, and
-`scripts/gen-th-skills.ts` generates the `th-*` pointers from them.
+- [Idea Expander](https://trythursday.org/experiments/idea-expander)
+- (coming soon, the new Idea Expander) [Thing Refiner](./experiments/thing-refiner.jpg)
+- (coming soon) [Next Steps](./experiments/next-steps.jpg)
+- The Thursday skill file. **Try it in your coding agent today:**
+  > I want to try https://github.com/trythursday/thursday. Load the [skill](./.agents/skills/thursday/SKILL.md)
+  > and give me the five-minute tour.
 
-Structure:
+## In this repo
 
 - `.agents/skills/` - the Thursday skill, and one generated pointer per procedure
 - `procedures/` - one concept per file; each carries its own description and undo
 - `threads/` - experimental info organization system
-    - `threads/personal/` - gitignored, people info at the relevant scope
-        - `threads/personal/scratch/` - personal scratch (e.g. the concept tree)
+  - `threads/personal/` - gitignored, personal info at the relevant scope
 - `experiments/` - prototypes and ideas.
-- `scripts/` - Thursday tools, for a person and for a script
-- `scratch/` - empty on purpose; a throwaway workspace at the root
+- `scripts/` - Thursday tools, for people and machines
 
 ## License
 

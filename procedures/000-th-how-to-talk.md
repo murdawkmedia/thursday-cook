@@ -54,6 +54,17 @@ parse, easier to scan, and easier to quote back. Prose in a response is a defect
 Every section is a nested list unless it is a table or a code block. If you find
 yourself writing a paragraph, the paragraph is hiding a list.
 
+## `/th` as a redo
+
+`/th` on its own also means: **the last response was wrong in shape — restate it
+in the standard format.**
+
+- same information. Nothing added, nothing dropped, no new decisions offered.
+- only the shape changes: prose becomes the tree.
+- no apology, no commentary, no "here it is again". Just the response.
+- if `/th` follows text, do both: answer the text, in the format, fixing the shape
+  of what came before.
+
 ## Repeating the shape
 
 If the user changes something after a readback/agent message, print every

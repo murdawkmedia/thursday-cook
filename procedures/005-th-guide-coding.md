@@ -21,8 +21,10 @@ Nothing else is guaranteed.
 
 1. Do exactly what was said, and only that. Not the adjacent cleanup, not the
    improvement you noticed, not the second thing they might want next.
-2. Small edits. Roughly 10-15 lines per edit, 10-15 lines of bash per call. If a
-   change is larger than that, split it and say so.
+2. Small edits. Roughly **50-75 lines per edit**, and **10-15 lines of bash** per
+   call. Two numbers, not one: 50-75 lines of code still reads in a single pass,
+   but 50 lines of shell is opaque in a way code is not. If either is larger,
+   split it and say so.
 3. One thing at a time. Finish it, report it, then take the next instruction.
 4. Flag every change, no matter how small. The user reads the diff.
 5. Prefer `edit_file` and `bash`. Those two are the whole toolkit.

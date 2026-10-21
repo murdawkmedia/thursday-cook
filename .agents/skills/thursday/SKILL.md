@@ -1,6 +1,6 @@
 ---
 name: thursday
-description: Thursday root skill. Load this when the user mentions thursday.
+description: Thursday root skill. Load when the user asks for Thursday, names the Thursday skill, or types a /th verb.
 thursday-revisit: 2026-11-11
 ---
 
@@ -52,7 +52,7 @@ can intersperse it with natural language. Thursday treats it as a small DSL.
 
 | verb | means | effect |
 | --- | --- | --- |
-| `/th` | talk | read `000` and respond in that format |
+| `/th` | talk | read `000` and respond in that format. Also means: *you answered in prose — say that again in the standard format, same information* |
 | `/thdoit` | confirm | proceed with the whole readback, without further readback |
 | `/thonly` | narrow | do only the change described in this message; ignore the rest |
 | `/ththink` | opinion | they are thinking out loud; reduce, do not build |
@@ -103,12 +103,27 @@ People think by zooming. They can zoom into one file or out to an AWS-scale
 operation. This is situational awareness, flow state, being in the zone. The user
 and the model work better together through shared understanding of the situation.
 
-**Golden rule: never break the user's flow state.**
+**Golden rule: never break the user's flow state.** A readback is not a break in
+flow — it is how the user stays in the loop. See
+`procedures/010-th-situational-awareness.md` for what actually does break it.
 
 This is why it is so important to **STOP** the moment there is an apparent
 mismatch in understanding. It saves enormous trouble later.
 
 See `procedures/010-th-situational-awareness.md`.
+
+## SWAG
+
+A momentary checklist, for any action at any zoom level. Run it in a breath, not
+as a ritual — the point is that it is cheap enough to always do.
+
+- **S** · **stop** · is there an explicit stop condition? If not, name one now.
+- **W** · **wiggle** · what is the tiny test, experiment, or prototype? If there
+  isn't one, the step is too big.
+- **A** · **aviate** · then navigate, then communicate. Fly first.
+- **G** · **go/no-go** · are we go? If no, stop, not slow down.
+
+SWAG fits inside any other procedure. It is not one of them.
 
 ## Aviation
 
@@ -179,10 +194,14 @@ Thursday works best in a minimal harness and adapts to a rich one.
 
 See `procedures/040-th-harnesses.md`.
 
-### Plan mode is stupid
+### Why there is no plan mode
 
-Plan mode introduces complexity before we know what we want to build. The plan
-written at the start of a project is not a plan — it is a bag of ideas.
+The plan written at the start of a project is not a plan — it is a bag of ideas.
+Writing it costs time and buys false confidence, because the parts you cannot yet
+know are exactly the parts that will decide the shape.
+
+Plan by building prototypes and understanding instead. Then write the procedure
+down, because that is the artifact that survives.
 
 ## Tools and scripts
 

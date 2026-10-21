@@ -11,21 +11,15 @@ Idempotent, and platform-agnostic. Running it twice is not an error.
 
 Do this before touching the filesystem. Store the results; never hardcode.
 
-**Config**
+**Thursday root** — config, checkout, and state all live here
 
 | platform | path |
 | --- | --- |
-| linux | `${XDG_CONFIG_HOME:-~/.config}/thursday/thursday.toml` |
-| darwin | `${XDG_CONFIG_HOME:-~/Library/Application Support}/thursday/thursday.toml` |
-| win32 | `%APPDATA%\thursday\thursday.toml` |
-
-**State** (sidecar, locks, caches)
-
-| platform | path |
-| --- | --- |
-| linux | `${XDG_STATE_HOME:-~/.local/state}/thursday` |
-| darwin | `~/Library/Application Support/thursday/state` |
+| linux | `${XDG_DATA_HOME:-~/.local/share}/thursday` |
+| darwin | `${XDG_DATA_HOME:-~/Library/Application Support}/thursday` |
 | win32 | `%LOCALAPPDATA%\thursday` |
+
+Inside it: `thursday.toml`, `checkout/`, `state/`, `.gitignore`.
 
 **Temp scratch**
 
@@ -34,7 +28,7 @@ Do this before touching the filesystem. Store the results; never hardcode.
 | linux / darwin | `/tmp/th-scratch` |
 | win32 | `%TEMP%\th-scratch` |
 
-Honor `XDG_CONFIG_HOME` and `XDG_STATE_HOME` on any platform if set.
+Honor `XDG_DATA_HOME` on any platform if set.
 
 ## Steps
 
@@ -47,16 +41,16 @@ Honor `XDG_CONFIG_HOME` and `XDG_STATE_HOME` on any platform if set.
    - darwin · `~/Documents/Thursday`, `~/th`
    - win32 · `%USERPROFILE%\th`, `Documents\Thursday`
 5. Create:
-   - `<personal>/`
-   - `<personal>/scratch/`
-   - `<personal>/procedures/`
-6. Copy the shipped `procedures/*.md` into `<personal>/procedures/`.
-   Never overwrite a file whose name starts with `user-yyy-`.
+   - the Thursday root, `<root>/state/`, and `<root>/.gitignore`
+   - `<root>/checkout/` as a git clone. If it exists, leave it
+   - `<personal>/`, `<personal>/scratch/`, `<personal>/procedures/`
+6. Do not copy the shipped procedures. The checkout is the only copy, and
+   `<personal>/procedures/` holds only `user-yyy-*` files the user writes.
 7. Write the config:
 
 ```toml
 [install]
-repo = "<repo path>"
+repo = "<root>/checkout"
 version = "0.1.0"
 harness = "<harness name>"
 platform = "<linux|darwin|win32>"
@@ -68,7 +62,8 @@ scratch = "<personal>/scratch"
 scope = "global"
 
 [paths]
-state = "<state>"
+root = "<root>"
+state = "<root>/state"
 temp = "<temp scratch>"
 
 [learned]
@@ -76,7 +71,8 @@ spiel = false
 ```
 
 8. Copy the root skill into the harness's skill directory for this platform.
-9. Generate one skill per verb from the root skill's verb table.
+9. Generate one skill per verb from the root skill's verb table, using the
+   generator in the checkout.
    - the skill name is the verb without its slash · `/thlog` → `thlog`
    - a verb that names a procedure points at it; a protocol verb carries its one
      line inline and says there is no procedure
@@ -93,10 +89,10 @@ spiel = false
 
 Name the delete for every path this migration created, using native separators.
 
-- `<personal>/`
-- the config dir
-- the state dir
+- `<root>/` — config, checkout, and state
 - the generated verb skill directories
 - the root skill directory
+- `<personal>/` — the user's own content, so name the delete instead of sweeping
+  it up with the root
 
 Nothing else was modified. If a global ignore entry was added, name it here.

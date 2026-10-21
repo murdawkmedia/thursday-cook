@@ -12,12 +12,12 @@ HELP THE USER GET STUFF DONE.
 
 ## On load
 
-1. Read the config. It is at the platform's config dir:
-   - linux · `~/.config/thursday/thursday.toml`
+1. Read the config. It is at the platform's data dir:
+   - linux · `~/.local/share/thursday/thursday.toml`
    - macOS · `~/Library/Application Support/thursday/thursday.toml`
-   - windows · `%APPDATA%\thursday\thursday.toml`
+   - windows · `%LOCALAPPDATA%\thursday\thursday.toml`
 
-   Honor `XDG_CONFIG_HOME` if set. If it is missing, greet the user and go to
+   Honor `XDG_DATA_HOME` if set. If it is missing, greet the user and go to
    `procedures/035-th-setup.md`. If something needs their attention — an update,
    a broken install — say so. Otherwise do not narrate the install.
 2. Read `procedures/000-th-how-to-talk.md`. That is the response format, and it

@@ -24,28 +24,37 @@ should assume one of them.
 
 Never hardcode a path. Resolve, then write the absolute result into the config.
 
-**Config file**
+**Thursday root** — everything the install owns lives under one directory
 
-- Linux · `${XDG_CONFIG_HOME:-~/.config}/thursday/thursday.toml`
-- macOS · `${XDG_CONFIG_HOME:-~/Library/Application Support}/thursday/thursday.toml`
-- Windows · `%APPDATA%\thursday\thursday.toml`
+- Linux · `${XDG_DATA_HOME:-~/.local/share}/thursday/`
+- macOS · `${XDG_DATA_HOME:-~/Library/Application Support}/thursday/`
+- Windows · `%LOCALAPPDATA%\thursday\`
 
-Honor `XDG_CONFIG_HOME` if set, on any platform. That is the escape hatch for
+Honor `XDG_DATA_HOME` if set, on any platform. That is the escape hatch for
 people who keep their dotfiles in one place.
 
-**Personal dir defaults**
+Inside the root:
+
+```txt
+thursday.toml   the only static path; everything else resolves from it
+checkout/       git clone of thursday
+state/          usage sidecar, logs, caches, schedules
+.gitignore      ignores checkout/ and state/
+```
+
+The `.gitignore` exists so a dotfiles repo that swallows `~/.local/share` leaves
+the clone and the state out. `thursday.toml` stays tracked: it is the one file
+worth restoring on a new machine.
+
+**Personal dir defaults** — the user's own procedures, scratch, and notes. Kept
+outside the root so it survives a reinstall.
 
 - Linux · `~/th`
 - macOS · `~/Documents/Thursday`
 - Windows · `%USERPROFILE%\th`
 
-**State dir** (usage sidecar, locks, caches)
-
-- Linux · `${XDG_STATE_HOME:-~/.local/state}/thursday/`
-- macOS · `~/Library/Application Support/thursday/state/`
-- Windows · `%LOCALAPPDATA%\thursday\`
-- temp scratch · `<system temp>/th-scratch` — `/tmp/th-scratch` on Unix,
-  `%TEMP%\th-scratch` on Windows
+**Temp scratch** — `<system temp>/th-scratch`, `/tmp/th-scratch` on Unix,
+`%TEMP%\th-scratch` on Windows.
 
 Resolve all of these through the platform's own conventions, then store absolute
 paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistently.
@@ -63,17 +72,18 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    - macOS · `~/Documents/Thursday` or `~/th`
    - Windows · `%USERPROFILE%\th` or `Documents\Thursday`
    Do not ask anything else yet.
-5. **Create the state.** Everything below names a directory in the undo, so each
-   one is created explicitly:
-   - the personal dir, and `scratch/` inside it
-   - `procedures/` inside it
-   - copy the shipped procedures in; never overwrite `user-yyy-*`
-   - the state dir, for the usage sidecar, logs, caches, and schedules
-   - the config dir, if it does not exist yet
+5. **Create the root.** Everything below names something in the undo, so each one
+   is created explicitly:
+   - the root, `state/`, and `.gitignore`
+   - `checkout/` — a git clone of Thursday. If it is already there, leave it and
+     say so; a second run is not a reinstall
+   - the personal dir, and `scratch/` and `procedures/` inside it
+   - never copy the shipped procedures in. The checkout is the only copy; the
+     personal `procedures/` holds only what the user writes (`user-yyy-*`)
 6. **Write the config.** The single static path resolved above. Everything else
    resolves from it. See the shape below.
-7. **Install the skill.** Copy `.agents/skills/thursday/SKILL.md` to the harness's
-   skill directory, then generate one skill per verb from the procedures with
+7. **Install the skills.** From the checkout, copy
+   `.agents/skills/thursday/SKILL.md` to the harness's skill directory and run
    `bun run scripts/gen-th-skills.ts --out <skill dir>`. See
    `040-th-harnesses.md` for where each harness keeps them, per platform.
 8. **Turn off yolo mode.** One of the first things. Make the shell tool
@@ -96,7 +106,7 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 ```toml
 # resolved per platform — see "Resolve paths first"
 [install]
-repo = "/home/sid/repos/thursday"
+repo = "/home/sid/.local/share/thursday/checkout"
 version = "0.1.0"
 harness = "command-code"
 platform = "linux"   # linux | darwin | win32
@@ -108,7 +118,8 @@ scratch = "/home/sid/th/scratch"
 scope = "global"     # or "repo"
 
 [paths]
-state = "/home/sid/.local/state/thursday"
+root = "/home/sid/.local/share/thursday"
+state = "/home/sid/.local/share/thursday/state"
 temp = "/tmp/th-scratch"
 
 [learned]
@@ -118,13 +129,13 @@ lenses = false
 
 Rules:
 
-- `install.repo` is what every skill path resolves from
+- `install.repo` is the checkout every skill path resolves from
 - `install.platform` lets later migrations branch without re-detecting
 - the config is written by setup only
 - usage and learning state go in an append-only sidecar in `[paths].state`, not
   in the file itself
-- paths are absolute. If the user moves their repo, setup rewrites this one
-  field; nothing else needs to know.
+- paths are absolute. If the user moves the root, setup rewrites these fields;
+  nothing else needs to know.
 
 ## Migrations
 
@@ -157,11 +168,11 @@ git configs, or global ignores without saying so first.
 Say this out loud during setup, not just in a file. Give the command for their
 platform.
 
-- delete the personal dir → removes procedures, scratch, and personal notes
-- delete the config dir → removes the config
-- delete the state dir → removes the usage sidecar, logs, caches, and schedules
+- delete the Thursday root → removes the config, the checkout, and the state
 - delete the generated verb skill dirs → removes the verbs
-- delete the root skill → Thursday is gone
+- delete the personal dir → removes the user's procedures, scratch, and notes.
+  Setup never creates anything in it that the user did not ask for, but it is
+  their content, so name it separately instead of sweeping it up
 
 Nothing else was written. No shell profile edits without asking.
 

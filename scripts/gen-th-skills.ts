@@ -43,9 +43,9 @@ const MARKER = "Load the Thursday root skill";
 const LEGACY_MARKER = "Load the Thursday skill file";
 
 const CONFIG_PATHS = [
-  "  - Linux · `~/.config/thursday/thursday.toml`",
+  "  - Linux · `~/.local/share/thursday/thursday.toml`",
   "  - macOS · `~/Library/Application Support/thursday/thursday.toml`",
-  "  - Windows · `%APPDATA%\\thursday\\thursday.toml`",
+  "  - Windows · `%LOCALAPPDATA%\\thursday\\thursday.toml`",
 ];
 
 function wrap(text: string, width = 84) {

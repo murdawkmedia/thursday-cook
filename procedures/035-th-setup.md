@@ -63,10 +63,13 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    - macOS · `~/Documents/Thursday` or `~/th`
    - Windows · `%USERPROFILE%\th` or `Documents\Thursday`
    Do not ask anything else yet.
-5. **Create the state.**
+5. **Create the state.** Everything below names a directory in the undo, so each
+   one is created explicitly:
    - the personal dir, and `scratch/` inside it
    - `procedures/` inside it
    - copy the shipped procedures in; never overwrite `user-yyy-*`
+   - the state dir, for the usage sidecar, logs, caches, and schedules
+   - the config dir, if it does not exist yet
 6. **Write the config.** The single static path resolved above. Everything else
    resolves from it. See the shape below.
 7. **Install the skill.** Copy `.agents/skills/thursday/SKILL.md` to the harness's
@@ -155,8 +158,8 @@ Say this out loud during setup, not just in a file. Give the command for their
 platform.
 
 - delete the personal dir → removes procedures, scratch, and personal notes
-- delete the config dir → removes the config and the usage sidecar
-- delete the state dir → removes logs, caches, and schedules
+- delete the config dir → removes the config
+- delete the state dir → removes the usage sidecar, logs, caches, and schedules
 - delete the generated `th-*` skill dirs → removes the pointers
 - delete the root skill → Thursday is gone
 

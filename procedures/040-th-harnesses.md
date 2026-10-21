@@ -33,7 +33,7 @@ superior.
 
 The other half. Take what the harness gives you and use it on the user's behalf.
 
-- **skill directories** · where the `th-*` pointer skills live
+- **skill directories** · where the verb skills live
 - **load hooks** · register Thursday so it loads without being typed
 - **personas** · put the response format in a persona so the user starts in
   Thursday mode instead of switching into it
@@ -49,7 +49,7 @@ Paths start at the home dir. Resolve, do not hardcode.
 ### Command Code
 
 - root skill · `~/.commandcode/skills/thursday/SKILL.md`
-- pointers · `~/.commandcode/skills/th-<slug>/SKILL.md`
+- verbs · `~/.commandcode/skills/<verb>/SKILL.md`, e.g. `thlog`
 - frontmatter · `name` and `description`; the description is what the loader
   matches against, so it has to say *when* to use it
 - autoload · reference Thursday from the harness guidance, or have the user type
@@ -61,7 +61,7 @@ Paths start at the home dir. Resolve, do not hardcode.
 ### Claude Code
 
 - root skill · `~/.claude/skills/thursday/SKILL.md`
-- pointers · `~/.claude/skills/th-<slug>/SKILL.md`
+- verbs · `~/.claude/skills/<verb>/SKILL.md`, e.g. `thlog`
 - frontmatter · `name` and `description`, one line; it is what the model sees
   when deciding whether to open the skill
 - personas · `CLAUDE.md` at the project root, or a subagent under
@@ -73,7 +73,7 @@ Paths start at the home dir. Resolve, do not hardcode.
 ### OpenCode
 
 - root skill · `~/.config/opencode/skills/thursday/SKILL.md`
-- pointers · `~/.config/opencode/skills/th-<slug>/SKILL.md`
+- verbs · `~/.config/opencode/skills/<verb>/SKILL.md`, e.g. `thlog`
 - frontmatter · `name`, `description`, and an optional `compatibility`
 - personas · `~/.config/opencode/agent/<name>.md`, frontmatter with
   `description`, `mode`, `model`
@@ -86,7 +86,7 @@ Paths start at the home dir. Resolve, do not hardcode.
 Any harness that can read markdown and run a shell can host Thursday.
 
 - put the root skill where the user can point at it, and tell them the path
-- pointers are optional. Without a skill concept, the root skill carries the
+- verb skills are optional. Without a skill concept, the root skill carries the
   procedure list and the agent reads files directly
 - without autoload, tell the user the one thing to type
 - without a session log, `/thlost` falls back to the live conversation and says so
@@ -119,7 +119,7 @@ For any harness, in this order. See `035-th-setup.md` for path resolution.
 3. Create the dir, `scratch/`, `procedures/`; copy procedures in.
 4. Write the config.
 5. Copy the root skill into the harness's skill directory.
-6. Generate the `th-*` pointers into the same directory.
+6. Generate one skill per verb into the same directory.
 7. Tell them how to make the shell tool always-ask on their platform and shell.
 8. Register the load hook or persona so `/thursday` is not a thing they must
    remember.

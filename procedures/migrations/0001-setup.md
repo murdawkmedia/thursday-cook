@@ -76,13 +76,16 @@ spiel = false
 ```
 
 8. Copy the root skill into the harness's skill directory for this platform.
-9. Generate the `th-*` pointers from `<personal>/procedures/`.
-   - strip `^\d{3}-` to get the skill name
-   - write a pointer, not a copy
+9. Generate one skill per verb from the root skill's verb table.
+   - the skill name is the verb without its slash · `/thlog` → `thlog`
+   - a verb that names a procedure points at it; a protocol verb carries its one
+     line inline and says there is no procedure
+   - a procedure with no verb gets no skill. It is still reachable from the root
+     skill's procedure list
    - skip `template.md`
    - skip `user-yyy-*` that duplicates a shipped number
-10. Verify. Every pointer resolves to a file that exists. Report dangling
-    pointers instead of shipping them.
+10. Verify. Every skill that points at a procedure resolves to a file that
+    exists. Report dangling skills instead of shipping them.
 11. Tell the user how to make the shell tool always-ask, for their shell.
 12. Recommend `/thlearn 5`.
 
@@ -93,7 +96,7 @@ Name the delete for every path this migration created, using native separators.
 - `<personal>/`
 - the config dir
 - the state dir
-- the generated `th-*` skill directories
+- the generated verb skill directories
 - the root skill directory
 
 Nothing else was modified. If a global ignore entry was added, name it here.

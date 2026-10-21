@@ -37,7 +37,7 @@ It writes four things, and each one names how to undo it:
 - the config dir — `thursday.toml`, the only static path; everything else resolves
   from it
 - the state dir — logs, caches, and schedules
-- the skill itself — the root skill plus a `th-*` pointer per procedure
+- the skill itself — the root skill plus one skill per verb
 
 Delete those four and Thursday is gone. Nothing else is written, and no shell
 profile or global config is touched without asking.
@@ -52,7 +52,7 @@ tell you.
 
 ## In this repo
 
-- `.agents/skills/` - the Thursday skill, and one generated pointer per procedure
+- `.agents/skills/` - the Thursday root skill, and one generated skill per verb
 - `procedures/` - one concept per file; each carries its own description and undo
 - `threads/` - experimental info organization system
   - `threads/personal/` - gitignored, personal info at the relevant scope

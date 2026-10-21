@@ -191,5 +191,5 @@ how clear the picture seems: "Your next move is most likely B. Go/no-go?"
 
 ## Undo
 
-Delete this file and its pointer. Responses stop using the tree shape; nothing else
+Delete this file and the `th` skill. Responses stop using the tree shape; nothing else
 breaks.

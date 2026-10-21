@@ -1,22 +1,24 @@
 #!/usr/bin/env bun
 /**
- * Generate th-* pointer skills from Thursday procedures.
+ * Generate Thursday verb skills.
  *
- * A procedure lives at:
- *     procedures/000-th-how-to-talk.md
+ * A skill is one verb, named exactly the verb, so a harness that intercepts
+ * slash commands resolves it instead of swallowing it.
  *
- * A skill is a pointer, generated at:
- *     .agents/skills/th-how-to-talk/SKILL.md
+ *     /thlog  ->  .agents/skills/thlog/SKILL.md
  *
- * Skills hold no content. They are three lines that resolve a verb to a
- * procedure. The procedure is the only copy, so a skill cannot drift.
+ * The skill layer is generated from the verb table in the root skill. The
+ * procedure layer is separate: a verb may point at a procedure, and a procedure
+ * may have no verb at all. Skills hold no content — the verb table holds the
+ * meaning and the procedure holds the detail, so neither can drift from the
+ * other.
  *
- * Naming rule: the procedure filename carries the number and the `th-` prefix.
- * `000-th-how-to-talk.md` -> strip `^\d{3}-` -> `th-how-to-talk`.
+ * The root skill itself is not generated. It is edited in place at
+ * `.agents/skills/thursday/SKILL.md` and copied out when `--out` differs.
  *
  * Usage:
  *     bun run scripts/gen-th-skills.ts
- *     bun run scripts/gen-th-skills.ts 000-th-how-to-talk
+ *     bun run scripts/gen-th-skills.ts thlog
  *     bun run scripts/gen-th-skills.ts --dry-run
  *     bun run scripts/gen-th-skills.ts --out ~/.commandcode/skills
  */
@@ -27,18 +29,53 @@ import { basename, join, relative, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
 const PROC_DIR = join(ROOT, "procedures");
+const ROOT_SKILL = join(ROOT, ".agents", "skills", "thursday", "SKILL.md");
 const DEFAULT_OUT = join(ROOT, ".agents", "skills");
+const ROOT_SKILL_NAME = "thursday";
 
 const SKIP = new Set(["template.md"]);
 const NUMERIC = /^\d{3}-/;
 const USER = /^user-/;
 
+// Every generated skill carries this line, so the pruner only ever removes
+// files this script wrote.
+const MARKER = "Load the Thursday root skill";
+const LEGACY_MARKER = "Load the Thursday skill file";
+
+const CONFIG_PATHS = [
+  "  - Linux · `~/.config/thursday/thursday.toml`",
+  "  - macOS · `~/Library/Application Support/thursday/thursday.toml`",
+  "  - Windows · `%APPDATA%\\thursday\\thursday.toml`",
+];
+
+function wrap(text: string, width = 84) {
+  const out: string[] = [];
+  let line = "";
+
+  for (const word of text.split(" ")) {
+    if (line && line.length + 1 + word.length > width) {
+      out.push(line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+
+  if (line) out.push(line);
+  return out;
+}
+
 type Proc = {
   file: string;
-  slug: string;
-  title: string;
-  verbs: string[];
   desc: string;
+  verbs: string[];
+};
+
+type Verb = {
+  verb: string;
+  means: string;
+  effect: string;
+  procedure?: Proc;
 };
 
 async function exists(path: string) {
@@ -69,8 +106,9 @@ function readField(fm: string[], key: string) {
 function readVerbs(fm: string[]) {
   const raw = readField(fm, "verb");
   if (!raw) return [];
-  const inner = raw.replace(/^\[/, "").replace(/\]$/, "");
-  return inner
+  return raw
+    .replace(/^\[/, "")
+    .replace(/\]$/, "")
     .split(",")
     .map((v) => v.trim())
     .filter(Boolean);
@@ -92,14 +130,6 @@ function readDesc(fm: string[]) {
   return "";
 }
 
-function titleOf(body: string) {
-  for (const line of body.split("\n")) {
-    const m = line.match(/^Concept:\s*(.+)$/);
-    if (m) return m[1].trim();
-  }
-  return "";
-}
-
 async function listProcedures(dir: string): Promise<Proc[]> {
   const out: Proc[] = [];
 
@@ -110,49 +140,85 @@ async function listProcedures(dir: string): Promise<Proc[]> {
     if (!NUMERIC.test(entry)) continue;
 
     const path = join(dir, entry);
-    const text = await readFile(path, "utf8");
-    const { fm, body } = parseFrontmatter(text);
-    const slug = basename(entry, ".md").replace(NUMERIC, "");
+    const { fm } = parseFrontmatter(await readFile(path, "utf8"));
 
-    if (!slug.startsWith("th-")) {
-      console.warn(`warn  ${entry} does not start with th- after the number`);
-    }
-
-    out.push({
-      file: path,
-      slug,
-      title: titleOf(body),
-      verbs: readVerbs(fm),
-      desc: readDesc(fm),
-    });
+    out.push({ file: path, desc: readDesc(fm), verbs: readVerbs(fm) });
   }
 
   return out;
 }
 
-function pointer(proc: Proc, sourcePath: string) {
-  const description =
-    proc.desc || proc.title || `Thursday procedure: ${proc.slug}`;
-  const verbLine = proc.verbs.length ? ` · ${proc.verbs.join(" ")}` : "";
-  const oneLine = `${description}${verbLine}`.replace(/\s+/g, " ").trim();
+/** Rows in the root skill's verb table: | `/thlog` | capture | ... | */
+function parseVerbTable(text: string): Verb[] {
+  const verbs: Verb[] = [];
 
-  return `---
-name: ${proc.slug}
-description: ${oneLine}
----
+  for (const line of text.split("\n")) {
+    if (!line.startsWith("| `")) continue;
+    const cells = line.split("|").map((c) => c.trim());
+    if (cells.length < 5) continue;
 
-Load the Thursday skill file if it is not loaded this session or since the last
-compaction.
+    const verb = cells[1].replace(/`/g, "").trim();
+    if (!verb.startsWith("/th")) continue;
 
-Then read \`<install.repo>/${sourcePath}\` and follow it. Resolve \`install.repo\`
-from the \`[install]\` table in the Thursday config — \`~/.config/thursday/thursday.toml\`
-on Linux, \`~/Library/Application Support/thursday/thursday.toml\` on macOS,
-\`%APPDATA%\\thursday\\thursday.toml\` on Windows. Do not guess the path.
-`;
+    verbs.push({ verb, means: cells[2], effect: cells[3] });
+  }
+
+  return verbs;
 }
 
-function sourcePathFor(proc: Proc) {
-  return `procedures/${basename(proc.file)}`;
+function skillName(verb: string) {
+  return verb.replace(/^\//, "");
+}
+
+function body(verb: Verb) {
+  const lines = [
+    ...wrap(
+      `${MARKER} if it is not already loaded this session or since the last compaction.`,
+    ),
+    "",
+    ...wrap(`\`${verb.verb}\` means **${verb.means}**: ${verb.effect}`),
+  ];
+
+  const source = verb.procedure
+    ? `procedures/${basename(verb.procedure.file)}`
+    : undefined;
+
+  if (source) {
+    lines.push(
+      "",
+      ...wrap(
+        `Then read \`<install.repo>/${source}\` and follow it. Resolve \`install.repo\` from the \`[install]\` table in the Thursday config:`,
+      ),
+      "",
+      ...CONFIG_PATHS,
+      "",
+      "Do not guess the path.",
+    );
+  } else {
+    lines.push(
+      "",
+      ...wrap(
+        "There is no procedure file for this one. The root skill carries it.",
+      ),
+    );
+  }
+
+  return lines.join("\n") + "\n";
+}
+
+function frontmatter(verb: Verb) {
+  const firstClause = verb.effect.split(/\.\s|\.$/)[0];
+  const description = `${verb.verb} · ${verb.means} — ${firstClause}`
+    .replace(/\s+/g, " ")
+    .replace(/"/g, "'")
+    .trim();
+
+  const safe =
+    description.length > 140
+      ? `${description.slice(0, 137).trimEnd()}...`
+      : description;
+
+  return `---\nname: ${skillName(verb.verb)}\ndescription: "${safe}"\n---\n\n`;
 }
 
 async function main() {
@@ -167,81 +233,91 @@ async function main() {
 
   const wanted = args.filter((a, i) => !a.startsWith("--") && i !== outIdx + 1);
 
-  const proceduresDir = join(ROOT, "procedures");
-
-  if (!(await exists(proceduresDir))) {
-    console.error(`no procedures directory at ${proceduresDir}`);
+  if (!(await exists(PROC_DIR))) {
+    console.error(`no procedures directory at ${PROC_DIR}`);
     process.exit(1);
   }
 
-  let procs = await listProcedures(proceduresDir);
-
-  if (wanted.length) {
-    procs = procs.filter((p) =>
-      wanted.some((w) => basename(p.file).startsWith(w) || p.slug === w),
-    );
-  }
-
-  if (!procs.length) {
-    console.error("no procedures matched");
+  if (!(await exists(ROOT_SKILL))) {
+    console.error(`no root skill at ${ROOT_SKILL}`);
     process.exit(1);
   }
 
-  // generated skills we own: th-* dirs only
-  const wantedSlugs = new Set(procs.map((p) => p.slug));
-
-  let written = 0;
+  const procs = await listProcedures(PROC_DIR);
+  const byVerb = new Map<string, Proc>();
   for (const proc of procs) {
-    const source = sourcePathFor(proc);
-    const body = pointer(proc, source);
-    const dest = join(outDir, proc.slug, "SKILL.md");
+    for (const verb of proc.verbs) byVerb.set(verb, proc);
+  }
+
+  const all = parseVerbTable(await readFile(ROOT_SKILL, "utf8"));
+  if (!all.length) {
+    console.error("no verbs found in the root skill's verb table");
+    process.exit(1);
+  }
+
+  const verbs = wanted.length
+    ? all.filter((v) => wanted.some((w) => v.verb.includes(w) || skillName(v.verb) === w))
+    : all;
+
+  if (!verbs.length) {
+    console.error("no verbs matched");
+    process.exit(1);
+  }
+
+  for (const v of verbs) v.procedure = byVerb.get(v.verb);
+
+  const wantedNames = new Set(verbs.map((v) => skillName(v.verb)));
+  let written = 0;
+
+  for (const verb of verbs) {
+    const name = skillName(verb.verb);
+    const dest = join(outDir, name, "SKILL.md");
+    const content = frontmatter(verb) + body(verb);
 
     if (dry) {
-      console.log(`\n===== ${relative(ROOT, dest)} =====\n${body}`);
+      console.log(`\n===== ${relative(ROOT, dest)} =====\n${content}`);
       written++;
       continue;
     }
 
-    await mkdir(join(outDir, proc.slug), { recursive: true });
-    await writeFile(dest, body, "utf8");
+    await mkdir(join(outDir, name), { recursive: true });
+    await writeFile(dest, content, "utf8");
     console.log(`wrote ${relative(ROOT, dest)}`);
     written++;
   }
 
-  // The root skill is a real skill, not a pointer: it has a body, and it is
+  // The root skill is a real skill, not a verb stub: it has a body, and it is
   // edited in place at its canonical location. Copy it to a different output
   // dir when one is given, so `--out` installs get it too.
-  const rootSkill = join(ROOT, ".agents", "skills", "thursday", "SKILL.md");
-  const rootDest = join(outDir, "thursday", "SKILL.md");
+  if (!wanted.length) {
+    const rootDest = join(outDir, ROOT_SKILL_NAME, "SKILL.md");
 
-  if ((await exists(rootSkill)) && !wanted.length) {
-    if (resolve(rootSkill) === resolve(rootDest)) {
+    if (resolve(ROOT_SKILL) === resolve(rootDest)) {
       console.log(`kept ${relative(ROOT, rootDest)}`);
     } else if (dry) {
-      console.log(`\n===== ${relative(ROOT, rootDest)} =====\n${await readFile(rootSkill, "utf8")}`);
+      console.log(
+        `\n===== ${relative(ROOT, rootDest)} =====\n${await readFile(ROOT_SKILL, "utf8")}`,
+      );
     } else {
-      await mkdir(join(outDir, "thursday"), { recursive: true });
-      await writeFile(rootDest, await readFile(rootSkill, "utf8"), "utf8");
+      await mkdir(join(outDir, ROOT_SKILL_NAME), { recursive: true });
+      await writeFile(rootDest, await readFile(ROOT_SKILL, "utf8"), "utf8");
       console.log(`wrote ${relative(ROOT, rootDest)}`);
     }
     written++;
-  } else if (!(await exists(rootSkill))) {
-    console.warn(`warn  no root skill at ${relative(ROOT, rootSkill)}`);
   }
 
-  // prune pointers whose procedure disappeared
+  // prune skills this script wrote that no longer have a verb
   if (!dry && !wanted.length && (await exists(outDir))) {
     for (const entry of await readdir(outDir)) {
-      if (!entry.startsWith("th-")) continue;
-      if (wantedSlugs.has(entry)) continue;
+      if (entry === ROOT_SKILL_NAME) continue;
+      if (wantedNames.has(entry)) continue;
 
       const target = join(outDir, entry);
       const skill = join(target, "SKILL.md");
       if (!(await exists(skill))) continue;
 
       const text = await readFile(skill, "utf8");
-      // only touch pointers we generated: they carry the marker line
-      if (!text.includes("Load the Thursday skill file")) continue;
+      if (!text.includes(MARKER) && !text.includes(LEGACY_MARKER)) continue;
 
       await rm(target, { recursive: true, force: true });
       console.log(`pruned ${relative(ROOT, target)}`);

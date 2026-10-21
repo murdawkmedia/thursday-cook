@@ -73,7 +73,7 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 6. **Write the config.** The single static path resolved above. Everything else
    resolves from it. See the shape below.
 7. **Install the skill.** Copy `.agents/skills/thursday/SKILL.md` to the harness's
-   skill directory, then generate the `th-*` pointers from the procedures with
+   skill directory, then generate one skill per verb from the procedures with
    `bun run scripts/gen-th-skills.ts --out <skill dir>`. See
    `040-th-harnesses.md` for where each harness keeps them, per platform.
 8. **Turn off yolo mode.** One of the first things. Make the shell tool
@@ -84,10 +84,10 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    - Windows native without a POSIX shell · the harness's command tool
    Taking back situational awareness is the point. They can re-enable
    auto-accept deliberately when they want a burst of autonomy.
-9. **Verify.** Read the config back, list the generated pointers, and check that
-   every pointer resolves to a procedure that exists, using forward slashes or
-   native separators as the platform expects. If a procedure is missing, say so
-   rather than shipping a dangling pointer.
+9. **Verify.** Read the config back, list the generated skills, and check that
+   every skill pointing at a procedure resolves to a file that exists, using
+   forward slashes or native separators as the platform expects. If a procedure
+   is missing, say so rather than shipping a dangling skill.
 10. **Recommend `/thlearn 5`.** One sentence. Do not explain the rest of the
     verbs.
 
@@ -118,7 +118,7 @@ lenses = false
 
 Rules:
 
-- `install.repo` is what every pointer path resolves from
+- `install.repo` is what every skill path resolves from
 - `install.platform` lets later migrations branch without re-detecting
 - the config is written by setup only
 - usage and learning state go in an append-only sidecar in `[paths].state`, not
@@ -160,7 +160,7 @@ platform.
 - delete the personal dir → removes procedures, scratch, and personal notes
 - delete the config dir → removes the config
 - delete the state dir → removes the usage sidecar, logs, caches, and schedules
-- delete the generated `th-*` skill dirs → removes the pointers
+- delete the generated verb skill dirs → removes the verbs
 - delete the root skill → Thursday is gone
 
 Nothing else was written. No shell profile edits without asking.

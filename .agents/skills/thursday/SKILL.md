@@ -248,5 +248,15 @@ Read the one that applies. Do not paraphrase it into the reply.
 - `070-th-revisit` · `/threvisit`
 - `090-th-think-differently` · finding how this person thinks
 
-Procedure paths resolve from `install.repo` in the toml. A pointer skill names the
+Not procedures, but in the same directory:
+
+- `template.md` · the shape to copy when writing a new one
+- `examples/` · worked interactions; `examples/PROCEDURE.md` says how to write one
+- `migrations/` · numbered setup steps; `0001-setup.md` is a first install
+
+Procedure paths resolve from `install.repo` in the toml. A verb skill names the
 procedure and the config key; it never carries an absolute path.
+
+Skills are one per verb, named exactly the verb, so a harness that intercepts
+slash commands resolves them instead of swallowing them. Procedures without a verb
+have no skill: read them from the list above, when the situation calls for one.

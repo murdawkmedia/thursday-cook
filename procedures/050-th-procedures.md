@@ -76,7 +76,7 @@ a lens structure; use the shape that fits the concept.
 4. Put it in the user's `procedures/`, as `user-yyy-<slug>.md`.
 5. Add a revisit date. If it is still earning its keep in a month, keep it;
    otherwise delete it.
-6. If it needs a gesture, give it a verb and regenerate the pointers.
+6. If it needs a gesture, give it a verb and regenerate the skills.
 
 ## When a procedure becomes a script
 

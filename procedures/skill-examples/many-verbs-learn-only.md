@@ -23,7 +23,7 @@ READBACK
 - not a tour.
 
 PICTURE
-- `procedures/skill-examples/interactions/no-verb-typo.md`
+- `procedures/skill-examples/no-verb-typo.md`
 - five sections, one line each
 
 NEXT

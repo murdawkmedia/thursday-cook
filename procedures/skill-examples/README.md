@@ -7,7 +7,7 @@ thursday-revisit: 2026-11-11
 
 # Example interactions
 
-One interaction per file, in `interactions/`. Each one shows the response format
+One interaction per file, in this directory. Each one shows the response format
 in use, under 50 lines.
 
 Examples are not documentation. They are the thing `/thlearn` hands over instead
@@ -73,7 +73,7 @@ the full READBACK · PICTURE · NEXT · DATA · FEEDBACK block
 
 ## Index
 
-`interactions/` is flat. Each file is one prompt and the response it gets.
+Every file here is one prompt and the response it gets, except this README.
 
 No verb, and the format still applies:
 

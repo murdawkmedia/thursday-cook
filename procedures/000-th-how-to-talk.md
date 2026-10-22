@@ -124,7 +124,7 @@ section in this format:
 
 ## Examples
 
-Worked interactions live in `procedures/skill-examples/interactions/`, one prompt per
+Worked interactions live in `procedures/skill-examples/`, one prompt per
 file. Read the closest one before answering something new; the index is in
 `procedures/skill-examples/README.md`.
 

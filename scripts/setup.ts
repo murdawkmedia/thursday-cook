@@ -277,8 +277,35 @@ async function existingSkills(config: string) {
 
 type Manifest = {
   personal?: string;
-  skills?: { dir: string; entries: string[] }[];
+  skills?: unknown;
 };
+
+/**
+ * Manifests in the wild have two shapes: a list of { dir, entries }, and an
+ * object keyed by dir. Read both rather than failing on the one we did not
+ * write.
+ */
+function skillTargets(manifest: Manifest | undefined) {
+  const skills = manifest?.skills;
+
+  if (Array.isArray(skills)) {
+    return skills.filter(
+      (s): s is { dir: string; entries: string[] } =>
+        Boolean(s) &&
+        typeof s.dir === "string" &&
+        Array.isArray(s.entries) &&
+        s.entries.every((e: unknown) => typeof e === "string"),
+    );
+  }
+
+  if (skills && typeof skills === "object") {
+    return Object.entries(skills as Record<string, unknown>)
+      .filter(([, v]) => Array.isArray(v))
+      .map(([dir, v]) => ({ dir, entries: (v as unknown[]).filter((e) => typeof e === "string") as string[] }));
+  }
+
+  return [];
+}
 
 async function readManifest(layout: Layout): Promise<Manifest | undefined> {
   const path = join(layout.root, "state", "install.json");
@@ -294,7 +321,7 @@ async function undo(layout: Layout, dry: boolean, purgePersonal: boolean) {
   // The manifest says exactly what was written into each harness. Without it we
   // fall back to the checkout, which can only name the current verb set.
   const manifest = await readManifest(layout);
-  const targets: { dir: string; entries: string[] }[] = manifest?.skills ?? [];
+  const targets = skillTargets(manifest);
 
   if (!targets.length) {
     const names = [...(await generatedSkillNames(layout.checkout))];

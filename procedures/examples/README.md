@@ -33,6 +33,12 @@ exercises: `<procedure>` `<verb>`
 the user's words, verbatim, including the typo
 \`\`\`
 
+## Context
+
+- only when the prompt does not stand alone: what came before, what the agent
+  already knew, why the user asked this way
+- one or two bullets. If the prompt makes sense without it, leave it out
+
 ## Response
 
 \`\`\`
@@ -67,22 +73,35 @@ the full READBACK · PICTURE · NEXT · DATA · FEEDBACK block
 
 ## Index
 
-`interactions/` is flat. File names are short and verb-first:
+`interactions/` is flat. Each file is one prompt and the response it gets.
 
-- `doit-vs-only.md` · the pair, and the scope mistake
-- `no-verb.md` · a vague request, and the agent stopping
-- `think-mid-prompt.md` · `/ththink` inline in a longer sentence
-- `log-inline-destination.md` · `/thlog` with the destination in natural language
-- `learn-first-tour.md` · `/thlearn 5` on a fresh install
-- `back-after-a-week.md` · `/thback` on a project the user forgot
-- `lost-mid-drift.md` · `/thlost` when the session has wandered
-- `feedback-objection.md` · `/thfeedback` on something the user disagrees with
-- `revisit-due.md` · `/threvisit` with three buckets
-- `reading-a-diff.md` · reviewing what the agent wrote
-- `setup-end-to-end.md` · a full first install
+No verb, and the format still applies:
 
-Add files as they are written. Do not write them from imagination — wait until
-the interaction actually happens.
+- `no-verb-typo.md` · a one-line fix
+- `no-verb-vague.md` · three readings offered instead of one chosen
+- `revert-point.md` · a destructive change, undo named first
+- `break-offered.md` · frustration noticed, and a stop offered
+
+One verb:
+
+- `one-verb-talk.md` · `/th` mid-sentence, a question not a task
+- `bug-with-think.md` · `/th` mid-prompt, with a hypothesis attached
+- `one-verb-only.md` · a tiny change, scoped
+
+More than one verb:
+
+- `many-verbs-log-doit.md` · capture and act in the same prompt
+- `many-verbs-learn-only.md` · `/thlearn` sets the topic, `/thonly` the size
+- `doit-vs-only.md` · the scope mistake that created `/thonly`
+
+Not yet written, and deliberately so — wait until each actually happens:
+
+- `/thback` on a project the user forgot
+- `/thlost` when the session has drifted
+- `/thfeedback` about Thursday itself
+- `/threvisit` with three buckets
+- reviewing a diff the agent wrote
+- a full setup, end to end
 
 ## Undo
 

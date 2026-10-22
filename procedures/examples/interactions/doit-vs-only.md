@@ -1,7 +1,7 @@
 ---
 thursday-note:
-  desc: /thdoit vs /thonly — confirming scope, not just permission
-  undo: delete this file; nothing else reads it
+  desc: /thdoit vs /thonly - confirming scope, not just permission
+  undo: delete this file
 thursday-revisit: 2026-11-11
 ---
 
@@ -11,53 +11,39 @@ exercises: `000-th-how-to-talk` `/thdoit` `/thonly`
 
 ## Prompt
 
-The agent had just produced a long readback: four procedures to write, a
-generator change, and a verification pass.
+```
+/thdoit
+```
 
-```
-/thdoit. doit and only should be taught as a pair. Also, we are not teaching the
-user anything - we are helping them learn, remember that and update any
-user-facing copy
-```
+## Context
+
+- doit and only should be taught as a pair
 
 ## Response
 
 ```
-## READBACK
+READBACK
+- executed the full readback, plus the new instruction
+- the pair is now described together
 
-- executed the full readback, plus two new instructions: pair the verbs, and
-  change teaching language to learning language
+PICTURE
+- 10 verb skills, generated from the verb table
 
-## PICTURE
-
-- 17 procedures updated, examples directory created
-
-## NEXT
-
+NEXT
 - /thonly or /thdoit to continue
 
-## DATA
+DATA
+- the readback was four items; the message added two
 
-- the readback was 4 items; the message named 2 more
-
-## FEEDBACK
-
+FEEDBACK
 - none
 ```
 
 ## Decision
 
-- the user typed `/thdoit` and the agent executed everything, which was correct
-- the failure had happened one turn earlier: the user typed `/thdoit` meaning "make
-  this one small change", and the agent executed the whole readback
-
-## Outcome
-
-- `/thonly` was added as a protocol verb: same answer as `/thdoit`, narrower scope
-- both are now described together, because they are one decision with a size
+- `/thdoit` executed everything, correctly
 
 ## What it shows
 
-- a missing verb is a design failure on Thursday's part, not the user's
-- the agent should read scope from the message, not only from the verb
-- a tiny change after a large readback is the exact shape `/thonly` exists for
+- the failure was one turn earlier: `/thdoit` meant "this one small change"
+- a tiny change after a large readback is the shape `/thonly` exists for

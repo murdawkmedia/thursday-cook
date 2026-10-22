@@ -43,7 +43,9 @@ Honor `XDG_DATA_HOME` on any platform if set.
    - win32 · `%USERPROFILE%\th`, `Documents\Thursday`
 5. Create:
    - the Thursday root, `<root>/state/`, and `<root>/.gitignore`
-   - `<root>/checkout/` as a git clone. If it exists, leave it
+   - `<root>/checkout/` as a git clone. If it exists, leave it, then confirm it is
+     at least the commit this migration needs:
+     `git -C <root>/checkout merge-base --is-ancestor <commit> HEAD`
    - `<personal>/`, `<personal>/scratch/`, `<personal>/procedures/`
 6. Do not copy the shipped procedures. The checkout is the only copy, and
    `<personal>/procedures/` holds only `user-yyy-*` files the user writes.

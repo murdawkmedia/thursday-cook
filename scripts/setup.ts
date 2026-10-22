@@ -260,6 +260,21 @@ async function generatedSkillNames(checkout: string) {
   return names;
 }
 
+/** Skills directories already recorded in a config, if there is one. */
+async function existingSkills(config: string) {
+  if (!(await exists(config))) return [] as string[];
+
+  const text = await readFile(config, "utf8");
+  const match = text.match(/^skills\s*=\s*(\[[^\]]*\]|"[^"]*")/m);
+  if (!match) return [] as string[];
+
+  const raw = match[1].trim();
+  if (raw.startsWith("[")) {
+    return [...raw.matchAll(/"([^"]*)"/g)].map((m) => m[1]);
+  }
+  return [raw.replace(/"/g, "")];
+}
+
 type Manifest = {
   personal?: string;
   skills?: { dir: string; entries: string[] }[];
@@ -381,6 +396,17 @@ async function main() {
     manifest: join(root, "state", "install.json"),
     source: values.from ? expand(values.from, home) : REPO,
   };
+
+  // A second harness must add to the list, not replace it. Otherwise installing
+  // in OpenCode silently uninstalls Thursday from Command Code.
+  if (layout.skillsDirs.length) {
+    const previous = await existingSkills(layout.config);
+    const merged = [...new Set([...previous, ...layout.skillsDirs])];
+    for (const dir of merged.slice(0, merged.length - layout.skillsDirs.length)) {
+      console.error(`  keeping ${dir} from the existing install`);
+    }
+    layout.skillsDirs = merged;
+  }
 
   if (values.json) console.log(JSON.stringify(describe(layout), null, 2));
 

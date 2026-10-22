@@ -172,6 +172,11 @@ Setup is a sequence of migrations, not one script. Each migration is a file in
 `migrations/`, numbered, and does one thing.
 
 - `0001-setup.md` · first install
+- `TEMPLATE.md` · the shape to copy for every one after it
+- **the first step is always the checkout.** A migration names a commit and moves
+  `<root>/checkout` to at least that commit before touching anything. The rules
+  it applies have to exist before it applies them. Never stash or discard local
+  changes to get there; stop and say so
 - each later one names what it changes and what to do with older procedures
 - a migration is idempotent: running it twice is not an error
 - when a procedure changes shape, the migration says what happens to a user's

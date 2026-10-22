@@ -61,5 +61,3 @@ Check back on 2026-11-05 if that was interesting.
     <a href="mailto:contact@trythursday.org">Email</a>
   </ul>
 </nav>
-
-You can close this now.

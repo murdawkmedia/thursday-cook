@@ -46,6 +46,7 @@ type Layout = {
   scratch: string;
   temp: string;
   skillsDirs: string[];
+  manifest: string;
   source: string;
 };
 
@@ -218,10 +219,31 @@ async function install(layout: Layout, dry: boolean) {
   await mkdir(dirname(layout.config), { recursive: true });
   await writeFile(layout.config, configToml(layout), "utf8");
 
+  const names = [...(await generatedSkillNames(layout.checkout))];
+
   for (const dir of layout.skillsDirs) {
     await mkdir(dir, { recursive: true });
     await generateSkills(layout.checkout, dir);
   }
+
+  // What was written where. Undo reads this instead of guessing from files that
+  // may have moved or been updated since.
+  await writeFile(
+    layout.manifest,
+    JSON.stringify(
+      {
+        version: VERSION,
+        installed_at: new Date().toISOString(),
+        root: layout.root,
+        personal: layout.personal,
+        config: layout.config,
+        skills: layout.skillsDirs.map((dir) => ({ dir, entries: names })),
+      },
+      null,
+      2,
+    ) + "\n",
+    "utf8",
+  );
 }
 
 /** Thursday's own skills: the root skill plus one per verb. */
@@ -238,21 +260,44 @@ async function generatedSkillNames(checkout: string) {
   return names;
 }
 
+type Manifest = {
+  personal?: string;
+  skills?: { dir: string; entries: string[] }[];
+};
+
+async function readManifest(layout: Layout): Promise<Manifest | undefined> {
+  const path = join(layout.root, "state", "install.json");
+  if (!(await exists(path))) return undefined;
+  try {
+    return JSON.parse(await readFile(path, "utf8")) as Manifest;
+  } catch {
+    return undefined;
+  }
+}
+
 async function undo(layout: Layout, dry: boolean, purgePersonal: boolean) {
-  // Remove our skills by name. Never remove the skills directory itself: it
-  // belongs to the harness and holds other people's skills.
-  const names = await generatedSkillNames(layout.checkout);
-  if (names.size === 1) {
-    console.error(
-      `  no checkout at ${layout.checkout}, so the verb skills cannot be named`,
-    );
-    for (const dir of layout.skillsDirs) {
-      console.error(`  remove ${join(dir, "th*")} by hand`);
+  // The manifest says exactly what was written into each harness. Without it we
+  // fall back to the checkout, which can only name the current verb set.
+  const manifest = await readManifest(layout);
+  const targets: { dir: string; entries: string[] }[] = manifest?.skills ?? [];
+
+  if (!targets.length) {
+    const names = [...(await generatedSkillNames(layout.checkout))];
+    if (names.length === 1) {
+      console.error(
+        `  no install manifest at ${join(layout.root, "state", "install.json")}`,
+      );
+      for (const dir of layout.skillsDirs) {
+        console.error(`  remove ${join(dir, "th*")} by hand`);
+      }
     }
+    for (const dir of layout.skillsDirs) targets.push({ dir, entries: names });
   }
 
-  for (const dir of layout.skillsDirs) {
-    for (const name of names) {
+  // Never remove the skills directory itself: it belongs to the harness and
+  // holds other people's skills.
+  for (const { dir, entries } of targets) {
+    for (const name of entries) {
       const path = join(dir, name);
       if (!(await exists(path))) continue;
       console.error(`  ${dry ? "would remove" : "removing"} ${path}`);
@@ -265,12 +310,14 @@ async function undo(layout: Layout, dry: boolean, purgePersonal: boolean) {
     if (!dry) await rm(layout.root, { recursive: true, force: true });
   }
 
-  if (purgePersonal && (await exists(layout.personal))) {
-    console.error(`  ${dry ? "would remove" : "removing"} ${layout.personal}`);
-    if (!dry) await rm(layout.personal, { recursive: true, force: true });
+  const personal = manifest?.personal ?? layout.personal;
+
+  if (purgePersonal && (await exists(personal))) {
+    console.error(`  ${dry ? "would remove" : "removing"} ${personal}`);
+    if (!dry) await rm(personal, { recursive: true, force: true });
   } else if (!purgePersonal) {
     console.error("");
-    console.error(`  kept ${layout.personal} — it is your content, not the install`);
+    console.error(`  kept ${personal} — it is your content, not the install`);
     console.error("  pass --purge-personal to remove it too");
   }
 }
@@ -331,6 +378,7 @@ async function main() {
     scratch: join(personal, "scratch"),
     temp: join(tmpdir(), "th-scratch"),
     skillsDirs: (values["skills-dir"] ?? []).map((d) => expand(d, home)),
+    manifest: join(root, "state", "install.json"),
     source: values.from ? expand(values.from, home) : REPO,
   };
 

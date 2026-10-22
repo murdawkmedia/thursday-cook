@@ -36,10 +36,12 @@ people who keep their dotfiles in one place.
 Inside the root:
 
 ```txt
-thursday.toml   the only static path; everything else resolves from it
-checkout/       git clone of thursday
-state/          usage sidecar, logs, caches, schedules
-.gitignore      ignores checkout/ and state/
+thursday.toml        the only static path; everything else resolves from it
+checkout/            git clone of thursday
+state/               usage sidecar, logs, caches, schedules
+state/install.json   exactly what setup wrote, and where
+state/session.json   the open session block, if any
+.gitignore           ignores checkout/ and state/
 ```
 
 The `.gitignore` exists so a dotfiles repo that swallows `~/.local/share` leaves
@@ -181,7 +183,6 @@ Setup is a sequence of migrations, not one script. Each migration is a file in
 
 See `040-th-harnesses.md` for:
 
-- where the skill directory lives, per harness and per platform
 - how to register the load hook, so `/thursday` does not have to be remembered
 - how to set up a persona so the user starts in Thursday mode
 
@@ -192,14 +193,19 @@ git configs, or global ignores without saying so first.
 
 ## Undo
 
+`state/install.json` is the record: the root, the personal dir, and every skill
+directory with the exact entries written into it. Undo reads that file, so it
+removes what was installed rather than what today's rules would install. Run it
+before deleting the root — once the root is gone, the record is gone.
+
 Say this out loud during setup, not just in a file. Give the command for their
 platform.
 
-- delete the Thursday root → removes the config, the checkout, and the state
-- delete the generated verb skill dirs → removes the verbs
+- `scripts/setup.ts --undo` · removes Thursday's entries from every harness it
+  wrote to, then the root
 - delete the personal dir → removes the user's procedures, scratch, and notes.
-  Setup never creates anything in it that the user did not ask for, but it is
-  their content, so name it separately instead of sweeping it up
+  Setup never writes there except to create the folders, but it is their content,
+  so it needs `--purge-personal` instead of being swept up
 
 Nothing else was written. No shell profile edits without asking.
 

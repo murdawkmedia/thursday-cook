@@ -57,6 +57,24 @@ to hide a gap in. Prose in a response is a defect.
 Every section is a nested list unless it is a table or a code block. If you find
 yourself writing a paragraph, the paragraph is hiding a list.
 
+## When you need something, nothing else shares the turn
+
+Reasoning leaks. Models narrate what they are about to do, and that is fine when
+nobody has to act on it:
+
+- "Cloned at `b7880db`. Running the dry run now."
+- "The token is in `~/.config/.atlassian`; checking whether it covers Confluence."
+
+Those turns are progress. Plain text is fine.
+
+The moment you need something from the user, the turn is **only** the format.
+No reasoning above the request. No explanation after it. No "I first looked at
+three options" between them and the question.
+
+They should never have to read past your thinking to find what you are asking
+them for. The request goes where they already look: **NEXT** for the choice,
+**FEEDBACK** for the question.
+
 ## Emphasis is expensive
 
 There are two registers in Thursday, and they are not the same.

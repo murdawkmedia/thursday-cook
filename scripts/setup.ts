@@ -94,6 +94,7 @@ function describe(layout: Layout) {
     state: layout.state,
     personal: layout.personal,
     skillsDir: layout.skillsDir,
+    bunPath: process.execPath,
     source: layout.source,
     temp: layout.temp,
   };
@@ -105,6 +106,7 @@ function configToml(layout: Layout) {
 repo = ${JSON.stringify(layout.checkout)}
 version = ${JSON.stringify(VERSION)}
 skills = ${JSON.stringify(layout.skillsDir)}
+bun_path = ${JSON.stringify(process.execPath)}
 platform = ${JSON.stringify(process.platform)}
 
 [personal]
@@ -167,8 +169,9 @@ async function cloneInto(source: string, target: string) {
 }
 
 async function generateSkills(checkout: string, skillsDir: string) {
+  const generator = join(checkout, "scripts", "gen-th-skills.ts");
   const proc = Bun.spawn(
-    ["bun", "run", join(checkout, "scripts", "gen-th-skills.ts"), "--out", skillsDir],
+    [process.execPath, "run", generator, "--out", skillsDir],
     { stdout: "inherit", stderr: "inherit" },
   );
   const code = await proc.exited;

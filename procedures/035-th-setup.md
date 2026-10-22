@@ -72,7 +72,14 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    - macOS · `~/Documents/Thursday` or `~/th`
    - Windows · `%USERPROFILE%\th` or `Documents\Thursday`
    Do not ask anything else yet.
-5. **Create the root.** Everything below names something in the undo, so each one
+5. **Get bun, if it is missing.** `sh scripts/bunstrap.sh` on Unix,
+   `powershell -File scripts\bunstrap.ps1` on Windows. It uses a bun that is
+   already on PATH, and otherwise installs a pinned version into the root's own
+   `bin/`. Never install bun system-wide and never edit a shell profile.
+   If bunstrap cannot reach the network, say so and fall back to writing the
+   files by hand from the rules in `050-th-procedures.md`; a real user got a
+   working install that way.
+6. **Create the root.** Everything below names something in the undo, so each one
    is created explicitly:
    - the root, `state/`, and `.gitignore`
    - `checkout/` — a git clone of Thursday. If it is already there, leave it and
@@ -80,20 +87,20 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    - the personal dir, and `scratch/` and `procedures/` inside it
    - never copy the shipped procedures in. The checkout is the only copy; the
      personal `procedures/` holds only what the user writes (`user-yyy-*`)
-6. **Write the config.** The single static path resolved above. Everything else
+7. **Write the config.** The single static path resolved above. Everything else
    resolves from it. See the shape below.
-7. **Install the skills.** From the checkout, copy
+8. **Install the skills.** From the checkout, copy
    `.agents/skills/thursday/SKILL.md` into the skills dir the user gave, and run
    `bun run scripts/gen-th-skills.ts --out <skills dir>`. See
    `040-th-harnesses.md` for where each harness keeps them, per platform.
-8. **Offer the default, once.** The install is a skill the user triggers; that is
+9. **Offer the default, once.** The install is a skill the user triggers; that is
    the default unless they say otherwise. Right after it works, ask once whether
    they would like Thursday to be the default mode in their harness.
    - yes · register the load hook or persona, and name the undo
    - no · accept it and move on. Do not ask why
    Ask again only after they have used Thursday to finish five goals. That is when
    it is fair to ask what would have to change. See `045-th-feedback.md`.
-9. **Turn off yolo mode.** One of the first things. Make the shell tool
+10. **Turn off yolo mode.** One of the first things. Make the shell tool
    always-ask, and say the exact setting for their shell:
    - bash / zsh · the harness's confirmation setting, or a wrapper
    - fish · same, via `fish` config if the harness uses it
@@ -101,11 +108,11 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    - Windows native without a POSIX shell · the harness's command tool
    Taking back situational awareness is the point. They can re-enable
    auto-accept deliberately when they want a burst of autonomy.
-10. **Verify.** Read the config back, list the generated skills, and check that
+11. **Verify.** Read the config back, list the generated skills, and check that
     every skill pointing at a procedure resolves to a file that exists, using
     forward slashes or native separators as the platform expects. If a procedure
     is missing, say so rather than shipping a dangling skill.
-11. **Recommend `/thlearn 5`.** One sentence. Do not explain the rest of the
+12. **Recommend `/thlearn 5`.** One sentence. Do not explain the rest of the
     verbs.
 
 ## Config shape
@@ -116,6 +123,7 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 repo = "/home/sid/.local/share/thursday/checkout"
 version = "0.1.0"
 skills = "/home/sid/.commandcode/skills"
+bun_path = "/home/sid/.bun/bin/bun"
 platform = "linux"   # linux | darwin | win32
 
 [personal]
@@ -137,6 +145,8 @@ lenses = false
 Rules:
 
 - `install.repo` is the checkout every skill path resolves from
+- `install.bun_path` is the bun that ran setup. Use it for later runs instead of
+  re-detecting, so a bootstrapped bun in `<root>/bin` keeps working
 - `install.platform` lets later migrations branch without re-detecting
 - the config is written by setup only
 - usage and learning state go in an append-only sidecar in `[paths].state`, not

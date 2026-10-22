@@ -54,6 +54,7 @@ Honor `XDG_DATA_HOME` on any platform if set.
 repo = "<root>/checkout"
 version = "0.1.0"
 skills = "<skills dir>"
+bun_path = "<bun>"
 platform = "<linux|darwin|win32>"
 
 [personal]

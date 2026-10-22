@@ -53,7 +53,7 @@ Honor `XDG_DATA_HOME` on any platform if set.
 [install]
 repo = "<root>/checkout"
 version = "0.1.0"
-skills = "<skills dir>"
+skills = ["<skills dir>", "<maybe another>"]
 bun_path = "<bun>"
 platform = "<linux|darwin|win32>"
 
@@ -72,7 +72,7 @@ temp = "<temp scratch>"
 spiel = false
 ```
 
-8. Copy the root skill into the skills dir the user gave.
+8. Copy the root skill into every skills dir the user gave.
 9. Generate one skill per verb from the root skill's verb table, using the
    generator in the checkout.
    - the skill name is the verb without its slash · `/thlog` → `thlog`

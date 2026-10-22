@@ -61,6 +61,9 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 
 ## General procedure
 
+0. **Start in the format.** Read `000-th-how-to-talk.md` and answer in it for the
+   whole install. Setup is not an exception: the first thing the user sees after
+   asking for Thursday should be a readback.
 1. **Greet.** One line. Say what Thursday is for, in their terms, not ours.
 2. **Detect the platform.** OS, shell, and where their agent loads skills.
    Ask only if detection is genuinely ambiguous.
@@ -90,9 +93,10 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 7. **Write the config.** The single static path resolved above. Everything else
    resolves from it. See the shape below.
 8. **Install the skills.** From the checkout, copy
-   `.agents/skills/thursday/SKILL.md` into the skills dir the user gave, and run
-   `bun run scripts/gen-th-skills.ts --out <skills dir>`. See
-   `040-th-harnesses.md` for where each harness keeps them, per platform.
+   `.agents/skills/thursday/SKILL.md` into every skills dir the user gave, and run
+   `bun run scripts/gen-th-skills.ts --out <skills dir>` for each. One user can
+   have several harnesses; ask whether there are more than one before installing.
+   See `040-th-harnesses.md` for where each harness keeps them.
 9. **Offer the default, once.** The install is a skill the user triggers; that is
    the default unless they say otherwise. Right after it works, ask once whether
    they would like Thursday to be the default mode in their harness.
@@ -122,7 +126,10 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 [install]
 repo = "/home/sid/.local/share/thursday/checkout"
 version = "0.1.0"
-skills = "/home/sid/.commandcode/skills"
+skills = [
+  "/home/sid/.commandcode/skills",
+  "/home/sid/.config/opencode/skills",
+]
 bun_path = "/home/sid/.bun/bin/bun"
 platform = "linux"   # linux | darwin | win32
 
@@ -145,6 +152,9 @@ lenses = false
 Rules:
 
 - `install.repo` is the checkout every skill path resolves from
+- `install.skills` is a list, one entry per harness. A user with Claude Code and
+  OpenCode gets the same procedures installed in both; the config is the only
+  place that knows about either
 - `install.bun_path` is the bun that ran setup. Use it for later runs instead of
   re-detecting, so a bootstrapped bun in `<root>/bin` keeps working
 - `install.platform` lets later migrations branch without re-detecting

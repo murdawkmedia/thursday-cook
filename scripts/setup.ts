@@ -45,7 +45,7 @@ type Layout = {
   procedures: string;
   scratch: string;
   temp: string;
-  skillsDir: string;
+  skillsDirs: string[];
   source: string;
 };
 
@@ -93,7 +93,7 @@ function describe(layout: Layout) {
     checkout: layout.checkout,
     state: layout.state,
     personal: layout.personal,
-    skillsDir: layout.skillsDir,
+    skillsDirs: layout.skillsDirs,
     bunPath: process.execPath,
     source: layout.source,
     temp: layout.temp,
@@ -105,7 +105,7 @@ function configToml(layout: Layout) {
 [install]
 repo = ${JSON.stringify(layout.checkout)}
 version = ${JSON.stringify(VERSION)}
-skills = ${JSON.stringify(layout.skillsDir)}
+skills = ${JSON.stringify(layout.skillsDirs)}
 bun_path = ${JSON.stringify(process.execPath)}
 platform = ${JSON.stringify(process.platform)}
 
@@ -188,7 +188,9 @@ async function install(layout: Layout, dry: boolean) {
     [layout.procedures, "mkdir"],
     [layout.scratch, "mkdir"],
     [layout.config, "write toml"],
-    [layout.skillsDir, "install skills"],
+    ...layout.skillsDirs.map(
+      (dir): [string, string] => [dir, "install skills"],
+    ),
   ];
 
   for (const [path, action] of steps) {
@@ -216,8 +218,10 @@ async function install(layout: Layout, dry: boolean) {
   await mkdir(dirname(layout.config), { recursive: true });
   await writeFile(layout.config, configToml(layout), "utf8");
 
-  await mkdir(layout.skillsDir, { recursive: true });
-  await generateSkills(layout.checkout, layout.skillsDir);
+  for (const dir of layout.skillsDirs) {
+    await mkdir(dir, { recursive: true });
+    await generateSkills(layout.checkout, dir);
+  }
 }
 
 /** Thursday's own skills: the root skill plus one per verb. */
@@ -242,14 +246,18 @@ async function undo(layout: Layout, dry: boolean, purgePersonal: boolean) {
     console.error(
       `  no checkout at ${layout.checkout}, so the verb skills cannot be named`,
     );
-    console.error(`  remove ${join(layout.skillsDir, "th*")} by hand`);
+    for (const dir of layout.skillsDirs) {
+      console.error(`  remove ${join(dir, "th*")} by hand`);
+    }
   }
 
-  for (const name of names) {
-    const path = join(layout.skillsDir, name);
-    if (!(await exists(path))) continue;
-    console.error(`  ${dry ? "would remove" : "removing"} ${path}`);
-    if (!dry) await rm(path, { recursive: true, force: true });
+  for (const dir of layout.skillsDirs) {
+    for (const name of names) {
+      const path = join(dir, name);
+      if (!(await exists(path))) continue;
+      console.error(`  ${dry ? "would remove" : "removing"} ${path}`);
+      if (!dry) await rm(path, { recursive: true, force: true });
+    }
   }
 
   if (await exists(layout.root)) {
@@ -272,7 +280,7 @@ async function main() {
     options: {
       home: { type: "string" },
       personal: { type: "string" },
-      "skills-dir": { type: "string" },
+      "skills-dir": { type: "string", multiple: true },
       from: { type: "string" },
       config: { type: "string" },
       root: { type: "string" },
@@ -293,7 +301,8 @@ async function main() {
         "",
         "  --home <dir>        resolve everything against this home",
         "  --personal <dir>    where your procedures and notes live",
-        "  --skills-dir <dir>  where your agent loads skills (required)",
+        "  --skills-dir <dir>  where your agent loads skills; repeat for more\n" +
+        "                      than one harness (required)",
         "  --from <path|url>   clone from here instead of this checkout",
         "  --root <dir>        override the Thursday root",
         "  --config <path>     override the toml path",
@@ -321,7 +330,7 @@ async function main() {
     procedures: join(personal, "procedures"),
     scratch: join(personal, "scratch"),
     temp: join(tmpdir(), "th-scratch"),
-    skillsDir: values["skills-dir"] ? expand(values["skills-dir"], home) : "",
+    skillsDirs: (values["skills-dir"] ?? []).map((d) => expand(d, home)),
     source: values.from ? expand(values.from, home) : REPO,
   };
 
@@ -334,7 +343,7 @@ async function main() {
 
   // The skills dir is the one thing we cannot guess: harnesses disagree and
   // invent new ones. Ask a human, require a script.
-  if (!layout.skillsDir) {
+  if (!layout.skillsDirs.length) {
     if (values.yes || values["dry-run"]) {
       fail(
         [
@@ -351,9 +360,16 @@ async function main() {
       );
     }
 
-    const answer = await ask("Where does your agent load skills from?", "");
+    const answer = await ask(
+      "Where does your agent load skills from? (comma-separate for several)",
+      "",
+    );
     if (!answer) fail("no skills dir given", 1);
-    layout.skillsDir = expand(answer, home);
+    layout.skillsDirs = answer
+      .split(",")
+      .map((d) => d.trim())
+      .filter(Boolean)
+      .map((d) => expand(d, home));
   }
 
   if (!values.personal && !values.yes && !values["dry-run"]) {

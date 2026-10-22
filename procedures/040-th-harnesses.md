@@ -33,6 +33,9 @@ superior.
 
 The other half. Take what the harness gives you and use it on the user's behalf.
 
+- **native file tools** · read, write, edit, string replace. Use them rather than
+  shelling out for everything. Which tool did it matters less than whether the
+  result is small enough to read. Bash alone is enough
 - **skill directories** · where the verb skills live
 - **load hooks** · load Thursday without being typed. Offer it. The default
   install is a skill the user triggers

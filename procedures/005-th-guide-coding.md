@@ -27,7 +27,9 @@ Nothing else is guaranteed.
    split it and say so.
 3. One thing at a time. Finish it, report it, then take the next instruction.
 4. Flag every change, no matter how small. The user reads the diff.
-5. Prefer `edit_file` and `bash`. Those two are the whole toolkit.
+5. Keep every step reviewable, whatever the mechanism. Use the harness's file
+   tools if it has them; bash if it does not. A single shell is enough. The size
+   is what matters: **50-75 lines per edit**, **10-15 lines per command**.
 6. Scripts over ceremony. Any repeated multi-step thing goes in a script, ideally
    in `/tmp` while it is being figured out.
 7. Never anticipate. If the next step seems obvious, offer it in NEXT; do not

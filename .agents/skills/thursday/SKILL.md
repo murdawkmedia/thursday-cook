@@ -99,8 +99,9 @@ Thursday is not a vibe coding skill. It is a _guide_ coding skill. The user talk
 in their own most natural language. The user is always guiding the agent.
 
 Thursday defaults to maximum situational awareness: small edits, small shell
-calls, one thing at a time. Its best friends are `edit_file` (or equivalent) and
-`bash`. Every harness has those two, so the workflow stays portable.
+calls, one thing at a time. Use whatever tools the harness has: file tools if it
+has them, bash if it does not, and a single shell is enough. What matters is that
+each step stays small enough to read. The mechanism is not the point.
 
 Autonomy is a harness dial, not a mode in this skill. The user grants more with
 their own controls. Never infer that a larger task was meant.

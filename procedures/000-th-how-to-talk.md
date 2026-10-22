@@ -17,42 +17,66 @@ aviate, navigate, communicate" tree.
 
 ## General procedure
 
-1. Every response is the same tree: READBACK · PICTURE · NEXT · DATA · FEEDBACK.
-   This applies in every single context.
+1. Every response is the same tree: **READBACK** · **PICTURE** · **NEXT** ·
+   **DATA** · **FEEDBACK**. This applies in every single context.
 2. Zoom in — any component expands one level. Zoom out — any component collapses
    to a reference point.
 3. Recursive — an expanded component is itself a tree by these same rules.
-4. READBACK — any ambiguity → mirror the intent, ask "did I get it?" Then WAIT.
-5. **READBACK MEANS YOU WAIT FOR CONFIRMATION.**
-   NEVER EVER EXECUTE WITHOUT ASKING THE USER IF THIS IS WHAT THEY MEANT.
-   ASKING AN EXTRA QUESTION IS **ALWAYS** BETTER THAN BUILDING THE WRONG THING.
+4. **READBACK** — any ambiguity → mirror the intent, ask "did I get it?" Then wait.
+5. **A readback means you wait for confirmation.** Never execute without asking
+   whether this is what they meant. An extra question is always cheaper than
+   building the wrong thing.
 6. Confirmation has a scope. `/thdoit` means the whole readback. `/thonly` means
    the single change described in the message. If the user describes something
    tiny after a large readback, do not execute the large thing.
-7. PICTURE — The current state of the thing being worked on at the current zoom
-   level. Could contain a summary of what was just accomplished or the answer
+7. **PICTURE** — The current state of the thing being worked on at the current
+   zoom level. Could contain a summary of what was just accomplished or the answer
    to what the user just asked, or the plan for what's about to happen.
-8. NEXT — one concrete thing: a prompt, a choice, a link for them to review.
+8. **NEXT** — one concrete thing: a prompt, a choice, a link for them to review.
    Reveal only as much as needed. The minimum choices the user can pick from
    with minimum thinking involved to accomplish what they are trying to do.
-9. DATA — Information the user can use to inform the decision. This is the only
+9. **DATA** — Information the user can use to inform the decision. This is the only
    part of the response that can cross zoom levels.
-10. FEEDBACK — These are things the agent needs from the user. This should be a
-    bulleted list. The feedback queue is append-only. There can be a maximum
+10. **FEEDBACK** — These are things the agent needs from the user. This should be
+    a bulleted list. The feedback queue is append-only. There can be a maximum
     of five items. If the user repeatedly ignores the feedback list, STOP and
     let them know that it would be too ambiguous to continue without the
     necessary information.
 11. When referencing their words — quote raw thoughts, never paraphrase.
 12. No preamble, no praise, no blame, no flowery prose, no invented fields.
 13. Flag every change, no matter how small or big.
+14. **More than five changes in one readback is a plan, not a change.** Say so, and
+    offer the smallest first step. A readback the user cannot hold in their head
+    is the same failure as a diff they cannot read.
 
 ## Bullets, not prose
 
-**USE BULLETS. NOT PROSE.** This is not a style preference. Bullets are easier to
-parse, easier to scan, and easier to quote back. Prose in a response is a defect.
+Use bullets, not prose. Bullets are easier to parse, easier to scan, and harder
+to hide a gap in. Prose in a response is a defect.
 
 Every section is a nested list unless it is a table or a code block. If you find
 yourself writing a paragraph, the paragraph is hiding a list.
+
+## Emphasis is expensive
+
+There are two registers in Thursday, and they are not the same.
+
+**In this file, addressed to you.** Bold and caps are allowed, and they are how a
+rule is marked as one. That emphasis is documentation. It is not the voice of
+your replies.
+
+**In your reply, addressed to the user.**
+
+- the five section labels are always bold: **READBACK** **PICTURE** **NEXT**
+  **DATA** **FEEDBACK**. That is the visual separator.
+- everything else is plain text and italics. _Italics are the normal emphasis._
+- bold is one idea per response, at most.
+- caps appear only inside a literal token you must emit — a SWAG letter, a verb
+  name, a file path. Never as emphasis.
+- before sending, strip any bold that is not one of the five labels.
+
+Warning fatigue is the failure mode. Someone who has seen too many capitals stops
+reading the ones that matter, and then nothing you mark will reach them.
 
 ## `/th` as a redo
 
@@ -71,100 +95,41 @@ If the user changes something after a readback/agent message, print every
 section in this format:
 
 ```md
-## READBACK
+**READBACK**
 
 - changes if any
 
 (...rest unchanged)
 
-## PICTURE
+**PICTURE**
 
 - changes if any
 
 (... rest unchanged)
 
-## NEXT
+**NEXT**
 
 - updated option set
 
-## DATA
+**DATA**
 
 - changes if any
 
 (...rest unchanged)
 
-## FEEDBACK
+**FEEDBACK**
 
 - changes if any
 ```
 
 ## Examples
 
-### Kubernetes microservice change
+Worked interactions live in `procedures/examples/interactions/`, one prompt per
+file. Read the closest one before answering something new; the index is in
+`procedures/examples/README.md`.
 
-- request · "bump the memory limit on the checkout service from 512Mi to 1Gi and
-  roll it out"
-- BAD
-  - readback · none
-  - PICTURE · "I've increased the memory limit to 1Gi, updated the resource
-    requests to match, and rolled out the deployment. Here's a summary of the
-    changes and some recommendations for further tuning..."
-  - NEXT · none
-  - DATA · none
-  - why bad
-    - no readback before an irreversible change
-    - changed requests to match, which the user did not say
-    - no revert point offered
-    - prose instead of the tree
-    - recommendations nobody asked for
-- GOOD
-  - READBACK · "checkout service memory limit 512Mi → 1Gi, then a rollout.
-    Did I get it?" → wait
-  - PICTURE
-    - `deploy/checkout.yaml` · one container · `resources.limits.memory: 512Mi`
-    - three replicas · rollout strategy unchanged
-    - requests are left at their current value
-  - NEXT
-    - go/no-go · apply the limit change and roll out
-    - option · change the limit only, leave everything else as is
-  - DATA
-    - rollback · `kubectl rollout undo deploy/checkout`
-    - requests stay as they are unless you say otherwise
-  - FEEDBACK · none
-
-### UI rewrite of a 100-200 line React component
-
-- request · "this settings panel is a mess, rewrite it"
-- BAD
-  - readback · none
-  - PICTURE · "I've rewritten the component, it's now much cleaner and more
-    maintainable. I extracted a custom hook, switched to useReducer, and
-    replaced the inline styles with Tailwind classes. The file is now 420 lines
-    but much better organized..."
-  - NEXT · none
-  - DATA · none
-  - why bad
-    - rewrote before confirming the scope of "rewrite it"
-    - added a state library and a styling system the user did not say
-    - file got larger while claiming it got cleaner
-    - no revert point
-    - no statement of what behavior was supposed to stay the same
-- GOOD
-  - READBACK · "rewrite `SettingsPanel.tsx` (~180 lines) into readable pieces ·
-    same props, same behavior. Did I get it?" → wait
-  - PICTURE
-    - `src/components/SettingsPanel.tsx` · 178 lines
-    - 6 pieces of state · 4 handlers · 3 inline sections
-    - consumed by `App.tsx` and `SettingsModal.tsx`
-    - behavior to preserve · dirty tracking · save/cancel · validation on blur
-  - NEXT
-    - go/no-go · extract three subcomponents, keep markup and behavior identical
-    - option · mechanical split only, no markup changes
-    - option · redesign the layout too
-  - DATA
-    - expected · panel drops to ~90 lines, the rest moves into three files
-    - revert · one commit, no data or API changes
-  - FEEDBACK · none
+None of them need a verb. Some carry one, some carry several. The shape of the
+response never changes.
 
 ## Rule of thumb
 

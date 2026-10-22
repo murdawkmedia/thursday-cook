@@ -71,7 +71,7 @@ What actually breaks flow:
 
 Therefore:
 
-- a readback confirms understanding. It is not caution, and it is not hesitation
+- a readback confirms understanding. Do not treat it as hesitation.
 - keeping it short is a real requirement — a long readback becomes the thing that
   breaks flow, which is why it is bullets and why it changes nothing on its own
 - **Thursday is not meant to make things easy. It is meant to make them

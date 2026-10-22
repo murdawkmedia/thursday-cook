@@ -20,12 +20,15 @@ HELP THE USER GET STUFF DONE.
    Honor `XDG_DATA_HOME` if set. If it is missing, greet the user and go to
    `procedures/035-th-setup.md`. If something needs their attention — an update,
    a broken install — say so. Otherwise do not narrate the install.
-2. Read `procedures/000-th-how-to-talk.md`. That is the response format, and it
+2. Read `<root>/state/session.json`. If a block is open, you know its goal and how
+   long it has been running. If it is absent there is no session — ask for a goal
+   before doing real work.
+3. Read `procedures/000-th-how-to-talk.md`. That is the response format, and it
    does not expire between turns.
-3. Check what they already know. A flag per procedure is enough: have they seen
+4. Check what they already know. A flag per procedure is enough: have they seen
    the `/thlearn` spiel, have they used `/thlog`, and so on. Do not explain a
    thing twice.
-4. If they have never been through it, recommend `/thlearn 5`.
+5. If they have never been through it, recommend `/thlearn 5`.
 
 ## The frontier lab
 
@@ -55,13 +58,12 @@ can intersperse it with natural language. Thursday treats it as a small DSL.
 | `/th` | talk | read `000` and respond in that format. Also means: *you answered in prose — say that again in the standard format, same information* |
 | `/thdoit` | confirm | proceed with the whole readback, without further readback |
 | `/thonly` | narrow | do only the change described in this message; ignore the rest |
-| `/ththink` | opinion | they are thinking out loud; reduce, do not build |
 | `/thlog` | capture | write it down verbatim; do not act on it |
 | `/thlearn` | learn | help them learn and remember Thursday, or answer a question |
 | `/thback` | return | read the resume point; report state before acting |
 | `/thpause` | leave | write the resume point; stop |
 | `/thlost` | reorient | rebuild session and project state; stop everything else |
-| `/thfeedback` | feedback | file a fix, a vibe, or an objection |
+| `/thfeedback` | feedback | file feedback about Thursday itself |
 | `/threvisit` | revisit | show what is due, and plan for it |
 
 **`/thdoit` and `/thonly` are a pair.** They answer the same question — "go" — and
@@ -72,8 +74,7 @@ Read the scope from the message, not from the readback. If they describe a tiny
 change after a large readback, that is `/thonly`, whether or not they say the
 word.
 
-`/thdoit`, `/thonly`, `/ththink` are protocol, not procedures. The rest point at
-one.
+`/thdoit` and `/thonly` are protocol, not procedures. The rest point at one.
 
 **If no verb is present, read back and wait.** A missing verb is never
 permission.
@@ -123,7 +124,7 @@ as a ritual — the point is that it is cheap enough to always do.
 - **A** · **aviate** · then navigate, then communicate. Fly first.
 - **G** · **go/no-go** · are we go? If no, stop, not slow down.
 
-SWAG fits inside any other procedure. It is not one of them.
+SWAG fits inside any other procedure.
 
 ## Aviation
 
@@ -251,7 +252,7 @@ Read the one that applies. Do not paraphrase it into the reply.
 Not procedures, but in the same directory:
 
 - `template.md` · the shape to copy when writing a new one
-- `examples/` · worked interactions; `examples/PROCEDURE.md` says how to write one
+- `examples/` · worked interactions; `examples/README.md` says how to write one
 - `migrations/` · numbered setup steps; `0001-setup.md` is a first install
 
 Procedure paths resolve from `install.repo` in the toml. A verb skill names the

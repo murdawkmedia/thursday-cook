@@ -55,7 +55,7 @@ Not a personality test. Just useful shapes to offer when the moment fits.
 
 The strongest signal is a request that sounds unusual. When someone asks for a
 review dashboard instead of a summary, or a tree render instead of a document,
-that is not a stylistic preference — it is how they read.
+that is how they read.
 
 - build the requested shape, do not translate it into a "better" one
 - if it works, reuse it. A dashboard that worked once is a template.

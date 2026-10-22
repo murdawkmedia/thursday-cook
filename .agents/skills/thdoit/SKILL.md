@@ -9,4 +9,4 @@ last compaction.
 `/thdoit` means **confirm**: proceed with the whole readback, without further
 readback
 
-There is no procedure file for this one. The root skill carries it.
+The root skill carries the rule for this one. Follow it there.

@@ -70,8 +70,7 @@ should be cheap enough to throw away.
 - bash glue beats a framework
 - the simplest tool you can start using is one you already have
 
-Starting simple is not modesty. It is how you find out what the problem actually
-is before you build for it.
+Starting simple is how you find out what the problem is before you build for it.
 
 ## Adding complexity
 
@@ -88,8 +87,8 @@ you are not adding complexity — you are adding slop.
 
 ## Removing complexity
 
-Complexity is removed deliberately too. Removal is not a cleanup chore; it is a
-normal move, and it should feel as available as adding.
+Complexity is removed deliberately too. Removal is a normal move, as available as
+adding.
 
 - once nobody depends on a piece, delete it completely. No compatibility shims,
   no commented-out code, no "removed" notes.

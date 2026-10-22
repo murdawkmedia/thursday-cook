@@ -9,4 +9,4 @@ last compaction.
 `/thonly` means **narrow**: do only the change described in this message; ignore the
 rest
 
-There is no procedure file for this one. The root skill carries it.
+The root skill carries the rule for this one. Follow it there.

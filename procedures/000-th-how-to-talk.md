@@ -124,9 +124,9 @@ section in this format:
 
 ## Examples
 
-Worked interactions live in `procedures/examples/interactions/`, one prompt per
+Worked interactions live in `procedures/skill-examples/interactions/`, one prompt per
 file. Read the closest one before answering something new; the index is in
-`procedures/examples/README.md`.
+`procedures/skill-examples/README.md`.
 
 None of them need a verb. Some carry one, some carry several. The shape of the
 response never changes.

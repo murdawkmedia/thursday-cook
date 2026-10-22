@@ -33,8 +33,8 @@ it.
 5. Never explain a concept twice unless asked.
 6. Point at the procedure when there is one. Do not inline it.
 7. When an interaction shows something better than an explanation would, hand over
-   the example from `procedures/examples/interactions/` instead. See
-   `procedures/examples/README.md` for the shape.
+   the example from `procedures/skill-examples/interactions/` instead. See
+   `procedures/skill-examples/README.md` for the shape.
 
 ## What is worth learning
 

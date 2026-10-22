@@ -261,7 +261,7 @@ Read the one that applies. Do not paraphrase it into the reply.
 Not procedures, but in the same directory:
 
 - `template.md` · the shape to copy when writing a new one
-- `examples/` · worked interactions; `examples/README.md` says how to write one
+- `skill-examples/` · worked interactions; `skill-examples/README.md` says how
 - `migrations/` · numbered setup steps; `0001-setup.md` is a first install
 
 Procedure paths resolve from `install.repo` in the toml. A verb skill names the

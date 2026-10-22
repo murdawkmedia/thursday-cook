@@ -4,12 +4,6 @@ node_modules/
 
 # build output
 dist/
-lib/
-# Exception: packages/plugins/llm-pi-ai/lib is not build output — it is the
-# vendored fork payload (builtin dsh-llm-pi-ai + session-affinity offer +
-# Retry-After handling). There is no source to rebuild it from; the lib IS
-# the source. See packages/blocks/llm-pi-ai.md.
-!packages/plugins/llm-pi-ai/lib/
 *.tsbuildinfo
 
 # local state

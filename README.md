@@ -15,41 +15,34 @@ Thursday is a set of ideas
 
 ## Experiments
 
-- [Idea Expander](https://trythursday.org/experiments/idea-expander)
-- (coming soon, the new Idea Expander) [Thing Refiner](./experiments/thing-refiner.jpg)
-- (coming soon) [Next Steps](./experiments/next-steps.jpg)
-- [AI For All](https://ai-for-all.trythursday.org), free, Proof-of-Work gated
-  AI inference - no sign-up needed.
+### AI for All
+
+A free OpenAI-compatible inference provider, backed by OpenRouter. No signup is
+required - instead your computer solves a small cryptographic challenge to get
+an API key valid for 30 days, 15req/hr/key. Meant for people to build small
+experiments that use generative intelligence in unconventional ways.
+
+[Get your API key](https://ai-for-all.trythursday.org)
 
 ### The Thursday skill file
 
 **Try it in your coding agent today:**
 
+Requirements: `git`, and a coding agent to run it in. The setup bootstraps a
+self-contained bun install to run itself if `bun` is not already present.
+
 - Paste:
 
-  > I want to try https://github.com/trythursday/thursday. Can you help me set
-  > it up?
-
-- Then type:  
-  `/th`
-
-Requirements: [`bun`](https://bun.sh), `git`, and a coding agent to run it in.
-
-## Setup
+  > Help me set up the Thursday skill from <https://github.com/trythursday/thursday>.
 
 Setup is a procedure your agent follows, not a script. Ask it to install Thursday
-(or type `/thursday`) and it will run `procedures/035-th-setup.md` for you.
+as above, and it will run `procedures/035-th-setup.md` for you.
 
-It writes four things, and each one names how to undo it:
+### Upcoming
 
-- a personal folder — your own procedures, scratch, and notes
-- the config dir — `thursday.toml`, the only static path; everything else resolves
-  from it
-- the state dir — logs, caches, and schedules
-- the skill itself — the root skill plus one skill per verb
-
-Delete those four and Thursday is gone. Nothing else is written, and no shell
-profile or global config is touched without asking.
+- [Idea Expander](https://trythursday.org/experiments/idea-expander)
+- (the new Idea Expander) [Thing Refiner](./experiments/thing-refiner.jpg)
+- (coming soon) [Next Steps](./experiments/next-steps.jpg)
 
 ## In this repo
 

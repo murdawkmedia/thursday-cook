@@ -19,7 +19,7 @@
  *
  * Usage:
  *     bun run scripts/setup.ts
- *     bun run scripts/setup.ts --personal ~/th --yes
+ *     bun run scripts/setup.ts --personal ~/th --skills-dir ~/.commandcode/skills --yes
  *     bun run scripts/setup.ts --dry-run
  *     bun run scripts/setup.ts --home /tmp/fake --personal /tmp/fake/th --yes
  *     bun run scripts/setup.ts --json
@@ -35,8 +35,6 @@ import process from "node:process";
 const REPO = resolve(import.meta.dir, "..");
 const VERSION = "0.1.0";
 
-type Harness = "command-code" | "claude" | "opencode" | "codex" | "generic";
-
 type Layout = {
   home: string;
   root: string;
@@ -47,7 +45,6 @@ type Layout = {
   procedures: string;
   scratch: string;
   temp: string;
-  harness: Harness;
   skillsDir: string;
   source: string;
 };
@@ -88,30 +85,9 @@ function defaultPersonal(home: string, platform = process.platform) {
   return join(home, "th");
 }
 
-function detectHarness(home: string): Harness {
-  if (process.env.THURSDAY_HARNESS) return process.env.THURSDAY_HARNESS as Harness;
-  return "generic";
-}
-
-function skillsDirFor(harness: Harness, home: string, root: string) {
-  switch (harness) {
-    case "command-code":
-      return join(home, ".commandcode/skills");
-    case "claude":
-      return join(home, ".claude/skills");
-    case "opencode":
-      return join(home, ".config/opencode/skills");
-    case "codex":
-      return join(home, ".codex/skills");
-    default:
-      return join(root, "skills");
-  }
-}
-
 function describe(layout: Layout) {
   return {
     version: VERSION,
-    harness: layout.harness,
     root: layout.root,
     config: layout.config,
     checkout: layout.checkout,
@@ -128,7 +104,7 @@ function configToml(layout: Layout) {
 [install]
 repo = ${JSON.stringify(layout.checkout)}
 version = ${JSON.stringify(VERSION)}
-harness = ${JSON.stringify(layout.harness)}
+skills = ${JSON.stringify(layout.skillsDir)}
 platform = ${JSON.stringify(process.platform)}
 
 [personal]
@@ -293,7 +269,6 @@ async function main() {
     options: {
       home: { type: "string" },
       personal: { type: "string" },
-      harness: { type: "string" },
       "skills-dir": { type: "string" },
       from: { type: "string" },
       config: { type: "string" },
@@ -315,8 +290,7 @@ async function main() {
         "",
         "  --home <dir>        resolve everything against this home",
         "  --personal <dir>    where your procedures and notes live",
-        "  --harness <name>    command-code | claude | opencode | codex | generic",
-        "  --skills-dir <dir>  override where skills are installed",
+        "  --skills-dir <dir>  where your agent loads skills (required)",
         "  --from <path|url>   clone from here instead of this checkout",
         "  --root <dir>        override the Thursday root",
         "  --config <path>     override the toml path",
@@ -332,7 +306,6 @@ async function main() {
 
   const home = expand(values.home ?? homedir(), homedir());
   const root = values.root ? expand(values.root, home) : rootFor(home);
-  const harness = (values.harness as Harness) ?? detectHarness(home);
   const personal = expand(values.personal ?? defaultPersonal(home), home);
 
   const layout: Layout = {
@@ -345,10 +318,7 @@ async function main() {
     procedures: join(personal, "procedures"),
     scratch: join(personal, "scratch"),
     temp: join(tmpdir(), "th-scratch"),
-    harness,
-    skillsDir: values["skills-dir"]
-      ? expand(values["skills-dir"], home)
-      : skillsDirFor(harness, home, root),
+    skillsDir: values["skills-dir"] ? expand(values["skills-dir"], home) : "",
     source: values.from ? expand(values.from, home) : REPO,
   };
 
@@ -357,6 +327,30 @@ async function main() {
   if (values.undo) {
     await undo(layout, Boolean(values["dry-run"]), Boolean(values["purge-personal"]));
     return 0;
+  }
+
+  // The skills dir is the one thing we cannot guess: harnesses disagree and
+  // invent new ones. Ask a human, require a script.
+  if (!layout.skillsDir) {
+    if (values.yes || values["dry-run"]) {
+      fail(
+        [
+          "--skills-dir is required.",
+          "",
+          "  command code · ~/.commandcode/skills",
+          "  claude code  · ~/.claude/skills",
+          "  opencode     · ~/.config/opencode/skills",
+          "  codex        · ~/.codex/skills",
+          "",
+          "  anything else · wherever your agent loads skills from",
+        ].join("\n"),
+        1,
+      );
+    }
+
+    const answer = await ask("Where does your agent load skills from?", "");
+    if (!answer) fail("no skills dir given", 1);
+    layout.skillsDir = expand(answer, home);
   }
 
   if (!values.personal && !values.yes && !values["dry-run"]) {
@@ -369,7 +363,7 @@ async function main() {
     layout.scratch = join(layout.personal, "scratch");
   }
 
-  console.error(`Thursday ${VERSION} · ${harness} · ${process.platform}`);
+  console.error(`Thursday ${VERSION} · ${process.platform}`);
   await install(layout, Boolean(values["dry-run"]));
 
   if (!values["dry-run"]) {

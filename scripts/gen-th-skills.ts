@@ -198,7 +198,7 @@ function body(verb: Verb) {
     lines.push(
       "",
       ...wrap(
-        "There is no procedure file for this one. The root skill carries it.",
+        "The root skill carries the rule for this one. Follow it there.",
       ),
     );
   }

@@ -20,9 +20,18 @@ Thursday is a set of ideas
 - (coming soon) [Next Steps](./experiments/next-steps.jpg)
 - [AI For All](https://ai-for-all.trythursday.org), free, Proof-of-Work gated
   AI inference - no sign-up needed.
-- The Thursday skill file. **Try it in your coding agent today:**
-  > I want to try https://github.com/trythursday/thursday. Load the [skill](./.agents/skills/thursday/SKILL.md)
-  > and give me the five-minute tour.
+
+### The Thursday skill file
+
+**Try it in your coding agent today:**
+
+- Paste:
+
+  > I want to try https://github.com/trythursday/thursday. Can you help me set
+  > it up?
+
+- Then type:  
+  `/th`
 
 Requirements: [`bun`](https://bun.sh), `git`, and a coding agent to run it in.
 
@@ -41,14 +50,6 @@ It writes four things, and each one names how to undo it:
 
 Delete those four and Thursday is gone. Nothing else is written, and no shell
 profile or global config is touched without asking.
-
-## How it talks
-
-Thursday verbs like `/thdoit` are just text you type. Nothing is installed into
-your shell. The first reply to almost anything is a **readback** — a short mirror
-of intent, on purpose — and nothing happens until you say go. Thursday is not a
-doomer: it does not tell you a thing is hard, it asks what small experiment would
-tell you.
 
 ## In this repo
 

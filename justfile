@@ -2,7 +2,7 @@
 
 dist := "dist"
 _landing := "site"
-_experiment := "experiments/idea-expander"
+_experiment := "experiments/next-steps"
 _domain := "trythursday.org"
 
 # List the available recipes.
@@ -24,12 +24,15 @@ site:
     set -euo pipefail
 
     rm -rf {{dist}}
-    mkdir -p {{dist}}/experiments/idea-expander
+    mkdir -p {{dist}}/experiments/next-steps
 
-    cp {{_landing}}/index.html {{dist}}/index.html
     cp {{_landing}}/AGENTS.md {{dist}}/AGENTS.md
-    cp {{_experiment}}/index.html {{dist}}/experiments/idea-expander/index.html
-    cp {{_experiment}}/SYSTEM_PROMPT.md {{dist}}/experiments/idea-expander/SYSTEM_PROMPT.md
+    bun run scripts/home.ts
+    cp {{_experiment}}/index.html {{dist}}/experiments/next-steps/index.html
+    cp {{_experiment}}/SYSTEM-PROMPT.md {{dist}}/experiments/next-steps/SYSTEM-PROMPT.md
+    cp {{_experiment}}/EXAMPLES.toml {{dist}}/experiments/next-steps/EXAMPLES.toml
+    cp {{_experiment}}/style.css {{dist}}/experiments/next-steps/style.css
+    cp -R {{_experiment}}/lib {{dist}}/experiments/next-steps/lib
 
     touch {{dist}}/.nojekyll
 

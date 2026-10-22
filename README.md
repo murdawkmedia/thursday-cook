@@ -15,6 +15,24 @@ Thursday is a set of ideas
 
 ## Experiments
 
+### Next Steps
+
+An experiment in using generative AI in a non-chat form. Takes any goal
+and gives you some concrete steps towards getting there.
+
+[Try it](https://trythursday.org/experiments/next-steps/)
+
+### The Thursday skill file
+
+Requirements: `git`, and a coding agent to run it in. The setup bootstraps a
+self-contained bun install to run itself if `bun` is not already present.
+
+#### Try it today
+
+Paste in your coding agent:
+
+> Help me set up the Thursday skill from <https://github.com/trythursday/thursday>.
+
 ### AI for All
 
 A free OpenAI-compatible inference provider, backed by OpenRouter. No signup is
@@ -24,25 +42,9 @@ experiments that use generative intelligence in unconventional ways.
 
 [Get your API key](https://ai-for-all.trythursday.org)
 
-### The Thursday skill file
-
-**Try it in your coding agent today:**
-
-Requirements: `git`, and a coding agent to run it in. The setup bootstraps a
-self-contained bun install to run itself if `bun` is not already present.
-
-- Paste:
-
-  > Help me set up the Thursday skill from <https://github.com/trythursday/thursday>.
-
-Setup is a procedure your agent follows, not a script. Ask it to install Thursday
-as above, and it will run `procedures/035-th-setup.md` for you.
-
 ### Upcoming
 
-- [Idea Expander](https://trythursday.org/experiments/idea-expander)
-- (the new Idea Expander) [Thing Refiner](./experiments/thing-refiner.jpg)
-- (coming soon) [Next Steps](./experiments/next-steps.jpg)
+- [Thing Refiner](./experiments/thing-refiner.jpg)
 
 ## In this repo
 

@@ -35,6 +35,34 @@ tracking and blur validation
 
 If the user does not want a pre-brief, take a one-line goal anyway and move on.
 
+## Session state
+
+Write the block down when it starts. Do not keep it in your head — the point is
+that it survives compaction, a restart, and a new session.
+
+`<root>/state/session.json`:
+
+```json
+{
+  "started_at": "2026-10-21T14:02:00Z",
+  "goal": "settings panel rewritten without changing behaviour",
+  "data": "178 lines, consumed by App and SettingsModal",
+  "block_minutes": 50
+}
+```
+
+- written once, at the pre-brief, after the goal is known. Ask for the goal if
+  they have not given one; one line is enough
+- read on load and on `/thback`. Report elapsed whenever it changes what you would
+  suggest — before offering a break, in the post-brief, when the block is over
+- a new block replaces the file and appends the old one to `session.log`
+- if the file is absent, there is no session. Say so and ask for a goal; do not
+  invent a start time
+
+Elapsed time is a fact about the session, not about the work. It is how you know
+when to offer a stop, and it is the only way the user finds out they have been at
+one thing for three hours.
+
 ## Timer
 
 Offer a bounded block. Ask; do not impose.

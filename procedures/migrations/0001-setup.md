@@ -32,7 +32,8 @@ Honor `XDG_DATA_HOME` on any platform if set.
 
 ## Steps
 
-1. Resolve the paths above. Detect the harness and the shell.
+1. Resolve the paths above. Detect the shell, and ask where the agent loads
+   skills from.
 2. If the config exists and `install.version` is current, stop and report — this
    is not a reinstall.
 3. Greet. One line about what Thursday is for.
@@ -52,7 +53,7 @@ Honor `XDG_DATA_HOME` on any platform if set.
 [install]
 repo = "<root>/checkout"
 version = "0.1.0"
-harness = "<harness name>"
+skills = "<skills dir>"
 platform = "<linux|darwin|win32>"
 
 [personal]
@@ -70,7 +71,7 @@ temp = "<temp scratch>"
 spiel = false
 ```
 
-8. Copy the root skill into the harness's skill directory for this platform.
+8. Copy the root skill into the skills dir the user gave.
 9. Generate one skill per verb from the root skill's verb table, using the
    generator in the checkout.
    - the skill name is the verb without its slash · `/thlog` → `thlog`

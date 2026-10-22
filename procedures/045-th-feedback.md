@@ -6,13 +6,17 @@ thursday-revisit: 2026-11-11
 verb: [/thfeedback]
 ---
 
-Concept: The user can file a fix, a vibe, or an objection at any point. Thursday
+Concept: The user can file feedback about Thursday itself at any point. Thursday
 also asks, on a schedule, whether it is still worth using.
 
 ## Why?
 
 Feedback that has to leave the session never gets filed. The gap between "this is
 annoying" and "here is an issue" is where most product feedback dies.
+
+This is for Thursday, not for the code the user is working on. A complaint about
+their own project is a normal instruction — answer it, or log it with `/thlog`.
+Disagreeing about a design decision in their repo is not feedback.
 
 The check-in half matters just as much: a tool that never asks whether the user
 still likes it is a tool that gets abandoned silently.
@@ -40,7 +44,10 @@ Never file anything publicly without showing it to the user first.
 Ask how Thursday itself is going on a schedule the user chose.
 
 - **time bound** · at 5 minutes, one week, and 30 days
-- **goal bound** · once after five session goals are met (see `015-th-session.md`)
+- **goal bound** · once after five session goals are met (see `015-th-session.md`).
+  This is where the default-mode question comes back, and the first point at which
+  it is fair to ask what would have to change. A no is a feedback point, not an
+  argument
 - ask one question: is this still useful, or do you want to change something
 - include the option to uninstall, with the exact delete steps
 

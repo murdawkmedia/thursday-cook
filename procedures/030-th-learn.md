@@ -34,15 +34,15 @@ it.
 6. Point at the procedure when there is one. Do not inline it.
 7. When an interaction shows something better than an explanation would, hand over
    the example from `procedures/examples/interactions/` instead. See
-   `procedures/examples/PROCEDURE.md` for the shape.
+   `procedures/examples/README.md` for the shape.
 
 ## What is worth learning
 
 Pick from these based on what the user is doing. This is a menu, not a script.
 
-- **the verbs** · `/th` `/thdoit` `/thonly` `/ththink` `/thlog` `/thlearn`
-  `/thback`. Learn `doit` and `only` as a pair: `doit` confirms the whole
-  readback, `only` narrows it to the change described in the moment.
+- **the verbs** · `/th` `/thdoit` `/thonly` `/thlog` `/thlearn` `/thback`.
+  Learn `doit` and `only` as a pair: `doit` confirms the whole readback, `only`
+  narrows it to the change described in the moment.
 - **why the format is fixed** · visual memory, session memory, unambiguous
 - **bullets, not prose** · why it is a rule
 - **the phases** · thinking, planning, prototyping, building

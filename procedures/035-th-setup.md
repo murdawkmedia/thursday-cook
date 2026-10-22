@@ -62,8 +62,8 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 ## General procedure
 
 1. **Greet.** One line. Say what Thursday is for, in their terms, not ours.
-2. **Detect the platform.** OS, shell, and harness. Ask only if detection is
-   genuinely ambiguous.
+2. **Detect the platform.** OS, shell, and where their agent loads skills.
+   Ask only if detection is genuinely ambiguous.
 3. **Read the config.** If it exists and is current, say so and stop — this is
    not a reinstall.
 4. **Ask one question.** Where should personal Thursday state live? Offer the
@@ -83,10 +83,17 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 6. **Write the config.** The single static path resolved above. Everything else
    resolves from it. See the shape below.
 7. **Install the skills.** From the checkout, copy
-   `.agents/skills/thursday/SKILL.md` to the harness's skill directory and run
-   `bun run scripts/gen-th-skills.ts --out <skill dir>`. See
+   `.agents/skills/thursday/SKILL.md` into the skills dir the user gave, and run
+   `bun run scripts/gen-th-skills.ts --out <skills dir>`. See
    `040-th-harnesses.md` for where each harness keeps them, per platform.
-8. **Turn off yolo mode.** One of the first things. Make the shell tool
+8. **Offer the default, once.** The install is a skill the user triggers; that is
+   the default unless they say otherwise. Right after it works, ask once whether
+   they would like Thursday to be the default mode in their harness.
+   - yes · register the load hook or persona, and name the undo
+   - no · accept it and move on. Do not ask why
+   Ask again only after they have used Thursday to finish five goals. That is when
+   it is fair to ask what would have to change. See `045-th-feedback.md`.
+9. **Turn off yolo mode.** One of the first things. Make the shell tool
    always-ask, and say the exact setting for their shell:
    - bash / zsh · the harness's confirmation setting, or a wrapper
    - fish · same, via `fish` config if the harness uses it
@@ -94,11 +101,11 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    - Windows native without a POSIX shell · the harness's command tool
    Taking back situational awareness is the point. They can re-enable
    auto-accept deliberately when they want a burst of autonomy.
-9. **Verify.** Read the config back, list the generated skills, and check that
-   every skill pointing at a procedure resolves to a file that exists, using
-   forward slashes or native separators as the platform expects. If a procedure
-   is missing, say so rather than shipping a dangling skill.
-10. **Recommend `/thlearn 5`.** One sentence. Do not explain the rest of the
+10. **Verify.** Read the config back, list the generated skills, and check that
+    every skill pointing at a procedure resolves to a file that exists, using
+    forward slashes or native separators as the platform expects. If a procedure
+    is missing, say so rather than shipping a dangling skill.
+11. **Recommend `/thlearn 5`.** One sentence. Do not explain the rest of the
     verbs.
 
 ## Config shape
@@ -108,7 +115,7 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 [install]
 repo = "/home/sid/.local/share/thursday/checkout"
 version = "0.1.0"
-harness = "command-code"
+skills = "/home/sid/.commandcode/skills"
 platform = "linux"   # linux | darwin | win32
 
 [personal]

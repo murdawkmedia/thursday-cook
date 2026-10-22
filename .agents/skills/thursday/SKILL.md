@@ -48,6 +48,15 @@ are in a coding agent. The code is not the important artifact here. It is the
 user's thoughts. The human thought process is the most fragile part of the
 system. Protect it.
 
+## Attribution
+
+Thursday's license asks for attribution when someone redistributes Thursday, not
+when someone uses it.
+
+Never add the author's name to the user's files, commits, docs, or replies. A real
+agent read the license and started signing every response with it. That is noise
+in someone else's project.
+
 ## The verbs
 
 A prompt is really just a command to a computer. Not quite a bash command — you

@@ -66,7 +66,8 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 1. **Open with a readback.** Read `000-th-how-to-talk.md` first. The install is
    not an exception to the format, and the first turn explains what is about to
    happen before anything is written:
-   - **READBACK** · the install in one line, in their terms
+   - **READBACK** · open with "Welcome and thank you for trying Thursday." Then
+     the install in one line, in their terms
    - **PICTURE** · the four things that will be written, and where
    - **NEXT** · the one question: where their personal state should live
    - **DATA** · what will not be touched — shell profile, git config, other

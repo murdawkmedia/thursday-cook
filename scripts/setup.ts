@@ -277,51 +277,40 @@ async function existingSkills(config: string) {
 
 type Manifest = {
   personal?: string;
-  skills?: unknown;
+  skills?: { dir: string; entries: string[] }[];
 };
-
-/**
- * Manifests in the wild have two shapes: a list of { dir, entries }, and an
- * object keyed by dir. Read both rather than failing on the one we did not
- * write.
- */
-function skillTargets(manifest: Manifest | undefined) {
-  const skills = manifest?.skills;
-
-  if (Array.isArray(skills)) {
-    return skills.filter(
-      (s): s is { dir: string; entries: string[] } =>
-        Boolean(s) &&
-        typeof s.dir === "string" &&
-        Array.isArray(s.entries) &&
-        s.entries.every((e: unknown) => typeof e === "string"),
-    );
-  }
-
-  if (skills && typeof skills === "object") {
-    return Object.entries(skills as Record<string, unknown>)
-      .filter(([, v]) => Array.isArray(v))
-      .map(([dir, v]) => ({ dir, entries: (v as unknown[]).filter((e) => typeof e === "string") as string[] }));
-  }
-
-  return [];
-}
 
 async function readManifest(layout: Layout): Promise<Manifest | undefined> {
   const path = join(layout.root, "state", "install.json");
   if (!(await exists(path))) return undefined;
+
+  let parsed: Manifest;
   try {
-    return JSON.parse(await readFile(path, "utf8")) as Manifest;
+    parsed = JSON.parse(await readFile(path, "utf8")) as Manifest;
   } catch {
-    return undefined;
+    fail(`${path} is not valid JSON. Delete it and undo by hand.`, 2);
   }
+
+  if (
+    !Array.isArray(parsed.skills) ||
+    !parsed.skills.every(
+      (s) => typeof s?.dir === "string" && Array.isArray(s?.entries),
+    )
+  ) {
+    fail(
+      `${path} is not a manifest this version wrote. Delete it and undo by hand.`,
+      2,
+    );
+  }
+
+  return parsed;
 }
 
 async function undo(layout: Layout, dry: boolean, purgePersonal: boolean) {
   // The manifest says exactly what was written into each harness. Without it we
   // fall back to the checkout, which can only name the current verb set.
   const manifest = await readManifest(layout);
-  const targets = skillTargets(manifest);
+  const targets = manifest?.skills ?? [];
 
   if (!targets.length) {
     const names = [...(await generatedSkillNames(layout.checkout))];

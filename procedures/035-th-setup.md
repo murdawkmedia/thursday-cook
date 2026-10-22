@@ -63,10 +63,17 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 
 ## General procedure
 
-0. **Start in the format.** Read `000-th-how-to-talk.md` and answer in it for the
-   whole install. Setup is not an exception: the first thing the user sees after
-   asking for Thursday should be a readback.
-1. **Greet.** One line. Say what Thursday is for, in their terms, not ours.
+1. **Open with a readback.** Read `000-th-how-to-talk.md` first. The install is
+   not an exception to the format, and the first turn explains what is about to
+   happen before anything is written:
+   - **READBACK** · the install in one line, in their terms
+   - **PICTURE** · the four things that will be written, and where
+   - **NEXT** · the one question: where their personal state should live
+   - **DATA** · what will not be touched — shell profile, git config, other
+     skills — and the undo for each thing written
+   - **FEEDBACK** · nothing yet unless something is genuinely unclear
+   Nothing is created until they answer. Do not greet separately; the greeting is
+   the READBACK line.
 2. **Detect the platform.** OS, shell, and where their agent loads skills.
    Ask only if detection is genuinely ambiguous.
 3. **Read the config.** If it exists and is current, say so and stop — this is

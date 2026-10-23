@@ -29,10 +29,7 @@ site:
     cp {{_landing}}/AGENTS.md {{dist}}/AGENTS.md
     bun run scripts/home.ts
     cp {{_experiment}}/index.html {{dist}}/experiments/next-steps/index.html
-    cp {{_experiment}}/SYSTEM-PROMPT.md {{dist}}/experiments/next-steps/SYSTEM-PROMPT.md
-    cp {{_experiment}}/EXAMPLES.toml {{dist}}/experiments/next-steps/EXAMPLES.toml
-    cp {{_experiment}}/style.css {{dist}}/experiments/next-steps/style.css
-    cp {{_experiment}}/alert.css {{dist}}/experiments/next-steps/alert.css
+    cp -R {{_experiment}}/static {{dist}}/experiments/next-steps/static
     cp -R {{_experiment}}/lib {{dist}}/experiments/next-steps/lib
 
     touch {{dist}}/.nojekyll

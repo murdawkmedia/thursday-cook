@@ -32,6 +32,7 @@ site:
     cp {{_experiment}}/SYSTEM-PROMPT.md {{dist}}/experiments/next-steps/SYSTEM-PROMPT.md
     cp {{_experiment}}/EXAMPLES.toml {{dist}}/experiments/next-steps/EXAMPLES.toml
     cp {{_experiment}}/style.css {{dist}}/experiments/next-steps/style.css
+    cp {{_experiment}}/alert.css {{dist}}/experiments/next-steps/alert.css
     cp -R {{_experiment}}/lib {{dist}}/experiments/next-steps/lib
 
     touch {{dist}}/.nojekyll

@@ -44,8 +44,8 @@ Paste in your coding agent:
 
 A free OpenAI-compatible inference provider, backed by OpenRouter. No signup is
 required - instead your computer solves a small cryptographic challenge to get
-an API key valid for 30 days, 15req/hr/key. Meant for people to build small
-experiments that use generative intelligence in unconventional ways.
+an API key valid for 24 hours, 15 requests/hr per IP. Meant for people to build
+small experiments that use generative intelligence in unconventional ways.
 
 [Get your API key](https://ai-for-all.trythursday.org)
 

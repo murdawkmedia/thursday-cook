@@ -22,8 +22,9 @@ gets captured without derailing the current work.
 1. Write exactly what the user said. **Verbatim. No commentary, no cleanup, no
    paraphrase.**
 2. Do not act on it. `/thlog` is a write and a return, nothing else.
-3. Put it where the current work says: the repo's `scratch/`, the user's Thursday
-   dir, or the file under discussion. If it is genuinely unclear, ask once.
+3. Put it where the current work says: the user's Thursday dir, the repo's
+   `scratch/`, or the file under discussion. Prefer theirs. If it is genuinely
+   unclear, ask once.
 4. Timestamp it. One line of context around it is allowed — the date, the file,
    the goal it belongs to — but never a summary.
 5. Say where it went, in one line.

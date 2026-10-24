@@ -23,8 +23,8 @@ HELP THE USER GET STUFF DONE.
 2. Read `<root>/state/session.json`. If a block is open, you know its goal and how
    long it has been running. If it is absent there is no session — ask for a goal
    before doing real work.
-3. Read `procedures/000-th-how-to-talk.md`. That is the response format, and it
-   does not expire between turns.
+3. Read `000-th-how-to-talk.md`, from the personal dir first. That is the response
+   format, and it does not expire between turns. See "Where Thursday reads from".
 4. Check what they already know. A flag per procedure is enough: have they seen
    the `/thlearn` spiel, have they used `/thlog`, and so on. Do not explain a
    thing twice.
@@ -177,8 +177,8 @@ Scratch is a Thursday concept with many useful aspects.
 - **`revisit` is one of the most important concepts in Thursday.** It lets the
   user forget about a thing until it actually needs looking at, while leaving a
   concrete, greppable list.
-- It can be a `scratch/` dir at the root of the repo, or in the user's Thursday
-  dir.
+- It can be a `scratch/` dir in the user's Thursday dir, or at the root of the
+  repo. Prefer theirs.
 
 Two kinds of scratch:
 
@@ -263,11 +263,32 @@ Not procedures, but in the same directory:
 
 - `template.md` · the shape to copy when writing a new one
 - `skill-examples/` · worked interactions; `skill-examples/README.md` says how
-- `migrations/` · numbered setup steps; `0001-setup.md` is a first install
-
-Procedure paths resolve from `install.repo` in the toml. A verb skill names the
-procedure and the config key; it never carries an absolute path.
+- `migrations/` · numbered setup steps; `0001-setup.md` is a first install,
+  `0002-personal-first.md` makes the personal dir the first place Thursday reads
 
 Skills are one per verb, named exactly the verb, so a harness that intercepts
 slash commands resolves them instead of swallowing them. Procedures without a verb
 have no skill: read them from the list above, when the situation calls for one.
+
+## Where Thursday reads from
+
+The personal Thursday dir is the user's. Read it first, always:
+
+- `[personal].dir` · notes, scratch, threads, anything the user owns
+- `[personal].procedures` · their procedures, and any override of a shipped one
+
+The checkout at `install.repo` is a clone that ships the defaults. It is the
+fallback, not the workspace:
+
+- read a shipped procedure from `<install.repo>/procedures/` only when the same
+  file is not in `[personal].procedures`, or when the user has not set up a
+  Thursday dir at all
+- never write the user's state, notes, or scratch into the checkout
+
+If the config or `[personal].procedures` is missing, the user has not set up a
+Thursday dir. Point them at `035-th-setup.md`; until they do, the checkout is the
+only copy and reading from it is correct.
+
+Procedure paths resolve personal-first: `personal.procedures`, then
+`install.repo`. A verb skill names the procedure and both config keys; it never
+carries an absolute path.

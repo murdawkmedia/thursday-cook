@@ -98,8 +98,9 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    - `checkout/` — a git clone of Thursday. If it is already there, leave it and
      say so; a second run is not a reinstall
    - the personal dir, and `scratch/` and `procedures/` inside it
-   - never copy the shipped procedures in. The checkout is the only copy; the
-     personal `procedures/` holds only what the user writes (`user-yyy-*`)
+   - never copy the shipped procedures in. The checkout ships the defaults; the
+     personal `procedures/` holds only what the user writes (`user-yyy-*`), and
+     is read first
 7. **Write the config.** The single static path resolved above. Everything else
    resolves from it. See the shape below.
 8. **Install the skills.** From the checkout, copy
@@ -123,9 +124,9 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    Taking back situational awareness is the point. They can re-enable
    auto-accept deliberately when they want a burst of autonomy.
 11. **Verify.** Read the config back, list the generated skills, and check that
-    every skill pointing at a procedure resolves to a file that exists, using
-    forward slashes or native separators as the platform expects. If a procedure
-    is missing, say so rather than shipping a dangling skill.
+    every skill pointing at a procedure resolves, personal dir first, then the
+    checkout, using forward slashes or native separators as the platform expects.
+    If neither copy exists, say so rather than shipping a dangling skill.
 12. **Recommend `/thlearn 5`.** One sentence. Do not explain the rest of the
     verbs.
 
@@ -135,7 +136,7 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 # resolved per platform — see "Resolve paths first"
 [install]
 repo = "/home/sid/.local/share/thursday/checkout"
-version = "0.1.0"
+version = "0.2.0"
 skills = [
   "/home/sid/.commandcode/skills",
   "/home/sid/.config/opencode/skills",
@@ -161,7 +162,12 @@ lenses = false
 
 Rules:
 
-- `install.repo` is the checkout every skill path resolves from
+- `[personal].dir` and `[personal].procedures` are read first. The user's own
+  copy of anything wins, and procedure paths resolve there before anywhere else
+- `install.repo` is the shipped checkout. It is the fallback for procedure paths
+  when the personal copy is absent, or when the user has not set up a Thursday dir
+- never write the user's state, notes, or scratch into `install.repo`; it is a
+  clone, and a checkout update would lose them
 - `install.skills` is a list, one entry per harness. A user with Claude Code and
   OpenCode gets the same procedures installed in both; the config is the only
   place that knows about either
@@ -180,6 +186,7 @@ Setup is a sequence of migrations, not one script. Each migration is a file in
 `migrations/`, numbered, and does one thing.
 
 - `0001-setup.md` · first install
+- `0002-personal-first.md` · read the personal dir before the checkout
 - `TEMPLATE.md` · the shape to copy for every one after it
 - **the first step is always the checkout.** A migration names a commit and moves
   `<root>/checkout` to at least that commit before touching anything. The rules

@@ -62,8 +62,10 @@ a lens structure; use the shape that fits the concept.
 
 ## Overrides and escape hatches
 
-- a shipped procedure is the default
-- if a `user-yyy-` file shares the number and slug, it wins
+- the personal dir is read first; a file there wins
+- the checkout's shipped procedure is the fallback, and is used only when the
+  personal copy is absent or the user has not set up a Thursday dir
+- if a `user-yyy-` file shares the number and slug, it wins over both
 - the shipped file names its own override path, so the agent knows to look
 - when a user procedure looks nearly identical to a shipped one, say so once and
   offer to diff. Do not reconcile silently.

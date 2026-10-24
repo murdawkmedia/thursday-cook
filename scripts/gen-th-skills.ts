@@ -184,15 +184,20 @@ function body(verb: Verb) {
     : undefined;
 
   if (source) {
+    const file = basename(verb.procedure.file);
     lines.push(
       "",
       ...wrap(
-        `Then read \`<install.repo>/${source}\` and follow it. Resolve \`install.repo\` from the \`[install]\` table in the Thursday config:`,
+        `Then read \`<personal>/procedures/${file}\` and follow it. The user's personal dir comes first, always. Only if they have not set up a Thursday dir, or that file is not there, read the shipped copy at \`<install.repo>/${source}\`.`,
+      ),
+      "",
+      ...wrap(
+        "Resolve `[personal].procedures` and `install.repo` from the `[personal]` and `[install]` tables in the Thursday config:",
       ),
       "",
       ...CONFIG_PATHS,
       "",
-      "Do not guess the path.",
+      ...wrap("Do not guess either path. Never write to the checkout."),
     );
   } else {
     lines.push(

@@ -71,7 +71,7 @@ first and the checkout copy only as a fallback.
 
 **4. Update the config.**
 
-Set `install.version = "0.2.0"`.
+Set `install.version = "0.1.1"`.
 
 ## Verify
 
@@ -86,7 +86,7 @@ Set `install.version = "0.2.0"`.
 - every procedure a skill names resolves. Check `<personal>/procedures/<file>`
   first, then `<install.repo>/procedures/<file>`. If neither exists, report the
   dangling skill instead of leaving it
-- `install.version` in `<root>/thursday.toml` reads `0.2.0`
+- `install.version` in `<root>/thursday.toml` reads `0.1.1`
 
 If a user sees a skill still pointing at the checkout, step 3 did not run against
 the new checkout or used a stale bun path.

@@ -33,7 +33,7 @@ import { parseArgs } from "node:util";
 import process from "node:process";
 
 const REPO = resolve(import.meta.dir, "..");
-const VERSION = "0.2.0";
+const VERSION = "0.1.1";
 
 type Layout = {
   home: string;

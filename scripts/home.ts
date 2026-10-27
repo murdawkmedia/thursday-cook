@@ -33,6 +33,11 @@ ${comment}  <head>
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/gh/trythursday/fieber@main/fieber.css"
     />
+    <script
+      defer
+      src="https://analytics.shantaram.xyz/script.js"
+      data-website-id="3209ea7f-58ef-4fa7-b887-a0fb047ab944"
+    ></script>
   </head>
   <body>
 ${Bun.markdown.html(body)}  </body>

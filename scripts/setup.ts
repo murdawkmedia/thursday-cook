@@ -68,6 +68,12 @@ function expand(path: string, home: string) {
   return path.startsWith("~") ? join(home, path.slice(1)) : resolve(path);
 }
 
+function cloneSource(source: string, home: string) {
+  const remote = /^[a-z][a-z0-9+.-]*:\/\//i.test(source)
+    || /^[^/\\\s]+@[^/\\\s:]+:/.test(source);
+  return remote ? source : expand(source, home);
+}
+
 function rootFor(home: string, platform = process.platform) {
   const data = process.env.XDG_DATA_HOME;
   if (data) return join(data, "thursday");
@@ -410,7 +416,7 @@ async function main() {
     temp: join(tmpdir(), "th-scratch"),
     skillsDirs: (values["skills-dir"] ?? []).map((d) => expand(d, home)),
     manifest: join(root, "state", "install.json"),
-    source: values.from ? expand(values.from, home) : REPO,
+    source: values.from ? cloneSource(values.from, home) : REPO,
   };
 
   // A second harness must add to the list, not replace it. Otherwise installing

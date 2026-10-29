@@ -8,16 +8,10 @@ last compaction.
 
 `/threvisit` means **revisit**: show what is due, and plan for it
 
-Then read `<personal>/procedures/070-th-revisit.md` and follow it. The user's
-personal dir comes first, always. Only if they have not set up a Thursday dir, or
-that file is not there, read the shipped copy at
-`<install.repo>/procedures/070-th-revisit.md`.
+Then resolve `070-th-revisit.md` and read it:
 
-Resolve `[personal].procedures` and `install.repo` from the `[personal]` and
-`[install]` tables in the Thursday config:
+    bun run <install.repo>/scripts/th-proc.ts 070-th-revisit.md
 
-  - Linux · `~/.local/share/thursday/thursday.toml`
-  - macOS · `~/Library/Application Support/thursday/thursday.toml`
-  - Windows · `%LOCALAPPDATA%\thursday\thursday.toml`
-
-Do not guess either path. Never write to the checkout.
+It prints one path: the personal copy when there is one, the shipped copy otherwise.
+If it exits non-zero the procedure is missing — say so. Never read one from each
+place.

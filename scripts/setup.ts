@@ -26,14 +26,22 @@
  *     bun run scripts/setup.ts --undo
  */
 
-import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import process from "node:process";
 
 const REPO = resolve(import.meta.dir, "..");
-const VERSION = "0.1.1";
+const VERSION = "0.1.2";
 
 type Layout = {
   home: string;
@@ -102,11 +110,59 @@ function isScpRemote(source: string) {
 }
 
 /** A remote is cloned verbatim. A local path still gets `~` and cwd resolved. */
-function cloneSource(source: string, home: string) {
+export function cloneSource(source: string, home: string) {
   const schemeEnd = source.indexOf("://");
   const hasScheme = schemeEnd > 0 && isScheme(source.slice(0, schemeEnd));
 
   return hasScheme || isScpRemote(source) ? source : expand(source, home);
+}
+
+const NOT_A_PROCEDURE = new Set(["migrations"]);
+
+async function copyMissing(
+  from: string,
+  to: string,
+  dry: boolean,
+  counts: { copied: number; kept: number },
+) {
+  if (!dry) await mkdir(to, { recursive: true });
+
+  for (const entry of await readdir(from, { withFileTypes: true })) {
+    if (NOT_A_PROCEDURE.has(entry.name)) continue;
+
+    const source = join(from, entry.name);
+    const target = join(to, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyMissing(source, target, dry, counts);
+      continue;
+    }
+
+    if (await exists(target)) {
+      counts.kept++;
+      continue;
+    }
+
+    if (!dry) await copyFile(source, target);
+    counts.copied++;
+  }
+}
+
+/**
+ * Copy the shipped procedures into the personal dir once. An existing file is
+ * never overwritten, so a user's copy — and their edits — win from then on.
+ */
+export async function materializeProcedures(
+  checkout: string,
+  procedures: string,
+  dry: boolean,
+) {
+  const from = join(checkout, "procedures");
+  const counts = { copied: 0, kept: 0 };
+  if (!(await exists(from))) return counts;
+
+  await copyMissing(from, procedures, dry, counts);
+  return counts;
 }
 
 function rootFor(home: string, platform = process.platform) {
@@ -213,7 +269,17 @@ async function cloneInto(source: string, target: string) {
 async function generateSkills(checkout: string, skillsDir: string) {
   const generator = join(checkout, "scripts", "gen-th-skills.ts");
   const proc = Bun.spawn(
-    [process.execPath, "run", generator, "--out", skillsDir],
+    [
+      process.execPath,
+      "run",
+      generator,
+      "--out",
+      skillsDir,
+      "--repo",
+      checkout,
+      "--bun",
+      process.execPath,
+    ],
     { stdout: "inherit", stderr: "inherit" },
   );
   const code = await proc.exited;
@@ -228,6 +294,7 @@ async function install(layout: Layout, dry: boolean) {
     [layout.checkout, "git clone"],
     [layout.personal, "mkdir"],
     [layout.procedures, "mkdir"],
+    [layout.procedures, "materialize procedures"],
     [layout.scratch, "mkdir"],
     [layout.config, "write toml"],
     ...layout.skillsDirs.map(
@@ -259,6 +326,15 @@ async function install(layout: Layout, dry: boolean) {
   await mkdir(layout.scratch, { recursive: true });
   await mkdir(dirname(layout.config), { recursive: true });
   await writeFile(layout.config, configToml(layout), "utf8");
+
+  const procedures = await materializeProcedures(
+    layout.checkout,
+    layout.procedures,
+    false,
+  );
+  console.error(
+    `  copied       ${procedures.copied} shipped procedures, kept ${procedures.kept} in place`,
+  );
 
   const names = [...(await generatedSkillNames(layout.checkout))];
 
@@ -389,7 +465,7 @@ async function undo(layout: Layout, dry: boolean, purgePersonal: boolean) {
     if (!dry) await rm(personal, { recursive: true, force: true });
   } else if (!purgePersonal) {
     console.error("");
-    console.error(`  kept ${personal} — it is your content, not the install`);
+    console.error(`  kept ${personal} — your procedures, plus the copies setup made`);
     console.error("  pass --purge-personal to remove it too");
   }
 }
@@ -524,4 +600,6 @@ async function main() {
   return 0;
 }
 
-process.exit(await main());
+if (import.meta.main) {
+  process.exit(await main());
+}

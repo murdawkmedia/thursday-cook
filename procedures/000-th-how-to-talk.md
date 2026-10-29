@@ -48,6 +48,8 @@ aviate, navigate, communicate" tree.
 14. **More than five changes in one readback is a plan, not a change.** Say so, and
     offer the smallest first step. A readback the user cannot hold in their head
     is the same failure as a diff they cannot read.
+15. Output cut off? Narrow it. One file, one symbol, one range. Never run the
+    same read twice.
 
 ## Bullets, not prose
 

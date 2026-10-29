@@ -37,6 +37,7 @@ function preview(source: string, expected: (home: string) => string) {
 for (const source of [
   "https://example.com/team/thursday.git",
   "ssh://git@example.com/team/thursday.git",
+  "file:///srv/git/thursday.git",
   "git@example.com:team/thursday.git",
 ]) {
   test(`setup preserves remote source ${source}`, () => preview(source, () => source));

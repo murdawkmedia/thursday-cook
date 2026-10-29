@@ -68,10 +68,45 @@ function expand(path: string, home: string) {
   return path.startsWith("~") ? join(home, path.slice(1)) : resolve(path);
 }
 
+const SCHEME_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789+.-";
+
+/** RFC 3986 scheme: a letter, then letters, digits, `+`, `-`, or `.`. */
+function isScheme(text: string) {
+  // One letter is excluded on purpose: `C:` is a drive, not a scheme.
+  if (text.length < 2) return false;
+  const first = text[0].toLowerCase();
+  if (first < "a" || first > "z") return false;
+
+  for (const char of text.slice(1).toLowerCase()) {
+    if (!SCHEME_CHARS.includes(char)) return false;
+  }
+
+  return true;
+}
+
+/**
+ * scp-style remote, `[user@]host:path`. The `@` and the `:` come before any
+ * separator, and the host between them is one label. A local path has no `@`
+ * before its first colon, and a Windows drive letter has no host after it.
+ */
+function isScpRemote(source: string) {
+  const at = source.indexOf("@");
+  const colon = source.indexOf(":");
+  if (at < 1 || colon < 0 || colon < at) return false;
+
+  const host = source.slice(at + 1, colon);
+  if (!host) return false;
+  if (host.includes("/") || host.includes("\\")) return false;
+
+  return true;
+}
+
+/** A remote is cloned verbatim. A local path still gets `~` and cwd resolved. */
 function cloneSource(source: string, home: string) {
-  const remote = /^[a-z][a-z0-9+.-]*:\/\//i.test(source)
-    || /^[^/\\\s]+@[^/\\\s:]+:/.test(source);
-  return remote ? source : expand(source, home);
+  const schemeEnd = source.indexOf("://");
+  const hasScheme = schemeEnd > 0 && isScheme(source.slice(0, schemeEnd));
+
+  return hasScheme || isScpRemote(source) ? source : expand(source, home);
 }
 
 function rootFor(home: string, platform = process.platform) {

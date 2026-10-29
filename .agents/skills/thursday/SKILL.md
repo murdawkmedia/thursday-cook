@@ -24,11 +24,19 @@ HELP THE USER GET STUFF DONE.
    long it has been running. If it is absent there is no session — ask for a goal
    before doing real work.
 3. Read `000-th-how-to-talk.md`, resolved to one path. That is the response format,
-   and it does not expire between turns. See "Where Thursday reads from".
+   and it does not expire between turns. Do not go looking for it:
+   ```sh
+   bun run <install.repo>/scripts/th-proc.ts 000-th-how-to-talk.md
+   ```
+   Read the path it prints. It is the personal copy. See "Where Thursday reads
+   from" if it exits non-zero.
 4. Check what they already know. A flag per procedure is enough: have they seen
    the `/thlearn` spiel, have they used `/thlog`, and so on. Do not explain a
    thing twice.
 5. If they have never been through it, recommend `/thlearn 5`.
+
+The first turn is the readback. Not "I'll load the config and check the state" —
+read them, then answer. The tool calls are not worth announcing.
 
 ## The frontier lab
 

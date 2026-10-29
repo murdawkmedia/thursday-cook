@@ -93,18 +93,27 @@ function isScheme(text: string) {
 }
 
 /**
- * scp-style remote, `[user@]host:path`. The `@` and the `:` come before any
- * separator, and the host between them is one label. A local path has no `@`
- * before its first colon, and a Windows drive letter has no host after it.
+ * scp-style remote, `[user@]host:path`. The colon comes before any separator,
+ * and the host is one label. The user is optional: `foo:repo.git` and
+ * `github.com:foo/repo.git` are both cloned exactly as written.
+ *
+ * The one exception is a Windows drive, where a single letter before `:/` or
+ * `:\` is a path, not a host.
  */
 function isScpRemote(source: string) {
-  const at = source.indexOf("@");
   const colon = source.indexOf(":");
-  if (at < 1 || colon < 0 || colon < at) return false;
+  if (colon < 1) return false;
 
-  const host = source.slice(at + 1, colon);
+  const before = source.slice(0, colon);
+  const at = before.indexOf("@");
+  const host = at === -1 ? before : before.slice(at + 1);
   if (!host) return false;
   if (host.includes("/") || host.includes("\\")) return false;
+
+  if (host.length === 1) {
+    const next = source[colon + 1];
+    if (next === "/" || next === "\\") return false;
+  }
 
   return true;
 }

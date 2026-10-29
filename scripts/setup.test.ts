@@ -66,6 +66,8 @@ for (const source of [
   "ssh://git@example.com/team/thursday.git",
   "file:///srv/git/thursday.git",
   "git@example.com:team/thursday.git",
+  "github.com:team/thursday.git",
+  "example.com:team/thursday.git",
 ]) {
   test(`setup preserves remote source ${source}`, () =>
     preview(source, () => source));
@@ -91,6 +93,10 @@ describe("cloneSource", () => {
       "file:///srv/git/thursday.git",
       "git@example.com:team/thursday.git",
       "deploy@example.com:~/thursday.git",
+      // scp-style without a user is still a remote, not a local path.
+      "github.com:team/thursday.git",
+      "example.com:team/thursday.git",
+      "foo:thursday.git",
     ]) {
       expect(cloneSource(remote, home)).toBe(remote);
     }

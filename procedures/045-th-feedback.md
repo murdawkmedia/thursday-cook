@@ -31,11 +31,12 @@ still likes it is a tool that gets abandoned silently.
    - **idea** · something that should exist
 4. Ask where it should go, once. Options, in order:
    - a local file in the user's Thursday dir (default)
+   - `contact@trythursday.org`, for anything they would rather not post publicly
    - a GitHub issue, if `gh` is set up and they want it public
    - nowhere, just logged
 5. If filing an issue, show the title and body before submitting.
-6. If `gh` is not set up, give the exact steps to file one by hand, and offer to
-   log it locally instead.
+6. If `gh` is not set up, give the exact steps to file one by hand, and offer the
+   email address or a local log instead.
 
 Never file anything publicly without showing it to the user first.
 

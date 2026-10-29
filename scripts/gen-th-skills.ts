@@ -21,6 +21,11 @@
  *     bun run scripts/gen-th-skills.ts thlog
  *     bun run scripts/gen-th-skills.ts --dry-run
  *     bun run scripts/gen-th-skills.ts --out ~/.commandcode/skills
+ *     bun run scripts/gen-th-skills.ts --out <dir> --repo <checkout> --bun <bun>
+ *
+ * `--repo` and `--bun` are baked into the resolver command a skill runs. Without
+ * them the skill carries `<install.repo>` and `bun`, which is what the checkout
+ * commits; setup passes the real paths when it installs.
  */
 
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
@@ -41,12 +46,6 @@ const USER = /^user-/;
 // files this script wrote.
 const MARKER = "Load the Thursday root skill";
 const LEGACY_MARKER = "Load the Thursday skill file";
-
-const CONFIG_PATHS = [
-  "  - Linux · `~/.local/share/thursday/thursday.toml`",
-  "  - macOS · `~/Library/Application Support/thursday/thursday.toml`",
-  "  - Windows · `%LOCALAPPDATA%\\thursday\\thursday.toml`",
-];
 
 function wrap(text: string, width = 84) {
   const out: string[] = [];
@@ -170,7 +169,16 @@ function skillName(verb: string) {
   return verb.replace(/^\//, "");
 }
 
-function body(verb: Verb) {
+type Targets = {
+  repo: string;
+  bun: string;
+};
+
+function quote(path: string) {
+  return path.includes(" ") ? `"${path}"` : path;
+}
+
+function body(verb: Verb, targets: Targets) {
   const lines = [
     ...wrap(
       `${MARKER} if it is not already loaded this session or since the last compaction.`,
@@ -179,25 +187,20 @@ function body(verb: Verb) {
     ...wrap(`\`${verb.verb}\` means **${verb.means}**: ${verb.effect}`),
   ];
 
-  const source = verb.procedure
-    ? `procedures/${basename(verb.procedure.file)}`
-    : undefined;
-
-  if (source) {
+  if (verb.procedure) {
     const file = basename(verb.procedure.file);
+    const resolver = join(targets.repo, "scripts", "th-proc.ts");
+    const command = `${quote(targets.bun)} run ${quote(resolver)} ${file}`;
+
     lines.push(
       "",
-      ...wrap(
-        `Then read \`<personal>/procedures/${file}\` and follow it. The user's personal dir comes first, always. Only if they have not set up a Thursday dir, or that file is not there, read the shipped copy at \`<install.repo>/${source}\`.`,
-      ),
+      ...wrap(`Then resolve \`${file}\` and read it:`),
+      "",
+      `    ${command}`,
       "",
       ...wrap(
-        "Resolve `[personal].procedures` and `install.repo` from the `[personal]` and `[install]` tables in the Thursday config:",
+        "It prints one path: the personal copy when there is one, the shipped copy otherwise. If it exits non-zero the procedure is missing — say so. Never read one from each place.",
       ),
-      "",
-      ...CONFIG_PATHS,
-      "",
-      ...wrap("Do not guess either path. Never write to the checkout."),
     );
   } else {
     lines.push(
@@ -229,14 +232,28 @@ function frontmatter(verb: Verb) {
 async function main() {
   const args = process.argv.slice(2);
   const dry = args.includes("--dry-run");
+  const valued = new Set<number>();
 
-  const outIdx = args.indexOf("--out");
-  const outDir =
-    outIdx !== -1 && args[outIdx + 1]
-      ? resolve(args[outIdx + 1].replace(/^~/, homedir()))
-      : DEFAULT_OUT;
+  function flag(name: string) {
+    const at = args.indexOf(name);
+    if (at === -1) return undefined;
+    valued.add(at + 1);
+    return args[at + 1];
+  }
 
-  const wanted = args.filter((a, i) => !a.startsWith("--") && i !== outIdx + 1);
+  const out = flag("--out");
+  const outDir = out ? resolve(out.replace(/^~/, homedir())) : DEFAULT_OUT;
+
+  const repo = flag("--repo");
+  const bun = flag("--bun") ?? "bun";
+  const targets = {
+    // Committed skills carry the placeholder; setup bakes the real path when it
+    // installs, so a checkout never ships someone else's home directory.
+    repo: repo ? resolve(repo.replace(/^~/, homedir())) : "<install.repo>",
+    bun,
+  };
+
+  const wanted = args.filter((a, i) => !a.startsWith("--") && !valued.has(i));
 
   if (!(await exists(PROC_DIR))) {
     console.error(`no procedures directory at ${PROC_DIR}`);
@@ -277,7 +294,7 @@ async function main() {
   for (const verb of verbs) {
     const name = skillName(verb.verb);
     const dest = join(outDir, name, "SKILL.md");
-    const content = frontmatter(verb) + body(verb);
+    const content = frontmatter(verb) + body(verb, targets);
 
     if (dry) {
       console.log(`\n===== ${relative(ROOT, dest)} =====\n${content}`);

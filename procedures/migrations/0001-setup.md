@@ -47,14 +47,17 @@ Honor `XDG_DATA_HOME` on any platform if set.
      at least the commit this migration needs:
      `git -C <root>/checkout merge-base --is-ancestor <commit> HEAD`
    - `<personal>/`, `<personal>/scratch/`, `<personal>/procedures/`
-6. Do not copy the shipped procedures. The checkout is the only copy, and
-   `<personal>/procedures/` holds only `user-yyy-*` files the user writes.
+6. Materialize the shipped procedures. Copy `<checkout>/procedures/` into
+   `<personal>/procedures/`, skipping `migrations/`, and leave every file that is
+   already there untouched. After this the personal dir holds the whole set, and it
+   is the only copy an agent reads. A file already present is never overwritten:
+   the user's edit wins from then on.
 7. Write the config:
 
 ```toml
 [install]
 repo = "<root>/checkout"
-version = "0.1.0"
+version = "0.1.2"
 skills = ["<skills dir>", "<maybe another>"]
 bun_path = "<bun>"
 platform = "<linux|darwin|win32>"
@@ -84,8 +87,9 @@ spiel = false
      skill's procedure list
    - skip `template.md`
    - skip `user-yyy-*` that duplicates a shipped number
-10. Verify. Every skill that points at a procedure resolves to a file that
-    exists. Report dangling skills instead of shipping them.
+10. Verify. Every skill that points at a procedure names the resolver, and
+    `bun run <checkout>/scripts/th-proc.ts <file>` prints one existing path for
+    each one. Report dangling skills instead of shipping them.
 11. Tell the user how to make the shell tool always-ask, for their shell.
 12. Recommend `/thlearn 5`.
 
@@ -96,6 +100,7 @@ Name the delete for every path this migration created, using native separators.
 - `<root>/` — config, checkout, and state
 - the generated verb skill directories
 - the root skill directory
+- the copies in `<personal>/procedures/` — setup made them, so name them
 - `<personal>/` — the user's own content, so name the delete instead of sweeping
   it up with the root
 

@@ -6,8 +6,9 @@ thursday-revisit: 2026-11-11
 verb: [/thlearn]
 ---
 
-Concept: Thursday helps the user learn it, incrementally. `/thlearn` answers a
-question or gives a short tour, and remembers what the user already knows.
+Concept: Thursday helps the user learn it, one addressable concept at a time.
+`/thlearn` answers a question, teaches the concept they name, or gives a short
+tour — and remembers what they already know.
 
 ## Why?
 
@@ -19,89 +20,106 @@ when they ask.
 one doing the learning. Your job is to give them the smallest useful thing at the
 moment it is useful, and then get out of the way.
 
-Re-explaining is worse than not explaining. If the user has already seen it, skip
-it.
+Re-explaining is worse than not explaining. If they have seen it, skip it.
 
-## General procedure
+## The grammar
 
-1. If they asked a question, answer that question. Nothing else.
-2. If they have no question, offer a tour: `/thlearn 5` or `/thlearn 20`.
-3. Help them learn one idea per response, in the response format, with a concrete
-   example from their own project where possible.
-4. Record what was covered. A flag per topic is enough — `learned.spiel`,
-   `learned.lenses`, and so on, in the config sidecar.
-5. Never explain a concept twice unless asked.
-6. Point at the procedure when there is one. Do not inline it.
-7. When an interaction shows something better than an explanation would, hand over
-   the example from `procedures/skill-examples/` instead. See
-   `procedures/skill-examples/README.md` for the shape.
+`/thlearn` takes one argument, and the argument decides the shape:
 
-## What is worth learning
+- nothing · the menu. One line per concept they have not seen, grouped by what
+  they are doing. Never the whole index at once
+- `5` · one concept, one example from their own work, done
+- `20` · four or five concepts, each with an example
+- `<concept>` · that one concept, now, at any time, whether or not it was covered
+- `<verb>` · that verb's meaning, its procedure, and the one mistake people make
+  with it. A verb is also a concept name, so this is the same path
+- a question · the answer, and the door. Nothing else
 
-Pick from these based on what the user is doing. This is a menu, not a script.
+Teach the thing they named. Do not append a tour.
 
-- **the verbs** · `/th` `/thdoit` `/thonly` `/thlog` `/thlearn` `/thback`.
-  Learn `doit` and `only` as a pair: `doit` confirms the whole readback, `only`
-  narrows it to the change described in the moment.
-- **why the format is fixed** · visual memory, session memory, unambiguous
-- **bullets, not prose** · why it is a rule
-- **the phases** · thinking, planning, prototyping, building
-- **sessions and timers** · why bounding work helps
-- **reviewing what you did not write** · Thursday keeps edits small and files
-  small so that one piece of LLM code can be read at a time. Reading the diff is
-  the habit.
-- **the intelligence/cost ladder** · the same problem can be solved by a person, a
-  script, a heuristic, a small model, or a frontier model. Pick the rung the
-  situation calls for, and move up or down deliberately.
-- **small models** · Thursday is designed to work with them. Exposing your whole
-  life to a frontier lab is not viable for most people, and cheap fast models
-  make cancelling and retrying free.
-- **cancel freely** · stopping and rewinding costs almost nothing. Do it when
-  something feels wrong.
-- **revisit dates** · every artifact Thursday writes carries a date to look at it
-  again, so the user can forget it until then. `/threvisit` brings back what is
-  due, in three buckets: overdue, due soon, later. One next step each — keep,
-  change, or delete. See `070-th-revisit.md`.
-- **find how you think** · nobody thinks in the same shape. Some people think by
-  writing, some by drawing, some by talking it out. When they ask for a dashboard
-  instead of a summary, or a picture instead of a spec, that is the shape they
-  read in. Watch for it, build the interface they asked for, and name what you
-  noticed once. See `090-th-think-differently.md`.
-- **text into structure** · a nested markdown list is the cheapest thing to write
-  and the most useful thing to read. Thursday turns trees into pictures:
-  `scripts/tree-render.ts` renders one as SVG and `.excalidraw`, and
-  `scripts/idea-finder.ts` lists the leaves — the ideas nothing is built on yet.
-  Both work for a person and for a script.
-- **threads** · organise information however you like — by topic, by person, by
-  project, by vibe. The only rule is that you can retrieve it later. Duplication
-  across threads is fine: these are views over crisscrossing data, not a taxonomy.
-  Name a thread for how you will look for it, not for how it is structured. If you
-  cannot find it in six months, the organisation failed. See `025-th-log.md`.
-- **fun** · vibe coding should be tactile, not a progress bar. Watching an agent
-  work is the boring part; that is what `fun` experiments are for.
+## The concepts
+
+Each name resolves to a door. Give the idea, then name the door; do not inline the
+procedure.
+
+- `format` · the five sections, and why the shape never changes — `000-th-how-to-talk.md`
+- `zoom` · a response is a tree; any part of it zooms one level, and collapses to
+  a reference point — `000`, `010-th-situational-awareness.md`
+- `verbs` · a prompt is a command; verbs sit inline and several can share one
+  prompt — the root skill's verb table
+- `scope` · `/thdoit` and `/thonly` answer the same question and differ in size.
+  Learn them as a pair — the root skill
+- `think-out-loud` · `/th` on a half-formed thought. Mirror it back, add nothing,
+  act on nothing. This is the most-used verb and the least understood
+- `session` · a goal, a bound, a post-brief — `015-th-session.md`
+- `pause` · `/thpause` writes the resume point, `/thback` reads it — `020-th-pause-resume.md`
+- `lost` · `/thlost` rebuilds session and project state and stops everything else
+  — `010-th-situational-awareness.md`
+- `log` · `/thlog` writes their words verbatim, into a thread — `025-th-log.md`
+- `revisit` · a date on everything Thursday writes, three buckets, one next step
+  each — `070-th-revisit.md`
+- `feedback` · `/thfeedback` is about Thursday itself, not the work — `045-th-feedback.md`
+- `procedures` · write your own, override any shipped one — `050-th-procedures.md`
+- `proc` · `/thproc` turns a process that just ran into a procedure, from the
+  transcript rather than from memory — `080-th-proc.md`
+- `update` · `/thupdate` moves an installed Thursday forward: checkout, migrations,
+  skills, version — `075-th-update.md`
+- `lenses` · the lens that produced a decision, handed over — `060-th-lenses-intelligence.md`
+- `intelligence` · person, script, heuristic, small model, frontier model. Pick the
+  rung on purpose — `060-th-lenses-intelligence.md`
+- `complexity` · complexity must be earned — `065-th-slop-complexity.md`
+- `harness` · ignore it where it gets in the way, tap into it where it helps —
+  `040-th-harnesses.md`
+- `think-differently` · find the shape this person reads in — `090-th-think-differently.md`
+- `scratch` · durable `scratch/` and revisit dates; temporary `<temp>/th-scratch` —
+  the root skill
+
+## How a lesson is shaped
+
+1. One idea. A definition in one line, then why it exists.
+2. One or two nodes they can zoom into, named.
+3. One example from their project. If there is none yet, use the repo's own
+   `procedures/skill-examples/`, which is what those files are for.
+4. The door. A procedure path, or the example file. Do not paste its contents.
+5. Stop. No summary of what was just said, no list of what is left.
+
+A lesson that needs three nodes is a tour, and a tour is `20`.
 
 ## The prompt as a small DSL
 
-A Thursday prompt is a command to a computer with natural language inside it.
-Verbs are the command part. Learn this once, early:
+A Thursday prompt is a command to a computer with natural language inside it. Verbs
+are the command part:
 
 - verbs sit inline, anywhere in the prompt
-- natural language around them is instruction
+- more than one verb per prompt is normal: `/thlog scratch <idea>` then `/thdoit`
+- the natural language between verbs is the instruction
 - ambiguity gets a readback, not a guess
 
-The full format lives in `000-th-how-to-talk.md`. `/th` is the pointer.
+The format itself lives in `000-th-how-to-talk.md`. `/th` is the pointer.
+
+## Remembering
+
+- one flag per concept, in the learned sidecar under `[paths].state`. Never rewrite
+  the config; setup owns it
+- a flag the config already carries counts as seen
+- `learned.<concept>` is enough. Do not record what they thought of it
 
 ## Tones
 
-- `/thlearn 5` · one idea, one example, done
-- `/thlearn 20` · four or five ideas, each with an example from their work
-- a question · the answer, plus where to read more
+- `/thlearn` · the menu, unread items only
+- `/thlearn 5` · one concept, one example, done
+- `/thlearn 20` · four or five concepts, each with an example from their work
+- `/thlearn <concept>` · that concept, now
+- a question · the answer, then the door
 
 ## Harm reduction
 
 Do not start an explanation during a crisis or mid-task. Offer it at a natural
 boundary.
 
+Never explain a concept twice unless asked. If they ask again, that is a signal the
+first explanation was wrong, not that they forgot — give the example instead.
+
 ## Undo
 
-Delete this file. Nothing else changes.
+Delete this file. Learned flags stay in the sidecar but nothing reads them.

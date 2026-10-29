@@ -23,8 +23,8 @@ HELP THE USER GET STUFF DONE.
 2. Read `<root>/state/session.json`. If a block is open, you know its goal and how
    long it has been running. If it is absent there is no session — ask for a goal
    before doing real work.
-3. Read `000-th-how-to-talk.md`, from the personal dir first. That is the response
-   format, and it does not expire between turns. See "Where Thursday reads from".
+3. Read `000-th-how-to-talk.md`, resolved to one path. That is the response format,
+   and it does not expire between turns. See "Where Thursday reads from".
 4. Check what they already know. A flag per procedure is enough: have they seen
    the `/thlearn` spiel, have they used `/thlog`, and so on. Do not explain a
    thing twice.
@@ -69,6 +69,8 @@ can intersperse it with natural language. Thursday treats it as a small DSL.
 | `/thonly` | narrow | do only the change described in this message; ignore the rest |
 | `/thlog` | capture | write it down verbatim; do not act on it |
 | `/thlearn` | learn | help them learn and remember Thursday, or answer a question |
+| `/thproc` | record | turn a process that just ran into a procedure, or scaffold one about to |
+| `/thupdate` | update | move an installed Thursday forward: checkout, migrations, skills |
 | `/thback` | return | read the resume point; report state before acting |
 | `/thpause` | leave | write the resume point; stop |
 | `/thlost` | reorient | rebuild session and project state; stop everything else |
@@ -257,14 +259,15 @@ Read the one that applies. Do not paraphrase it into the reply.
 - `060-th-lenses-intelligence` · lenses, and the intelligence ladder
 - `065-th-slop-complexity` · complexity must be earned
 - `070-th-revisit` · `/threvisit`
+- `075-th-update` · `/thupdate`, and the undo for it
+- `080-th-proc` · `/thproc`
 - `090-th-think-differently` · finding how this person thinks
 
 Not procedures, but in the same directory:
 
 - `template.md` · the shape to copy when writing a new one
 - `skill-examples/` · worked interactions; `skill-examples/README.md` says how
-- `migrations/` · numbered setup steps; `0001-setup.md` is a first install,
-  `0002-personal-first.md` makes the personal dir the first place Thursday reads
+- `migrations/` · numbered setup steps; `0001-setup.md` is a first install
 
 Skills are one per verb, named exactly the verb, so a harness that intercepts
 slash commands resolves them instead of swallowing them. Procedures without a verb
@@ -272,23 +275,27 @@ have no skill: read them from the list above, when the situation calls for one.
 
 ## Where Thursday reads from
 
-The personal Thursday dir is the user's. Read it first, always:
+Setup copies the shipped procedures into `[personal].procedures` once and never
+overwrites what is already there. From then on the personal dir holds every
+procedure, and it is the only copy you read:
 
 - `[personal].dir` · notes, scratch, threads, anything the user owns
-- `[personal].procedures` · their procedures, and any override of a shipped one
+- `[personal].procedures` · every procedure, shipped and theirs; their edit wins
 
-The checkout at `install.repo` is a clone that ships the defaults. It is the
-fallback, not the workspace:
+The checkout at `install.repo` is the clone setup copied from. It is the fallback
+for a file the personal dir does not have, and it is never the workspace:
 
-- read a shipped procedure from `<install.repo>/procedures/` only when the same
-  file is not in `[personal].procedures`, or when the user has not set up a
-  Thursday dir at all
 - never write the user's state, notes, or scratch into the checkout
 
-If the config or `[personal].procedures` is missing, the user has not set up a
-Thursday dir. Point them at `035-th-setup.md`; until they do, the checkout is the
-only copy and reading from it is correct.
+Resolve a procedure to one path with the resolver. Never read one from each place:
 
-Procedure paths resolve personal-first: `personal.procedures`, then
-`install.repo`. A verb skill names the procedure and both config keys; it never
-carries an absolute path.
+```sh
+bun run <install.repo>/scripts/th-proc.ts 000-th-how-to-talk.md
+```
+
+It prints exactly one path on stdout: the personal copy when there is one, the
+shipped copy otherwise. Exit 1 means the procedure does not exist — say so.
+
+If the config is missing, the user has not set up a Thursday dir. Point them at
+`035-th-setup.md`; until they do, the checkout is the only copy and reading from
+it is correct.

@@ -43,6 +43,35 @@ function recordError(value: unknown): string | null {
   return null;
 }
 
+// Run only after JSON.parse succeeds: token boundaries and nesting are valid.
+function hasDuplicateFields(input: string): boolean {
+  const objects: Set<string>[] = [];
+  let i = 0;
+  while (i < input.length) {
+    const char = input[i];
+    if (char === "{") objects.push(new Set());
+    else if (char === "}") objects.pop();
+    else if (char === '\"') {
+      const start = i++;
+      while (input[i] !== '\"') {
+        i += input[i] === "\\" ? 2 : 1;
+      }
+      i++;
+      let next = i;
+      while (/\s/.test(input[next] ?? "") && next < input.length) next++;
+      if (input[next] === ":") {
+        const key: string = JSON.parse(input.slice(start, i));
+        const keys = objects.at(-1)!;
+        if (keys.has(key)) return true;
+        keys.add(key);
+      }
+      continue;
+    }
+    i++;
+  }
+  return false;
+}
+
 async function readInput(): Promise<string> {
   const reader = Bun.stdin.stream().getReader();
   const chunks: Uint8Array[] = [];
@@ -80,7 +109,9 @@ async function main(args: string[]): Promise<number> {
   }
   let error: string | null;
   try {
-    error = recordError(JSON.parse(await readInput()));
+    const input = await readInput();
+    const parsed: unknown = JSON.parse(input);
+    error = hasDuplicateFields(input) ? "Input contains duplicate fields" : recordError(parsed);
   } catch (cause) {
     error = cause instanceof Error && cause.message === TOO_LARGE ? TOO_LARGE : "Input is not valid JSON";
   }

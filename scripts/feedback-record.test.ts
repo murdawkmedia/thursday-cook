@@ -145,7 +145,8 @@ test("template and validation do not create local state", () => {
       const result = Bun.spawnSync([process.execPath, "run", script, ...args], {
         cwd: home,
         stdin: Buffer.from(JSON.stringify(example)),
-        env: { HOME: home, USERPROFILE: home },
+        // Isolate the tool from Bun's own startup transpiler cache.
+        env: { HOME: home, USERPROFILE: home, BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0" },
       });
       expect(result.exitCode).toBe(0);
       expect(readdirSync(home)).toEqual([]);
@@ -159,4 +160,32 @@ test("unexpected options fail without consuming a session or filename", () => {
   const result = cli(["--template", "--upload"]);
   expect(result.code).toBe(1);
   expect(result.out).toContain("Usage:");
+});
+
+for (const prefix of [
+  '"check_runs":100,',
+  '"\\u0063heck_runs":100,',
+  '"workflow_mode":"DO_NOT_ECHO_FIXTURE",',
+  '"record_kind":{"nested":1,"nested":2},',
+  '"schema_version":1,',
+]) {
+  test(`rejects ambiguous duplicate JSON fields: ${prefix}`, () => {
+    const input = "{" + prefix + JSON.stringify(example).slice(1);
+    const result = cli(["--validate"], input);
+    expect(result.code).toBe(1);
+    expect(JSON.parse(result.out).error).toBe("Input contains duplicate fields");
+    expect(result.out + result.err).not.toContain("DO_NOT_ECHO_FIXTURE");
+  });
+}
+
+test("a unique escaped field name remains valid", () => {
+  const input = JSON.stringify(example).replace('"check_runs"', '"\\u0063heck_runs"');
+  expect(cli(["--validate"], input).code).toBe(0);
+});
+
+test("quoted JSON-looking values are not scanned as field syntax", () => {
+  const record = { ...example, record_kind: '{"same":1,"same":2}' };
+  const result = validate(record);
+  expect(result.code).toBe(1);
+  expect(JSON.parse(result.out).error).toBe("Invalid field: record_kind");
 });

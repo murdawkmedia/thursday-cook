@@ -5,58 +5,44 @@ description: Use for substantive tasks when Thursday Cook is requested or config
 
 # Thursday Cook
 
-Use this for substantive tasks when configured as the default. Scale the process to the
-task; answer quick questions directly. Existing host/project instructions and
-user scope stay in force.
+Follow host/project instructions and existing authorization. Answer quick
+questions directly. Use the shortest complete path that fits the task.
 
-## Align once
+## Small, bounded work
 
-- Give a short bullet readback: intended result, first bounded change, and the
-  evidence that will establish success. Reuse an agreed plan when it still fits.
-- Carry forward existing authorization. Ask only about an unresolved choice that
-  changes scope, correctness, authority or an external effect; continue independent
-  work while waiting. Follow host instructions and project rules throughout.
-- Verify the current ticket, implementation repository, base revision and latest
-  decisions before editing. Read newly supplied setup material before acting on
-  a cached plan. Reconcile conflicts explicitly; preserve unrelated work.
+- State the goal, change and success check briefly; one sentence is enough.
+  Reuse settled scope. Ask only when a material decision or authorization changes.
+- Read the relevant definition, caller and current instructions. Reconcile new
+  evidence with the actual repository/base; preserve unrelated work.
+- For a bug, reproduce it with a focused failing check. Reuse existing patterns;
+  make the smallest complete change, including affected consumers and fixtures.
+  Preserve validation, error handling, security and accessibility.
+- Prepare the environment once. Batch independent reads and final diff/status
+  checks in one tool round trip when safe; inspect every result. Keep dependent
+  edits and red/green checks sequential. Repeat setup or a passing check only
+  after a relevant change, failure or unresolved concern.
+- Verify the affected behavior, inspect the final change and stop. Add tests for
+  distinct risks; avoid duplicating equivalent cases or unrelated broad suites.
 
-## Make one useful experiment
+## Expand when the work needs it
 
-- State a falsifiable expectation and capture the relevant baseline. For a bug,
-  reproduce it with the smallest meaningful failing check when practical.
-- Trace the affected callers and boundaries. Prefer an existing project pattern,
-  then a platform feature, then an installed dependency, then minimal new code.
-  Keep validation, error handling, security and accessibility intact.
-- Change one bounded behavior and check it before expanding. Avoid speculative
-  layers, options, installations and unrelated cleanup. Small means complete and
-  readable, including affected callers and fixtures.
-- Load one relevant specialist when needed: systematic-debugging for an unclear
-  failure, test-driven-development for behavior, review for integration, or
-  verification-before-completion for completion evidence. Reuse installed skills;
-  importing a whole pack is a separate decision. Use delegation only when authorized.
+For unclear failures, wider dependencies or changed scope, take one bounded
+experiment at a time and load the relevant existing specialist. Do not restate
+its full workflow. Delegate only when authorized.
 
-## Spend context deliberately
+Use targeted, size-limited reads and diagnostics. Narrow truncated output;
+avoid unchanged dumps. Keep bulk evidence at source with concise pointers.
 
-- Inspect metadata and hashes first; read the useful file range or result fields.
-  Cap tool output and narrow a truncated read before continuing. Bound diagnostic
-  writers by file size and duration too. Keep bulk logs as artifacts with concise
-  evidence pointers.
-- Batch independent reads. Re-read unchanged material or repeat passing checks
-  only when a changed dependency, failure or unresolved concern warrants it.
-- For opted-in metrics, use the [measurement guide](references/measurements.md).
-  Store only measurements and minimal window metadata in a chosen private home;
-  keep project notes/logs at source. Unknown counts stay null; savings require
-  comparable measurements, not one trial.
+Verify the actual artifact/revision. Distinguish unit checks, consumer integration,
+deployment and acceptance. Close work only against its actual acceptance scope.
 
-## Finish the unit
+Report the result, evidence and remaining blocker briefly. Record material
+decisions and continuation state in the existing handoff. For publication,
+inspect the exact payload/account, use supported generic examples and preserve
+private boundaries. Carry scoped approval forward.
 
-- Verify the actual artifact and revision. Distinguish a local test, integrated
-  behavior, review approval and deployment. Close a ticket only against its real
-  acceptance scope; obsolete work needs its reason and a successor when required.
-- Reply in concise bullets: result, evidence, remaining blocker or next action.
-  Write material decisions and continuation state to the existing project handoff.
-- For upstream feedback, inspect the exact outgoing payload and selected account.
-  Use synthetic examples and supported claims; keep private project information
-  out. Existing scoped publication approval remains valid.
+Measurements are opt-in: follow the [measurement guide](references/measurements.md).
+Keep counters and minimal window metadata in a chosen private home; logs/notes stay
+at source. Unknowns stay null; savings require matched measurements.
 
-Source and license notices: [NOTICE.md](NOTICE.md).
+Source/license notices: [NOTICE.md](NOTICE.md).

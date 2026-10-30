@@ -1,75 +1,67 @@
-# Thursday
+# Thursday Cook
 
-Situational awareness for humans: aviation-inspired workflows that meet people
-where they are.
+A lean, experiment-led workflow for coding agents: agree on the task once, make
+one useful change, verify the actual result, and report it in concise bullets.
 
-Thursday is a set of ideas
+This is an open fork of [Thursday](https://github.com/trythursday/thursday).
+It adds the portable [thursday-cook skill](.agents/skills/thursday-cook/SKILL.md)
+and an optional local measurement CLI. Thursday's original skills, tools,
+procedures and experiments remain available; see [UPSTREAM.md](UPSTREAM.md).
 
-- to help people
-- build systems
-- to achieve
-- their own goals
-- safely
-- by making tiny changes
-- one at a time.
+## Use the skill
 
-## Experiments
+Ask your agent to install **only .agents/skills/thursday-cook/** using its normal
+skill installation process, preserving existing host and project instructions.
+The folder is self-contained; it needs no model configuration, hook or runtime.
+Then invoke it with:
 
-### Next Steps
+> Use Thursday Cook for this task.
 
-An experiment in using generative AI in a non-chat form. Takes any goal
-and gives you some concrete steps towards getting there.
+For measurement work:
 
-[Try it](https://trythursday.org/experiments/next-steps/)
+> Use Thursday Cook with local measurements for this task.
 
-### The Thursday skill file
+If you want it as a default, configure your agent's project instructions to use
+Thursday Cook for substantive tasks and answer quick questions directly.
+Existing authorization carries forward within its scope. The skill asks about
+unresolved choices that materially affect correctness or an external action.
+Specialist workflows remain available when the task needs them.
 
-Requirements: `git`, and a coding agent to run it in. The setup bootstraps a
-self-contained bun install to run itself if `bun` is not already present.
+The original Thursday setup installs its broader framework. Cook's standalone
+installation is the selected folder above; using Cook requires no full setup.
 
-#### Try it today
+## Measure carefully
 
-Paste in your coding agent:
+The optional CLI emits a synthetic template or validates one supplied fixed
+JSON record. Unknown observations remain null; observed zeros remain zero.
+Verification boundary and actual-consumer evidence are separate fields.
 
-> Help me set up the Thursday skill from <https://github.com/trythursday/thursday>.
+```sh
+bun run scripts/feedback-record.ts --template
+bun run scripts/feedback-record.ts --validate < reviewed-record.json
+bun test scripts
+```
 
-### AI for All
+Validation is bounded and rejects unknown/duplicate fields without echoing values.
+The helper does not collect sessions, store records or upload anything. Bun may
+use its own runtime cache; see the [measurement guide](.agents/skills/thursday-cook/references/measurements.md).
+Central stores should contain measurements and minimal metadata only; project
+logs, notes and source stay with their projects. No measured time/token saving
+is claimed. Comparisons require matched observation methods and tasks.
 
-A free OpenAI-compatible inference provider, backed by OpenRouter. No signup is
-required - instead your computer solves a small cryptographic challenge to get
-an API key valid for 24 hours, 25 requests/hr per IP and per key. Keys are
-disposable: if one expires, get another in 10 minutes. Meant for people to build
-small experiments that use generative intelligence in unconventional ways.
+## Develop in the open
 
-[Get your API key](https://ai-for-all.trythursday.org)
+Run bun test scripts before proposing a change. Use synthetic fixtures and
+keep local paths, private project context and real measurements out of PRs.
+Contribute broadly useful fixes upstream where they fit; Cook-specific workflow
+choices belong in this fork. The local-record tool is also proposed in
+[upstream PR11](https://github.com/trythursday/thursday/pull/11), currently under review.
 
-### Upcoming
+Reviewed upstream base: e710ad5. Contributions and review are welcome.
 
-- [Thing Refiner](./experiments/thing-refiner.jpg)
+## Attribution and license
 
-## In this repo
-
-- `.agents/skills/` - the Thursday root skill, and one generated skill per verb
-- `procedures/` - one concept per file; each carries its own description and undo
-- `threads/` - experimental info organization system
-  - `threads/personal/` - gitignored, personal info at the relevant scope
-- `experiments/` - prototypes and ideas.
-- `scripts/` - Thursday tools, for people and machines
-
-## License
-
-I want you to steal thursday. I ENCOURAGE you to steal thursday.
-I want this skill file in as many agents as possible. If frontier labs think
-this is useful and run it in their AI factories 24/7 - that's just increasing
-the size of my database ;) My ultimate goal is world peace. Thursday is a system
-to work towards any goal by breaking it down into small, actionable tasks.
-If you steal it and help people remember about humans and fun, you are just
-helping the cause of world peace! So do it :)
-
-In exchange I ask that you [write my name down](./LICENSE.md) somewhere in a
-little corner of your project.
-
----
-
-Created: 2026-10-12
-Revisit: 2026-11-12
+Thursday is by Siddharth Singh and the Thursday contributors. Cook also adapts
+selected Ponytail and pstack principles; complete notices are in the skill's
+[NOTICE.md](.agents/skills/thursday-cook/NOTICE.md). This fork retains the upstream
+[MIT license](LICENSE.md).

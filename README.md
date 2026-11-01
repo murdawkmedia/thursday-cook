@@ -27,6 +27,11 @@ Existing authorization carries forward within its scope. The skill asks about
 unresolved choices that materially affect correctness or an external action.
 Specialist workflows remain available when the task needs them.
 
+Cook remains opt-in unless you configure it as your default. The original Thursday
+skill now stays inert until invoked, offers task-first optional learning and
+provides user-selected behavior zones. Cook keeps its own concise format and
+existing scoped authorization; neither skill grants new permission.
+
 The original Thursday setup installs its broader framework. Cook's standalone
 installation is the selected folder above; using Cook requires no full setup.
 
@@ -57,7 +62,14 @@ Contribute broadly useful fixes upstream where they fit; Cook-specific workflow
 choices belong in this fork. The local-record tool is also proposed in
 [upstream PR11](https://github.com/trythursday/thursday/pull/11), currently under review.
 
-Reviewed upstream base: e710ad5. Contributions and review are welcome.
+Reviewed upstream base: 4be9430 (v0.2.0 source). The shipped setup, resolver and
+skill generator now support Node24+ as well as Bun. The optional Cook measurement
+CLI still uses Bun. Procedure refresh uses recorded hashes and preserves edited
+or unrecorded copies. No full Thursday setup is needed for standalone Cook.
+
+Run `bun test scripts` with both runtimes on PATH to exercise both. PowerShell
+bootstrap tests run when `pwsh` is available; they mock downloading and do not
+validate a real Windows install. Contributions and review are welcome.
 
 ## Attribution and license
 

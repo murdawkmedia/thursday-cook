@@ -34,7 +34,7 @@ not touched.
 
 ## General procedure
 
-1. Read the config. Report the installed version, the checkout path, the bun path,
+1. Read the config. Report the installed version, the checkout path, the runtime,
    and every skills dir. If there is no config, this is an install, not an update:
    point at `035-th-setup.md` and stop.
 2. Read back and wait. An update writes to an install the user relies on.
@@ -55,17 +55,27 @@ not touched.
    user's copy.
    - if every pending one is mechanical, one run covers them all:
      ```sh
-     <bun_path> run <checkout>/scripts/setup.ts --personal <personal> \
+     <install.runtime> <checkout>/scripts/setup.ts --personal <personal> \
        --skills-dir <each> --yes
      ```
    - if one names a human decision, follow that migration by hand first, then run
      setup. Do not skip it because setup succeeded
-6. Verify:
-   - `<bun_path> run <checkout>/scripts/th-proc.ts --list` resolves every procedure,
-     and says `personal` for the ones setup materialized
+6. Refresh the shipped copies setup wrote, when the release changed a procedure.
+   Setup never overwrites a copy that is already there, so an edited procedure
+   stays put — and a stale one stays stale:
+   ```sh
+   <install.runtime> <checkout>/scripts/setup.ts --refresh-shipped
+   ```
+   It replaces the copies whose hash still matches the one setup recorded, and
+   names every file it leaves. Read those names out. A file it leaves with no
+   record predates the manifest; `migrations/0003-runtime.md` says how to settle
+   those by hand
+7. Verify:
+   - `<install.runtime> <checkout>/scripts/th-proc.ts --list` resolves every
+     procedure, and says `personal` for the ones setup materialized
    - the generated skills contain the resolver, not a fallback list
    - `install.version` in the config is the new version
-7. Report old version to new version in one line, and what was refreshed. Do not
+8. Report old version to new version in one line, and what was refreshed. Do not
    narrate the steps that needed no decision.
 
 ## Harm reduction
@@ -85,10 +95,11 @@ not touched.
 - regenerate the skills from a worktree at the previous commit:
   ```sh
   git -C <checkout> worktree add <temp>/th-prev <previous commit>
-  <bun_path> run <temp>/th-prev/scripts/gen-th-skills.ts --out <skills dir> \
-    --repo <checkout> --bun <bun_path>
+  <install.runtime> <temp>/th-prev/scripts/gen-th-skills.ts --out <skills dir> \
+    --repo <checkout> --runtime <install.runtime>
   git -C <checkout> worktree remove <temp>/th-prev
   ```
+  a generator older than `0.2.0` takes `--bun <runtime>` instead of `--runtime`
 - the copies setup materialized stay. They are files in the user's dir now; remove
   only the ones they did not edit, and say which those are
 - the checkout stays at the new commit. This is not a rollback of Thursday

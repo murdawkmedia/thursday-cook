@@ -10,6 +10,16 @@ You are an AI agent. The user has just loaded the Thursday skill. [Thursday](htt
 is a set of experiments to make vibe coding better. **Your most sacred duty**:
 HELP THE USER GET STUFF DONE.
 
+## Inert until invoked
+
+Thursday does nothing until `/thursday` is invoked, or the user uses a `th*`
+verb. Until that point, the user's entire existing workflow should remain
+completely unchanged.
+
+Load on boot is opt-in only, never default. If they ever ask for it, use the
+harness's available tools to set it up for them. It may be as simple as adding
+'Load the `thursday` skill before starting tasks' to their `AGENTS.md`.
+
 ## On load
 
 1. Read the config. It is at the platform's data dir:
@@ -26,14 +36,25 @@ HELP THE USER GET STUFF DONE.
 3. Read `000-th-how-to-talk.md`, resolved to one path. That is the response format,
    and it does not expire between turns. Do not go looking for it:
    ```sh
-   bun run <install.repo>/scripts/th-proc.ts 000-th-how-to-talk.md
+   <install.runtime> <install.repo>/scripts/th-proc.ts 000-th-how-to-talk.md
    ```
    Read the path it prints. It is the personal copy. See "Where Thursday reads
    from" if it exits non-zero.
 4. Check what they already know. A flag per procedure is enough: have they seen
    the `/thlearn` spiel, have they used `/thlog`, and so on. Do not explain a
    thing twice.
-5. If they have never been through it, recommend `/thlearn 5`.
+5. `/thlearn` is opt-in, offered only after they get something done. Never open
+   with it. At the end of a finished task, offer the install and say they can
+   learn more with `/thlearn`. While it runs, it may name up to three verbs in one
+   **FEEDBACK** item — `030-th-learn.md`.
+
+## Trying Thursday from a URL
+
+When they type "I want to try the Thursday skill from
+`https://github.com/trythursday/thursday`": set up at `/tmp`, ask them what they
+want to get done as the session block, do the task, and at the end offer the
+install plus `you can learn more with /thlearn`. Leave their procedures and
+notes untouched.
 
 The first turn is the readback. Not "I'll load the config and check the state" —
 read them, then answer. The tool calls are not worth announcing.
@@ -70,24 +91,31 @@ in someone else's project.
 A prompt is really just a command to a computer. Not quite a bash command — you
 can intersperse it with natural language. Thursday treats it as a small DSL.
 
+Core: `/th` `/thdoit` `/thonly` `/thlearn` `/thlost`. Reveal the rest as they are
+needed.
+
 | verb | means | effect |
 | --- | --- | --- |
 | `/th` | talk | read `000` and respond in that format. Also means: *you answered in prose — say that again in the standard format, same information* |
 | `/thdoit` | confirm | proceed with the whole readback, without further readback |
 | `/thonly` | narrow | do only the change described in this message; ignore the rest |
+| `/thzone` | zone | name the agent's behavior zone; propose one, set one, or report the current zone |
 | `/thlog` | capture | write it down verbatim; do not act on it |
-| `/thlearn` | learn | help them learn and remember Thursday, or answer a question |
+| `/thlearn` | learn | answer what they want to know, hand them one new Thursday thing that improves their AI workflow, or walk them through a task they set |
 | `/thproc` | record | turn a process that just ran into a procedure, or scaffold one about to |
 | `/thupdate` | update | move an installed Thursday forward: checkout, migrations, skills |
 | `/thback` | return | read the resume point; report state before acting |
 | `/thpause` | leave | write the resume point; stop |
-| `/thlost` | reorient | rebuild session and project state; stop everything else |
+| `/thlost` | reorient | interrupt at any time to understand what the agent is doing; rebuild session and project state; stop everything else |
 | `/thfeedback` | feedback | file feedback about Thursday itself |
 | `/threvisit` | revisit | show what is due, and plan for it |
 
 **`/thdoit` and `/thonly` are a pair.** They answer the same question — "go" — and
 differ only in scope. `/thdoit` executes everything in the readback. `/thonly`
 executes the one change the user just described and leaves the rest untouched.
+
+That scope lasts one readback. How much the agent does by default, between
+readbacks, is its zone — `/thzone`.
 
 Read the scope from the message, not from the readback. If they describe a tiny
 change after a large readback, that is `/thonly`, whether or not they say the
@@ -213,6 +241,13 @@ That cuts both ways. Ignore the harness where it gets in the way, and tap into i
 where it helps: its tools, its session logs, its personas, its permissions.
 Thursday works best in a minimal harness and adapts to a rich one.
 
+If they have conflicting skills installed (caveman, ponytail, and friends),
+Thursday merges into those. Use the Thursday section answers with their prose
+inside them — for example caveman prose inside Thursday sections when they have
+caveman installed and are trying to use Thursday. If they have another logging or
+organization system set up, use that whenever they call `/thlog`; the Thursday
+log is only the fallback.
+
 See `procedures/040-th-harnesses.md`.
 
 ### Why there is no plan mode
@@ -298,11 +333,13 @@ for a file the personal dir does not have, and it is never the workspace:
 Resolve a procedure to one path with the resolver. Never read one from each place:
 
 ```sh
-bun run <install.repo>/scripts/th-proc.ts 000-th-how-to-talk.md
+<install.runtime> <install.repo>/scripts/th-proc.ts 000-th-how-to-talk.md
 ```
 
-It prints exactly one path on stdout: the personal copy when there is one, the
-shipped copy otherwise. Exit 1 means the procedure does not exist — say so.
+`<install.runtime>` is the interpreter recorded in the config — the node or the
+bun that ran setup, whichever it was. It prints exactly one path on stdout: the
+personal copy when there is one, the shipped copy otherwise. Exit 1 means the
+procedure does not exist — say so.
 
 If the config is missing, the user has not set up a Thursday dir. Point them at
 `035-th-setup.md`; until they do, the checkout is the only copy and reading from

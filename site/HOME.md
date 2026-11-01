@@ -1,7 +1,7 @@
 ---
 title: Thursday
 thursday-note: Landing page
-thursday-revisit: 2026-11-05
+thursday-revisit: 2026-11-12
 ---
 
 <header>
@@ -20,6 +20,8 @@ a set of ideas
 - by making tiny changes
 - one at a time.
 
+[Read the blog now](https://shantaram.xyz/posts/2026/10/making-coding-fun-again)
+
 ## Experiments
 
 ### Next Steps
@@ -31,14 +33,17 @@ and gives you some concrete steps towards getting there.
 
 ### The Thursday skill file
 
-Requirements: `git`, and a coding agent to run it in. The setup bootstraps a
-self-contained bun install to run itself if `bun` is not already present.
+Requirements: `git`, a coding agent, and node 24+ or bun. With neither, the setup
+bootstraps a self-contained bun install of its own.
 
 #### Try it today
 
-Paste in your coding agent:
+Sets up under `/tmp` first. Paste in your coding agent:
 
-> Help me set up the Thursday skill from <https://github.com/trythursday/thursday>.
+> I want to try the Thursday skill from https://github.com/trythursday/thursday.
+
+Then type `/thursday` at any time and vibe code like normal — Thursday does
+nothing until you do. `/thfeedback` if something's wrong.
 
 ### AI for All
 
@@ -52,7 +57,7 @@ small experiments that use generative intelligence in unconventional ways.
 
 ---
 
-Check back on 2026-11-05 if that was interesting.
+Check back on 2026-11-12 if that was interesting.
 
 <nav>
   <ul>

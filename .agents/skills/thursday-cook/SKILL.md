@@ -30,6 +30,14 @@ For unclear failures, wider dependencies or changed scope, take one bounded
 experiment at a time and load the relevant existing specialist. Do not restate
 its full workflow. Delegate only when authorized.
 
+## Bounded behavior
+
+When useful, agree how to proceed: reflect only, confirm each step, run an
+agreed batch, or run the agreed plan. Name its scope and stop condition. Reuse
+settled authorization; the user chooses changes in autonomy. A behavior zone
+cannot grant new scope. Revisit it when the task changes; a stop or reorientation
+request overrides it.
+
 Use targeted, size-limited reads and diagnostics. Narrow truncated output;
 avoid unchanged dumps. Keep bulk evidence at source with concise pointers.
 

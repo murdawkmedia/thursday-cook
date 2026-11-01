@@ -24,14 +24,34 @@ and gives you some concrete steps towards getting there.
 
 ### The Thursday skill file
 
-Requirements: `git`, and a coding agent to run it in. The setup bootstraps a
-self-contained bun install to run itself if `bun` is not already present.
+A skill for your coding agent, built around situational awareness and progressive
+disclosure: start with one verb on one task, keep your existing skills and your
+existing logging, and replace any procedure you don't like.
+
+It is a *guide* coding skill, not a vibe coding one. The developer is back in the
+hot seat — you are not handing the agent a prompt and walking away, you are using
+it as a tool to work out what you actually want, and then applying the amount of
+autonomy the task deserves.
+
+Requirements: `git`, and a coding agent to run it in. It runs on node 24+ or on
+bun. With neither, the setup bootstraps a self-contained bun install into its own
+directory, so nothing has to be installed system-wide.
 
 #### Try it today
 
-Paste in your coding agent:
+It sets up under `/tmp` by default, so you can try it on one small task before you
+decide to commit to an install. Paste in your coding agent:
 
-> Help me set up the Thursday skill from <https://github.com/trythursday/thursday>.
+> I want to try the Thursday skill from https://github.com/trythursday/thursday.
+
+Then the only thing you have to remember:
+
+> Type `/thursday` at any time to start a Thursday session. Then vibe code like normal.
+
+Thursday does nothing until you invoke it. Until then, your workflow is exactly
+what it was.
+
+I would love to know what you think — type `/thfeedback` at any time.
 
 ### AI for All
 
@@ -47,11 +67,10 @@ small experiments that use generative intelligence in unconventional ways.
 
 - [Thing Refiner](./experiments/thing-refiner.jpg)
 
-## In this repo
+Optional fork extension: [local feedback records](docs/feedback-record.md).
+It collects no sessions and uploads nothing.
 
-Optional experiment: [local machine-readable feedback](./docs/feedback-record.md)
-provides a template/schema and validator. It collects no session data and uploads
-nothing; measurement and any later sharing are explicit operator choices.
+## In this repo
 
 - `.agents/skills/` - the Thursday root skill, and one generated skill per verb
 - `procedures/` - one concept per file; each carries its own description and undo

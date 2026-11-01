@@ -84,6 +84,31 @@ for (const runtime of availableRuntimes()) {
     test("still expands home-relative local sources", () => {
       preview("~/local-checkout", (home) => join(home, "local-checkout"));
     });
+
+    test("refresh without install flags uses the recorded custom personal directory", () => {
+      const home = mkdtempSync(join(tmpdir(), "thursday-refresh-test-"));
+      cleanups.push(() => rmSync(home, { recursive: true, force: true }));
+      const root = join(home, "install");
+      const personal = join(home, "custom-personal");
+      mkdirSync(join(root, "checkout", "procedures"), { recursive: true });
+      mkdirSync(join(root, "state"), { recursive: true });
+      mkdirSync(join(personal, "procedures"), { recursive: true });
+      const target = join(personal, "procedures", "example.md");
+      writeFileSync(join(root, "checkout", "procedures", "example.md"), "new shipped copy\n");
+      writeFileSync(target, "old recorded copy\n");
+      writeFileSync(join(root, "state", "install.json"), JSON.stringify({
+        personal,
+        procedures: [{ path: "example.md", sha256: createHash("sha256").update("old recorded copy\n").digest("hex") }],
+      }));
+      const result = Bun.spawnSync([runtime.command, ...runtime.run, setup,
+        "--home", home, "--root", root, "--refresh-shipped"], {
+        env: { ...process.env, HOME: home, USERPROFILE: home },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(readFileSync(target, "utf8")).toBe("new shipped copy\n");
+      expect(existsSync(join(home, "th"))).toBe(false);
+      expect(JSON.parse(readFileSync(join(root, "state", "install.json"), "utf8")).personal).toBe(personal);
+    });
   });
 }
 

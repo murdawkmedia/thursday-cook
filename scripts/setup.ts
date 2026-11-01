@@ -712,6 +712,13 @@ async function main() {
   }
 
   if (values["refresh-shipped"]) {
+    // Refresh is an update, so keep the personal location the install recorded.
+    // An explicit --personal still wins when the operator deliberately moves it.
+    const manifest = await readManifest(layout);
+    if (!values.personal && typeof manifest?.personal === "string") {
+      layout.personal = expand(manifest.personal, home);
+      layout.procedures = join(layout.personal, "procedures");
+    }
     await refreshShipped(layout, Boolean(values["dry-run"]));
     return 0;
   }

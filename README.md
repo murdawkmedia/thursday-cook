@@ -5,8 +5,9 @@ one useful change, verify the actual result, and report it in concise bullets.
 
 This is an open fork of [Thursday](https://github.com/trythursday/thursday).
 It adds the portable [thursday-cook skill](.agents/skills/thursday-cook/SKILL.md)
-and an optional local measurement CLI. Thursday's original skills, tools,
-procedures and experiments remain available; see [UPSTREAM.md](UPSTREAM.md).
+and an optional local measurement CLI. Thursday's core skills, tools and
+procedures remain available; see [UPSTREAM.md](UPSTREAM.md). The website and
+experiments now live in separate upstream repositories.
 
 ## Use the skill
 
@@ -62,7 +63,7 @@ Contribute broadly useful fixes upstream where they fit; Cook-specific workflow
 choices belong in this fork. The local-record tool is also proposed in
 [upstream PR11](https://github.com/trythursday/thursday/pull/11), currently under review.
 
-Reviewed upstream base: 4be9430 (v0.2.0 source). The shipped setup, resolver and
+Reviewed upstream base: 1c77b3b (repository split after v0.2.0). The shipped setup, resolver and
 skill generator now support Node24+ as well as Bun. The optional Cook measurement
 CLI still uses Bun. Procedure refresh uses recorded hashes and preserves edited
 or unrecorded copies. No full Thursday setup is needed for standalone Cook.
@@ -70,6 +71,17 @@ or unrecorded copies. No full Thursday setup is needed for standalone Cook.
 Run `bun test scripts` with both runtimes on PATH to exercise both. PowerShell
 bootstrap tests run when `pwsh` is available; they mock downloading and do not
 validate a real Windows install. Contributions and review are welcome.
+
+## Upstream repository boundaries
+
+- [Thursday core](https://github.com/trythursday/thursday): skills, procedures and tools.
+- [Website](https://github.com/trythursday/site): landing page, blog and deployment.
+- [Next Steps](https://github.com/trythursday/next-steps): the goal-planning experiment.
+- [Idea Expander](https://github.com/trythursday/idea-expander): idea expansion and Thing Refiner image.
+
+The fork follows the core split and retains its Git history. It does not deploy
+or mirror the extracted applications. Logs use the user's existing system;
+`tree-render.ts` requires an explicit Markdown input path.
 
 ## Attribution and license
 

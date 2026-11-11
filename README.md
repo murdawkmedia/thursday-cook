@@ -63,7 +63,7 @@ Contribute broadly useful fixes upstream where they fit; Cook-specific workflow
 choices belong in this fork. The local-record tool is also proposed in
 [upstream PR11](https://github.com/trythursday/thursday/pull/11), currently under review.
 
-Reviewed upstream base: 1c77b3b (repository split after v0.2.0). The shipped setup, resolver and
+Reviewed upstream base: f9a79e3 (v0.3.0). The shipped setup, resolver and
 skill generator now support Node24+ as well as Bun. The optional Cook measurement
 CLI still uses Bun. Procedure refresh uses recorded hashes and preserves edited
 or unrecorded copies. No full Thursday setup is needed for standalone Cook.
@@ -71,6 +71,13 @@ or unrecorded copies. No full Thursday setup is needed for standalone Cook.
 Run `bun test scripts` with both runtimes on PATH to exercise both. PowerShell
 bootstrap tests run when `pwsh` is available; they mock downloading and do not
 validate a real Windows install. Contributions and review are welcome.
+
+The v0.3.0 procedure resolver prints contents by default. Use `--find <file.md>`
+when a script needs the selected path; `--json <file.md>` retains path/source
+metadata, and no filename lists available procedures. Historical migration
+examples describe earlier versions: use `--find` for their path checks when
+applying them with v0.3.0. Cook keeps its own response format and verification
+requirements; the upstream guide's section caps do not change the Cook default.
 
 ## Upstream repository boundaries
 

@@ -128,8 +128,9 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
    auto-accept deliberately when they want a burst of autonomy.
 11. **Verify.** Read the config back, list the generated skills, and check that
     every skill pointing at a procedure resolves through the resolver:
-    `<install.runtime> <install.repo>/scripts/th-proc.ts <file>`. Exit 1 means it
-    is missing. Run it once per procedure; do not check both directories by hand.
+    `<install.runtime> <install.repo>/scripts/th-proc.ts --find <file>`. Exit 1
+    means it is missing. Run it once per procedure; do not check both directories
+    by hand.
 12. **Close the first run.** Tell them Thursday is meant to be inobtrusive and
     disrupt their workflow as little as possible. The only thing to remember:
     type `/thursday` at any time — mid-session, fresh session, brand-new
@@ -142,7 +143,7 @@ paths in the toml. Do not store `~` or `%VAR%` — they do not expand consistent
 # resolved per platform — see "Resolve paths first"
 [install]
 repo = "/home/sid/.local/share/thursday/checkout"
-version = "0.2.0"
+version = "0.3.0"
 skills = [
   "/home/sid/.commandcode/skills",
   "/home/sid/.config/opencode/skills",

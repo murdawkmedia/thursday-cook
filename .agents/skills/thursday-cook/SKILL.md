@@ -11,7 +11,10 @@ questions directly. Use the shortest complete path that fits the task.
 ## Small, bounded work
 
 - State the goal, change and success check briefly; one sentence is enough.
-  Reuse settled scope. Ask only when a material decision or authorization changes.
+  Reuse settled scope. Do not pause to ask permission for safe local steps
+  inside authorized work or to increment self-imposed retry/restart counters.
+  Ask only when a material decision, external action or authorization boundary
+  changes—and check local docs/code before asking facts you can look up.
 - Read the relevant definition, caller and current instructions. Reconcile new
   evidence with the actual repository/base; preserve unrelated work.
 - For a bug, reproduce it with a focused failing check. Reuse existing patterns;
@@ -21,8 +24,10 @@ questions directly. Use the shortest complete path that fits the task.
   checks in one tool round trip when safe; inspect every result. Keep dependent
   edits and red/green checks sequential. Repeat setup or a passing check only
   after a relevant change, failure or unresolved concern.
-- Verify the affected behavior, inspect the final change and stop. Add tests for
-  distinct risks; avoid duplicating equivalent cases or unrelated broad suites.
+- Clean up obvious task-owned scratch or build artifacts within your scope.
+  Verify the affected behavior end-to-end, inspect the final change and stop.
+  Add tests for distinct risks; avoid duplicating equivalent cases or unrelated
+  broad suites.
 
 ## Expand when the work needs it
 
@@ -45,13 +50,15 @@ request overrides it.
 Use targeted, size-limited reads and diagnostics. Narrow truncated output;
 avoid unchanged dumps. Keep bulk evidence at source with concise pointers.
 
-Verify the actual artifact/revision. Distinguish unit checks, consumer integration,
-deployment and acceptance. Close work only against its actual acceptance scope.
+Verify the actual artifact/revision and real user path (not just unit tests or
+mocks). Distinguish unit checks, consumer integration, deployment and
+acceptance. Close work only against its actual acceptance scope.
 
-Report the result, evidence and remaining blocker briefly. Record material
-decisions and continuation state in the existing handoff. For publication,
-inspect the exact payload/account, use supported generic examples and preserve
-private boundaries. Carry scoped approval forward.
+Report the result, evidence and remaining blocker briefly in plain language;
+avoid internal harness jargon. Record material decisions and continuation state
+in the existing handoff. For publication, inspect the exact payload/account, use
+supported generic examples and preserve private boundaries. Carry scoped
+approval forward.
 
 Measurements are opt-in: follow the [measurement guide](references/measurements.md).
 Keep counters and minimal window metadata in a chosen private home; logs/notes stay

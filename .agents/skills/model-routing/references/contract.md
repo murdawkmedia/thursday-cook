@@ -1,6 +1,7 @@
 # Selector contract, version 1
 
-Python 3 standard library only. `scripts/route.py` reads four local JSON files;
+Python 3 standard library only. `scripts/route.py` reads local JSON inputs
+(or inline CLI task flags plus `--fresh-state` for single-worker selection);
 it has no network, authentication, subprocess or write path. Exit codes: 0 for
 `parent`/`selected`, 2 for invalid inputs, 3 for a valid blocked decision.
 Duplicate JSON keys, unknown/missing fields, nonfinite numbers, wrong types and
@@ -9,8 +10,11 @@ The examples give the complete required fields; timestamps need a timezone.
 
 `catalog.models` entries identify an exact provider instance/model and shared
 account group. Capability limits are integers or null. `tools` may be null.
-`enabled` and `available` are explicit booleans; metadata presence alone is not a
-health test. `options` maps the orchestrator's exact field names to allowed string
+`output_tokens: null` is permitted for non-metered (`free`/`subscription`)
+routes when `context_tokens` covers the requested input plus output tokens, and
+sets `output_limit_unverified=true` in the returned decision; metered routes
+still require a verified non-null `output_tokens` cap. `enabled` and
+`available` are explicit booleans; metadata presence alone is not a health test. `options` maps the orchestrator's exact field names to allowed string
 or boolean values. Unknown billing cannot dispatch. `subscription` means current
 included entitlement has been verified, not merely that the model is in a menu.
 `upper_bound_usd` and `spend_cap_enforced=true` are needed for authorized metered
@@ -63,8 +67,10 @@ The parent must redact and review the actual outgoing prompt.
 `task.pin` restricts selection to one exact route and options. No substitution.
 Unpinned routes follow the role preference order, with all failed eligibility
 reasons retained. A selected result contains only T3 target provider/model/options,
-`role=general`, `mode=async`, acceptance checks and advisory bookkeeping including
-`billing` and `reserved_usd`. Reserve the latter before metered execution; its
+mapped T3 `role` (`code`/`implementation`→`implementation`, `review`→`review`,
+`research`→`research`, `design`/`plan`→`design`, `test`→`test`, others→`general`),
+`mode=async`, acceptance checks and advisory bookkeeping including
+`billing`, `reserved_usd` and `output_limit_unverified`. Reserve the latter before metered execution; its
 positive bound applies to the complete attempt. No T3 spend cap is supplied by
 this selector: without an independently verified enforcer the flag stays false
 and metered routes remain blocked. Add no unsupported tool arguments.

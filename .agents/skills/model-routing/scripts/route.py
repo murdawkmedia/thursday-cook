@@ -11,6 +11,15 @@ import sys
 
 
 LEVELS = {'metadata': 0, 'smoke': 1, 'role-validated': 2}
+T3_ROLES = {
+    'code': 'implementation',
+    'implementation': 'implementation',
+    'review': 'review',
+    'research': 'research',
+    'design': 'design',
+    'plan': 'design',
+    'test': 'test',
+}
 
 
 def require(condition, message):
@@ -228,7 +237,8 @@ def select(catalog, profile, task, state, now=None):
             rejected.append({**ref, 'reasons': ['not in catalog']})
             continue
         if any(failed['provider_instance'] == ref['provider_instance'] and failed['model'] == ref['model']
-               and failed.get('options', {}) == ref.get('options', {}) for failed in state['failed_routes']):
+               and ('options' not in failed or failed['options'] == ref.get('options', {}))
+               for failed in state['failed_routes']):
             reasons.append('route/settings already failed in this job')
         if not model['enabled'] or not model['available']:
             reasons.append('disabled or availability unverified')
@@ -251,7 +261,10 @@ def select(catalog, profile, task, state, now=None):
             reasons.append('context limit unknown or insufficient')
         if model.get('input_tokens_limit') is not None and task['input_tokens'] > model['input_tokens_limit']:
             reasons.append('input limit insufficient')
-        if model.get('output_tokens') is None or task['output_tokens'] > model['output_tokens']:
+        if model.get('output_tokens') is None:
+            if model['billing'] == 'metered':
+                reasons.append('output limit unknown or insufficient')
+        elif task['output_tokens'] > model['output_tokens']:
             reasons.append('output limit unknown or insufficient')
         if not any(record['role'] == task['role'] and record['options'] == ref.get('options', {})
                    and LEVELS[record['level']] >= LEVELS[task['min_evidence']]
@@ -283,10 +296,12 @@ def select(catalog, profile, task, state, now=None):
         return {'status': 'selected', 'dispatch_fields': {
                     'target': {'providerInstanceId': model['provider_instance'], 'model': model['model'], 'options': options,
                                **({'environmentId': model['environment_id']} if model.get('environment_id') else {})},
-                    'role': 'general', 'mode': 'async'},
+                    'role': T3_ROLES.get(task['role'], 'general'), 'mode': 'async'},
                 'account_group': model['account_group'], 'requested_tokens': requested,
                 'billing': billing, 'reserved_usd': float(model['upper_bound_usd']) if billing == 'metered' else 0,
-                'provider_token_limit_enforced': False, 'verification': task['acceptance'],
+                'provider_token_limit_enforced': False,
+                'output_limit_unverified': model.get('output_tokens') is None,
+                'verification': task['acceptance'],
                 'rejected': rejected,
                 'reason': 'First eligible route in the task role preference order. Reserve and recheck before dispatch.'}
     return {'status': 'blocked', 'reason': 'Pinned route unavailable or no eligible preferred route.', 'rejected': rejected}
@@ -308,14 +323,111 @@ def load_json(path):
         raise ValueError('invalid decimal number') from exc
 
 
+def parse_route_spec(spec, option_pairs=()):
+    require(':' in spec, 'route spec must use provider_instance:model format')
+    provider, model_name = spec.split(':', 1)
+    ref = {'provider_instance': provider.strip(), 'model': model_name.strip()}
+    if option_pairs:
+        opts = {}
+        for pair in option_pairs:
+            require('=' in pair, 'option must use key=value format')
+            key, raw_val = pair.split('=', 1)
+            key = key.strip()
+            val = raw_val.strip()
+            if val == 'true':
+                opts[key] = True
+            elif val == 'false':
+                opts[key] = False
+            else:
+                opts[key] = val
+        ref['options'] = opts
+    return ref
+
+
+def build_inline_task(args):
+    pin = parse_route_spec(args.pin, args.pin_option) if args.pin else None
+    return {
+        'schema_version': 1,
+        'kind': args.kind,
+        'role': args.role,
+        'data_class': args.data_class,
+        'input_modalities': args.modality or ['text'],
+        'requires_tools': not args.no_tools,
+        'requires_sudo': args.requires_sudo,
+        'contains_credentials': args.contains_credentials,
+        'paid_authorized': False,
+        'input_tokens': args.input_tokens,
+        'output_tokens': args.output_tokens,
+        'max_paid_usd': 0,
+        'min_evidence': args.min_evidence,
+        'acceptance': args.acceptance or [],
+        'required_host': args.required_host,
+        'pin': pin,
+    }
+
+
+def build_fresh_state(profile, now_iso, failed_specs):
+    require(isinstance(profile, dict) and isinstance(profile.get('account_limits'), dict),
+            'profile.account_limits must be an object for --fresh-state')
+    failed_routes = []
+    for spec in failed_specs or []:
+        failed_routes.append(parse_route_spec(spec))
+    return {
+        'schema_version': 1,
+        'observed_at': now_iso,
+        'workers': 0,
+        'attempts': len(failed_routes),
+        'requested_tokens': 0,
+        'spent_usd': 0,
+        'accounts': {
+            account: {'observed_at': now_iso, 'in_flight': 0, 'throttled': False}
+            for account in profile['account_limits']
+        },
+        'failed_routes': failed_routes,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ('catalog', 'profile', 'task', 'state'):
-        parser.add_argument('--' + name, required=True, type=Path)
+    parser.add_argument('--catalog', required=True, type=Path)
+    parser.add_argument('--profile', required=True, type=Path)
+    parser.add_argument('--task', type=Path, help='Task JSON file (mutually exclusive with --role)')
+    parser.add_argument('--state', type=Path, help='State JSON file (mutually exclusive with --fresh-state)')
     parser.add_argument('--now', help='Explicit timezone-bearing timestamp for reproducible evaluation')
+    # Inline single-worker task flags
+    parser.add_argument('--role', help='Inline task role (e.g. code, review, research, extract, plan, docs, triage)')
+    parser.add_argument('--kind', choices=('work', 'quick'), default='work')
+    parser.add_argument('--data-class', default='public', help='Data class (default: public)')
+    parser.add_argument('--input-tokens', type=int, default=4000)
+    parser.add_argument('--output-tokens', type=int, default=2000)
+    parser.add_argument('--acceptance', action='append', help='Independent acceptance check (repeatable)')
+    parser.add_argument('--no-tools', action='store_true', help='Task does not require tool calling')
+    parser.add_argument('--modality', action='append', help='Required input modality (repeatable; default: text)')
+    parser.add_argument('--min-evidence', default='smoke', choices=tuple(LEVELS))
+    parser.add_argument('--required-host', default=None)
+    parser.add_argument('--pin', help='Explicit route pin as provider_instance:model')
+    parser.add_argument('--pin-option', action='append', default=[], help='Option for --pin as key=value (repeatable)')
+    parser.add_argument('--requires-sudo', action='store_true')
+    parser.add_argument('--contains-credentials', action='store_true')
+    # Inline fresh state flags
+    parser.add_argument('--fresh-state', action='store_true',
+                        help='Synthesize a clean zero-usage state snapshot at --now (or current UTC)')
+    parser.add_argument('--failed', action='append', default=[],
+                        help='Route already failed in this job as provider_instance:model (repeatable with --fresh-state)')
     args = parser.parse_args()
     try:
-        decision = select(*(load_json(getattr(args, name)) for name in ('catalog', 'profile', 'task', 'state')), now=args.now)
+        require(bool(args.task) != bool(args.role), 'provide exactly one of --task or --role')
+        require(bool(args.state) != bool(args.fresh_state), 'provide exactly one of --state or --fresh-state')
+        if args.failed:
+            require(args.fresh_state, '--failed requires --fresh-state')
+        if args.pin_option:
+            require(bool(args.pin), '--pin-option requires --pin')
+        catalog = load_json(args.catalog)
+        profile = load_json(args.profile)
+        now_iso = args.now if args.now is not None else datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        task = load_json(args.task) if args.task else build_inline_task(args)
+        state = load_json(args.state) if args.state else build_fresh_state(profile, now_iso, args.failed)
+        decision = select(catalog, profile, task, state, now=args.now if args.now is not None else now_iso)
     except (ValueError, OSError, KeyError, TypeError, OverflowError, RecursionError) as exc:
         print(json.dumps({'status': 'invalid', 'reason': str(exc)}))
         return 2

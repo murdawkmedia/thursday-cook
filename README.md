@@ -36,6 +36,30 @@ existing scoped authorization; neither skill grants new permission.
 The original Thursday setup installs its broader framework. Cook's standalone
 installation is the selected folder above; using Cook requires no full setup.
 
+## Optional model routing
+
+Install **.agents/skills/model-routing/** alongside Cook when you want bounded
+multi-provider workers. It adds a generic workflow and an offline Python 3
+selector; it does not install models, configure providers or start services.
+Keep your actual provider catalog, account policy and evaluation receipts private.
+The included JSON files are synthetic examples, not live model recommendations.
+
+```sh
+python3 .agents/skills/model-routing/scripts/route.py \
+  --catalog .agents/skills/model-routing/examples/catalog.json \
+  --profile .agents/skills/model-routing/examples/profile.json \
+  --task .agents/skills/model-routing/examples/task.json \
+  --state .agents/skills/model-routing/examples/state.json \
+  --now 2026-11-21T12:00:00Z
+python3 -m unittest discover -s .agents/skills/model-routing/tests -v
+```
+
+The selector checks eligibility before preference and preserves explicit pins.
+The parent still reviews prompts, reserves budgets, calls the orchestrator and
+verifies results. Requested token budgets are advisory; paid routes need an
+independent spend enforcer. See the [routing contract](.agents/skills/model-routing/references/contract.md).
+This optional workflow makes no general quality, cost or speed claim.
+
 ## Measure carefully
 
 The optional CLI emits a synthetic template or validates one supplied fixed

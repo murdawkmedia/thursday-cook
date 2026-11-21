@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "catalog_max_age_hours": 24,
+  "evidence_max_age_days": 30,
+  "max_workers": 3,
+  "max_attempts": 2,
+  "max_requested_tokens": 20000,
+  "max_paid_usd": 0,
+  "reserved_routes": [],
+  "account_limits": {
+    "free-account": 1,
+    "plan-account": 2
+  },
+  "data_policy": {
+    "free": {
+      "data_classes": [
+        "public",
+        "sanitized"
+      ],
+      "localities": [
+        "cloud",
+        "local",
+        "owned-remote"
+      ]
+    },
+    "plan": {
+      "data_classes": [
+        "public",
+        "sanitized"
+      ],
+      "localities": [
+        "cloud",
+        "local",
+        "owned-remote"
+      ]
+    }
+  },
+  "role_preferences": {
+    "extract": [
+      {
+        "provider_instance": "free",
+        "model": "small",
+        "options": {
+          "variant": "low"
+        }
+      },
+      {
+        "provider_instance": "plan",
+        "model": "strong"
+      }
+    ],
+    "code": [
+      {
+        "provider_instance": "plan",
+        "model": "strong"
+      },
+      {
+        "provider_instance": "free",
+        "model": "small"
+      }
+    ]
+  }
+}

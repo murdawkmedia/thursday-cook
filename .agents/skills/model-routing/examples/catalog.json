@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-21T12:00:00Z",
+  "models": [
+    {
+      "provider_instance": "free",
+      "model": "small",
+      "account_group": "free-account",
+      "enabled": true,
+      "available": true,
+      "billing": "free",
+      "data_classes": [
+        "public",
+        "sanitized"
+      ],
+      "locality": "cloud",
+      "host": null,
+      "inputs": [
+        "text"
+      ],
+      "tools": true,
+      "context_tokens": 32768,
+      "output_tokens": 4096,
+      "options": {
+        "variant": [
+          "low",
+          "high"
+        ]
+      },
+      "evidence": [
+        {
+          "level": "smoke",
+          "observed_at": "2026-11-21T12:00:00Z",
+          "role": "extract",
+          "options": {}
+        },
+        {
+          "level": "smoke",
+          "observed_at": "2026-11-21T12:00:00Z",
+          "role": "extract",
+          "options": {
+            "variant": "low"
+          }
+        },
+        {
+          "level": "smoke",
+          "observed_at": "2026-11-21T12:00:00Z",
+          "role": "code",
+          "options": {}
+        },
+        {
+          "level": "smoke",
+          "observed_at": "2026-11-21T12:00:00Z",
+          "role": "code",
+          "options": {
+            "variant": "low"
+          }
+        }
+      ]
+    },
+    {
+      "provider_instance": "plan",
+      "model": "strong",
+      "account_group": "plan-account",
+      "enabled": true,
+      "available": true,
+      "billing": "subscription",
+      "data_classes": [
+        "public",
+        "sanitized"
+      ],
+      "locality": "cloud",
+      "host": null,
+      "inputs": [
+        "text"
+      ],
+      "tools": true,
+      "context_tokens": 32768,
+      "output_tokens": 4096,
+      "options": {
+        "variant": [
+          "low",
+          "high"
+        ]
+      },
+      "evidence": [
+        {
+          "level": "smoke",
+          "observed_at": "2026-11-21T12:00:00Z",
+          "role": "extract",
+          "options": {}
+        },
+        {
+          "level": "smoke",
+          "observed_at": "2026-11-21T12:00:00Z",
+          "role": "extract",
+          "options": {
+            "variant": "low"
+          }
+        },
+        {
+          "level": "smoke",
+          "observed_at": "2026-11-21T12:00:00Z",
+          "role": "code",
+          "options": {}
+        },
+        {
+          "level": "smoke",
+          "observed_at": "2026-11-21T12:00:00Z",
+          "role": "code",
+          "options": {
+            "variant": "low"
+          }
+        }
+      ]
+    }
+  ]
+}

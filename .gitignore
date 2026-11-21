@@ -40,3 +40,7 @@ personal/
 
 # throwaway workspace at any level; never committed
 scratch/
+
+# Python skill verification caches
+__pycache__/
+*.py[cod]

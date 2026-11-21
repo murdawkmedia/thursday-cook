@@ -439,6 +439,67 @@ class RoutingTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(json.loads(result.stdout)['status'], 'selected')
 
+    def test_role_maps_to_typed_t3_delegate_roles(self):
+        for role, expected in [('code', 'implementation'), ('review', 'review'),
+                               ('research', 'research'), ('plan', 'design'),
+                               ('test', 'test'), ('extract', 'general')]:
+            self.setUp()
+            self.profile['role_preferences'][role] = [{'provider_instance': 'plan', 'model': 'strong'}]
+            self.catalog['models'][1]['evidence'].append(
+                {'level': 'smoke', 'observed_at': NOW, 'role': role, 'options': {}})
+            self.task['role'] = role
+            result = self.decide()
+            self.assertEqual(result['status'], 'selected', role)
+            self.assertEqual(result['dispatch_fields']['role'], expected)
+
+    def test_unknown_output_limit_allowed_for_non_metered_blocked_for_metered(self):
+        self.catalog['models'][1]['output_tokens'] = None
+        self.task['role'] = 'code'
+        result = self.decide()
+        self.assertEqual(result['status'], 'selected')
+        self.assertTrue(result['output_limit_unverified'])
+        # Metered route with unknown output_tokens must still block
+        self.catalog['models'] = [self.catalog['models'][1]]
+        self.catalog['models'][0].update(billing='metered', upper_bound_usd=0.05, spend_cap_enforced=True)
+        self.profile['max_paid_usd'] = self.task['max_paid_usd'] = 0.5
+        self.task['paid_authorized'] = True
+        self.assertBlocked()
+
+    def test_cli_inline_role_and_fresh_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cat_p = Path(tmp) / 'catalog.json'
+            prof_p = Path(tmp) / 'profile.json'
+            cat_p.write_text(json.dumps(self.catalog))
+            prof_p.write_text(json.dumps(self.profile))
+            args = [sys.executable, '-B', str(SCRIPT),
+                    '--catalog', str(cat_p), '--profile', str(prof_p),
+                    '--role', 'code', '--data-class', 'public',
+                    '--acceptance', 'Unit tests pass', '--fresh-state', '--now', NOW]
+            res = subprocess.run(args, capture_output=True, text=True, timeout=10)
+            self.assertEqual(res.returncode, 0, res.stderr)
+            out = json.loads(res.stdout)
+            self.assertEqual(out['status'], 'selected')
+            self.assertEqual(out['dispatch_fields']['target']['model'], 'strong')
+            self.assertEqual(out['dispatch_fields']['role'], 'implementation')
+            # Excluding failed route falls back to next eligible route (including routes with options)
+            res2 = subprocess.run(args + ['--failed', 'plan:strong'], capture_output=True, text=True, timeout=10)
+            self.assertEqual(res2.returncode, 0, res2.stderr)
+            self.assertEqual(json.loads(res2.stdout)['dispatch_fields']['target']['model'], 'small')
+            # Excluding failed route without options matches a preferred route that has options
+            ext_args = [sys.executable, '-B', str(SCRIPT),
+                        '--catalog', str(cat_p), '--profile', str(prof_p),
+                        '--role', 'extract', '--data-class', 'public',
+                        '--acceptance', 'Check fixture', '--fresh-state', '--now', NOW,
+                        '--failed', 'free:small']
+            res_opt = subprocess.run(ext_args, capture_output=True, text=True, timeout=10)
+            self.assertEqual(res_opt.returncode, 0, res_opt.stderr)
+            self.assertEqual(json.loads(res_opt.stdout)['dispatch_fields']['target']['model'], 'strong')
+            # Passing both --task and --role fails closed with exit 2
+            task_p = Path(tmp) / 'task.json'
+            task_p.write_text(json.dumps(self.task))
+            res3 = subprocess.run(args + ['--task', str(task_p)], capture_output=True, text=True, timeout=10)
+            self.assertEqual(res3.returncode, 2)
+
 
 if __name__ == '__main__':
     unittest.main()

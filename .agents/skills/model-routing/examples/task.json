@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "kind": "work",
+  "role": "extract",
+  "data_class": "public",
+  "input_modalities": [
+    "text"
+  ],
+  "requires_tools": false,
+  "requires_sudo": false,
+  "contains_credentials": false,
+  "input_tokens": 512,
+  "output_tokens": 1024,
+  "min_evidence": "smoke",
+  "acceptance": [
+    "Check all labels against the supplied fixture."
+  ],
+  "max_paid_usd": 0,
+  "paid_authorized": false,
+  "required_host": null,
+  "pin": null
+}

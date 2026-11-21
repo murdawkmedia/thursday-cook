@@ -30,6 +30,10 @@ For unclear failures, wider dependencies or changed scope, take one bounded
 experiment at a time and load the relevant existing specialist. Do not restate
 its full workflow. Delegate only when authorized.
 
+When installed, use the `model-routing` skill for authorized multi-model work
+to select bounded workers from verified capabilities, account limits and task
+evidence. Keep quick answers in the parent; verify each worker's actual result.
+
 ## Bounded behavior
 
 When useful, agree how to proceed: reflect only, confirm each step, run an

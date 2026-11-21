@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-21T12:00:00Z",
+  "workers": 0,
+  "attempts": 0,
+  "requested_tokens": 0,
+  "spent_usd": 0,
+  "failed_routes": [],
+  "accounts": {
+    "free-account": {
+      "observed_at": "2026-11-21T12:00:00Z",
+      "in_flight": 0,
+      "throttled": false
+    },
+    "plan-account": {
+      "observed_at": "2026-11-21T12:00:00Z",
+      "in_flight": 0,
+      "throttled": false
+    }
+  }
+}

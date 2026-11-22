@@ -6,24 +6,21 @@ description: Use for substantive tasks when Thursday Cook is requested or config
 # Thursday Cook
 
 Follow host/project instructions and existing authorization. Answer quick
-questions directly. Use the shortest complete path that fits the task.
+questions directly. Use the shortest complete path.
 
 ## Small, bounded work
 
-- State the goal, change and success check briefly; one sentence is enough.
-  Reuse settled scope. Do not pause to ask permission for safe local steps
-  inside authorized work or to increment self-imposed retry/restart counters.
-  Ask only when a material decision, external action or authorization boundary
-  changes—and check local docs/code before asking facts you can look up.
+- State the goal, change and success check in one sentence. Within settled
+  scope, proceed with safe local steps and retry counts. Ask only about material
+  decisions, external actions or changed authority. Check local docs/code for facts first.
 - Read the relevant definition, caller and current instructions. Reconcile new
   evidence with the actual repository/base; preserve unrelated work.
 - For a bug, reproduce it with a focused failing check. Reuse existing patterns;
   make the smallest complete change, including affected consumers and fixtures.
   Preserve validation, error handling, security and accessibility.
-- Prepare the environment once. Batch independent reads and final diff/status
-  checks in one tool round trip when safe; inspect every result. Keep dependent
-  edits and red/green checks sequential. Repeat setup or a passing check only
-  after a relevant change, failure or unresolved concern.
+- Set up once. Batch independent reads and final diff/status checks when safe
+  and inspect each result. Sequence dependent edits and red/green checks.
+  Repeat setup or passing checks only for changes, failures or unresolved concerns.
 - Clean up obvious task-owned scratch or build artifacts within your scope.
   Verify the affected behavior end-to-end, inspect the final change and stop.
   Add tests for distinct risks; avoid duplicating equivalent cases or unrelated
@@ -54,11 +51,16 @@ Verify the actual artifact/revision and real user path (not just unit tests or
 mocks). Distinguish unit checks, consumer integration, deployment and
 acceptance. Close work only against its actual acceptance scope.
 
-Report the result, evidence and remaining blocker briefly in plain language;
-avoid internal harness jargon. Record material decisions and continuation state
-in the existing handoff. For publication, inspect the exact payload/account, use
-supported generic examples and preserve private boundaries. Carry scoped
-approval forward.
+Check live processes, open handles, symlink targets and active receipts before
+classifying a service, timer or job as leftover or duplicate, or retiring it.
+
+For CoW or snapshot audits, distinguish `df` usage from `du --apparent-size`.
+Expand untracked Git counts. Before approved deletion, say whether backups
+are archive records or support exact-ID restore.
+
+Report results, evidence and blockers plainly. Record decisions and next steps
+in the handoff. For publication, check the exact payload and account, use
+supported generic examples, protect private data and carry scoped approval forward.
 
 Measurements are opt-in: follow the [measurement guide](references/measurements.md).
 Keep counters and minimal window metadata in a chosen private home; logs/notes stay

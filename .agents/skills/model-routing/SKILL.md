@@ -19,6 +19,8 @@ session, and choose directly without authoring scratch JSON files:
 
 - Prefer suitable free or low-cost capacity for routine extraction, triage,
   research or async offload when data boundaries and reliability fit.
+  Before using an external free tier, inspect the actual prompts, scripts or
+  code to verify what data the work can access. Task titles alone are insufficient.
 - Use stronger included subscription models for harder coding, debugging,
   independent review or private/internal workspace tasks permitted on primary
   harnesses.
